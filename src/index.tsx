@@ -76,8 +76,15 @@ function getPage(active: string): string {
     .logo-mark {
       display: flex; flex-direction: column; align-items: flex-start; gap: 0;
     }
-    .logo-svg-wrap {
-      display: block; width: 112px; height: auto;
+    .logo-img {
+      display: block;
+      width: 108px;
+      height: auto;
+      /* The logo has a white background — use mix-blend-mode to make it
+         appear naturally on the dark sidebar: white bg becomes transparent,
+         magenta stays vivid */
+      mix-blend-mode: screen;
+      filter: brightness(1.05) saturate(1.1);
     }
     .logo-sub {
       font-size: 9px; font-weight: 500; letter-spacing: 2px;
@@ -588,26 +595,11 @@ function getPage(active: string): string {
   <aside class="sidebar">
     <div class="sidebar-logo">
       <div class="logo-mark">
-        <!-- Astro corporate logo — magenta wordmark with wave swoosh -->
-        <svg class="logo-svg-wrap" viewBox="0 0 220 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Astro">
-          <!-- wordmark: astro in bold rounded custom sans -->
-          <text
-            x="8" y="62"
-            font-family="'Inter', 'Helvetica Neue', Arial, sans-serif"
-            font-size="68"
-            font-weight="900"
-            fill="#E2007A"
-            letter-spacing="-2"
-          >astro</text>
-          <!-- wave swoosh beneath text, asymmetric S-curve matching brand logo -->
-          <path
-            d="M 8 80 C 30 72, 60 90, 100 78 C 140 66, 170 84, 212 72"
-            stroke="#E2007A"
-            stroke-width="5"
-            stroke-linecap="round"
-            fill="none"
-          />
-        </svg>
+        <img
+          src="/static/astro-logo.png"
+          alt="Astro"
+          class="logo-img"
+        />
       </div>
       <div class="logo-sub">Management AI</div>
     </div>
