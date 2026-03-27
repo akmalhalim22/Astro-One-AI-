@@ -70,30 +70,18 @@ function getPage(active: string): string {
       z-index: 10;
     }
     .sidebar-logo {
-      padding: 28px 24px 24px;
+      padding: 22px 20px 20px;
       border-bottom: 1px solid var(--border);
     }
     .logo-mark {
       display: flex; flex-direction: column; align-items: flex-start; gap: 0;
     }
-    .logo-astro {
-      font-size: 22px; font-weight: 800; letter-spacing: -0.5px; color: #fff;
-      line-height: 1;
-    }
-    .logo-swoosh {
-      width: 60px; height: 3px;
-      background: linear-gradient(90deg, #fff 60%, transparent);
-      border-radius: 2px;
-      margin: 3px 0 2px;
-      opacity: 0.9;
-    }
-    .logo-one {
-      font-size: 22px; font-weight: 800; letter-spacing: -0.5px;
-      color: var(--magenta); line-height: 1;
+    .logo-svg-wrap {
+      display: block; width: 112px; height: auto;
     }
     .logo-sub {
       font-size: 9px; font-weight: 500; letter-spacing: 2px;
-      color: var(--text-muted); text-transform: uppercase; margin-top: 6px;
+      color: var(--text-muted); text-transform: uppercase; margin-top: 7px;
     }
     .sidebar-nav { flex: 1; padding: 16px 12px; overflow-y: auto; }
     .nav-section-label {
@@ -600,9 +588,26 @@ function getPage(active: string): string {
   <aside class="sidebar">
     <div class="sidebar-logo">
       <div class="logo-mark">
-        <span class="logo-astro">astro</span>
-        <div class="logo-swoosh"></div>
-        <span class="logo-one">one</span>
+        <!-- Astro corporate logo — magenta wordmark with wave swoosh -->
+        <svg class="logo-svg-wrap" viewBox="0 0 220 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Astro">
+          <!-- wordmark: astro in bold rounded custom sans -->
+          <text
+            x="8" y="62"
+            font-family="'Inter', 'Helvetica Neue', Arial, sans-serif"
+            font-size="68"
+            font-weight="900"
+            fill="#E2007A"
+            letter-spacing="-2"
+          >astro</text>
+          <!-- wave swoosh beneath text, asymmetric S-curve matching brand logo -->
+          <path
+            d="M 8 80 C 30 72, 60 90, 100 78 C 140 66, 170 84, 212 72"
+            stroke="#E2007A"
+            stroke-width="5"
+            stroke-linecap="round"
+            fill="none"
+          />
+        </svg>
       </div>
       <div class="logo-sub">Management AI</div>
     </div>
