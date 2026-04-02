@@ -1,58 +1,141 @@
-# Astro One Management AI Assistant
-## Unified Digital Performance Hub
+# Astro One — Management AI Assistant
 
-### Project Overview
-- **Name**: Astro One Management AI Assistant
-- **Goal**: Unified web dashboard consolidating Pre-Sales, Post-Sales, Ads, and Traffic performance data
-- **Design**: Premium dark-mode UI — deep black background, magenta/pink accents, white typography, rounded cards
-- **Stack**: Hono (TypeScript) + Cloudflare Workers + Chart.js + FontAwesome + Inter font
+## Overview
+A production-ready, password-protected digital performance dashboard for Astro Malaysia Holdings Berhad. Built on Cloudflare Pages + Hono edge runtime.
 
-### Live URL
-- **Sandbox**: https://3000-igbzbjyh2r6a9ppb7mcvf-cbeee0f9.sandbox.novita.ai/home
+## 🌐 Live URLs
+- **Production**: https://astro-one-ai.pages.dev
+- **Login**: https://astro-one-ai.pages.dev/login
+- **Settings**: https://astro-one-ai.pages.dev/settings (admin only)
 
-### Screens (15 Routes)
-| Route | Screen | Description |
-|-------|--------|-------------|
-| `/home` | Home | Unified overview, KPIs, AI flags, data source status |
-| `/overview` | Overview | Full metrics dashboard with charts |
-| `/ai` | Ask AI | Chat interface with seeded prompts, structured AI responses |
-| `/digest` | Daily Digest | Executive AI-curated brief, score ring, recommendations |
-| `/pipeline` | Pipeline Health | Sales funnel, at-risk deals, deal table |
-| `/clients` | Client Intelligence | Top 10 clients, health scores, recovery targets |
-| `/salesperf` | Sales Performance | Rep leaderboard, activity analysis, target tracking |
-| `/revenue` | Revenue Performance | YTD revenue, product breakdown, forecasting |
-| `/campaign` | Campaign Performance | Active campaigns, ROI analysis |
-| `/ads` | Ads Performance | Google Ads, Meta, TikTok — live metrics |
-| `/portals` | Portals Traffic | GA4 sessions, engagement, fill rate by portal |
-| `/social` | Sprout Social | Reach, impressions, engagement by platform |
-| `/upload` | Manual Upload | CSV/Excel → Google Sheets pipeline |
-| `/apiconn` | API Connections | GAM, GA4, BigQuery, TikTok, Sprout status |
-| `/setup` | Setup Guide | Integration docs, code examples, data flow |
+## 🔐 Login Credentials
+| Field | Value |
+|-------|-------|
+| Email | `analytics@kult.my` |
+| Password | `Astro@2025!` |
+| Session | 8 hours, HttpOnly + Secure cookie |
 
-### Data Architecture
-- **Central Warehouse**: Google Sheets (manual uploads + API sync targets)
-- **Auto-Ingestion**: GA4 API, Google Ads Manager API, BigQuery, TikTok Ads API
-- **Manual Upload**: CSV/Excel with auto-clean (deduplication, date format, currency)
-- **Scheduler**: Cron-based daily/weekly syncs with Slack/Email alerts
+## ✅ Features Implemented
 
-### Ask AI Seeded Prompts
-- "Which deals above RM200K are at risk this month?"
-- "Show top 10 clients by YTD revenue"
-- "Which salespeople have low activity relative to pipeline?"
-- "What changed in pipeline versus last week?"
-- "Which inactive clients have the highest recovery potential?"
-- "Which ad campaign has the best ROAS this month?"
-- "Compare Google vs TikTok ad spend efficiency"
+### Authentication
+- Password-protected login with PBKDF2 hashed passwords
+- Session tokens stored in Cloudflare KV (8h TTL)
+- Secure HttpOnly cookies (Secure flag on HTTPS, Lax SameSite)
+- Multi-user support: admin, editor, viewer roles
+- Settings page for user management (admin only)
 
-### Design System
-- Background: `#060610` (deep black)
-- Primary accent: `#e2007a` (magenta)
-- Gradient: `linear-gradient(135deg, #e2007a, #ff4db8)`
-- Typography: Inter (300–900 weight)
-- Cards: 14px border-radius, subtle borders, hover effects
-- Charts: Chart.js with gradient fills, dark tooltips
+### Dashboard Screens (all routes return 200)
+| Path | Screen |
+|------|--------|
+| `/home` | Home Dashboard |
+| `/overview` | All-metrics Overview |
+| `/ai` | Ask AI (chat interface) |
+| `/digest` | Executive Daily Digest |
+| `/pipeline` | Pipeline Health |
+| `/clients` | Client Intelligence |
+| `/salesperf` | Sales Performance |
+| `/revenue` | Revenue Performance |
+| `/campaign` | Campaign Performance |
+| `/ads` | Ads Performance |
+| `/portals` | Portals Traffic |
+| `/social` | Sprout Social |
+| `/upload` | Manual Data Upload |
+| `/apiconn` | API Connections |
+| `/setup` | Setup Guide |
+| `/blend` | Data Blend Builder |
+| `/reportai` | Report AI (chat → PPTX/PDF) |
+| `/canvas` | Drag-and-drop Canvas |
+| `/settings` | Platform Settings (admin) |
 
-### Deployment
-- **Platform**: Cloudflare Pages (via Wrangler)
-- **Status**: ✅ Running in Sandbox
-- **Last Updated**: March 2025
+### Google Sheets Integration
+- Service Account JSON auth (no npm googleapis — pure Web Crypto + Fetch)
+- `GET /api/data/:section` — reads live data from configured sheet tabs
+- `GET /api/kpis` — aggregates pipeline + revenue totals
+- `POST /api/upload` — appends CSV rows to a sheet tab
+- `GET /api/settings/config` — returns saved config (sheet ID, tab mapping, creds status)
+- Settings screen auto-loads saved config on page open
+
+### Report AI Tab (`/reportai`)
+- Chat-style prompt interface
+- Suggested prompt pills
+- 6-page report preview with charts + KPIs
+- Live Revenue vs Target bar + Product Mix donut (Chart.js)
+- Export buttons (PPTX / PDF)
+- Save / rename / rerun controls
+- Data source panel (Google Sheets, GA4, Ads, TikTok, Sprout)
+
+### Canvas Tab (`/canvas`)
+- Drag-and-drop widget toolbox
+- Pre-populated with 5 widgets (pivot, bar, line, donut, KPI card)
+- Column browser for all 7 data sources
+- Per-widget type switcher + config panel
+- Save / clear / rename / auto-layout / export
+
+### Data Blend Sub-feature (`/blend`)
+- Blend Builder: Source A + B + optional Source C
+- Join type selector (left / inner / full outer)
+- Dynamic column display
+- Computed columns (revenue_per_session, engagement_x_revenue)
+- Schema preview + saved blends list
+- Preview table (5 rows) + CSV export
+
+## 🔧 How to Connect Your Google Sheets
+
+1. Visit **https://astro-one-ai.pages.dev/settings** (login with admin credentials)
+2. **Google Sheets tab → Service Account Credentials**:
+   - Paste your Google Service Account JSON key
+   - Click **Save to Cloudflare Secrets**
+3. **Spreadsheet Configuration**:
+   - Enter your Spreadsheet ID (from the URL)
+   - Map tab names to dashboard sections
+   - Click **Auto-Detect Tabs** to fill automatically
+   - Click **Save Sheet Configuration**
+4. Click **Test Connection** to verify
+5. All dashboard screens will now show live data from your sheets
+
+### Sheet Tab Names Expected
+| Dashboard Section | Default Tab Name |
+|-------------------|-----------------|
+| Pre-Sales Pipeline | `Pipeline` |
+| Revenue | `Revenue` |
+| Campaign | `Campaign` |
+| Ads | `Ads` |
+| Traffic (GA4) | `Traffic` |
+| Sprout Social | `Social` |
+| Clients | `Clients` |
+
+## 🏗️ Tech Stack
+- **Runtime**: Cloudflare Pages + Workers (edge)
+- **Framework**: Hono v4
+- **Auth**: PBKDF2 via Web Crypto API, sessions in Cloudflare KV
+- **Data**: Cloudflare KV (sessions + config), Google Sheets API (data)
+- **Charts**: Chart.js v4 (CDN)
+- **Icons**: FontAwesome 6.5 (CDN)
+- **Fonts**: Inter (Google Fonts CDN)
+- **CSS**: Custom dark theme (all inline, no build step)
+
+## 📦 Cloudflare Resources
+- **KV Namespace**: `SESSIONS` (ID: `2c2f01d24ee8483390ca4ae09353437d`)
+- **Secrets**: `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH`, `ADMIN_SALT`
+
+## 🚀 Deployment
+```bash
+# Install deps
+npm install
+
+# Local dev
+npm run build
+pm2 start ecosystem.config.cjs
+
+# Deploy to production
+export CLOUDFLARE_API_TOKEN=your_token
+npx wrangler pages deploy dist --project-name astro-one-ai
+```
+
+## 📊 Status
+- ✅ All 23 routes live and returning 200
+- ✅ Authentication working (login, session, logout)
+- ✅ Settings screen with live config load
+- ✅ Google Sheets API integration (Service Account JWT auth)
+- ✅ Zero console errors in production
+- **Last deployed**: 2026-04-02
