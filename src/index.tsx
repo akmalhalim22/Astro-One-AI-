@@ -14,8 +14,9 @@ import { reportAiScreen } from './screens/reportai'
 import { canvasScreen } from './screens/canvas'
 import { settingsScreen } from './screens/settings'
 import {
-  loginPage, sessionCookie, getSessionToken, generateToken,
-  verifyPassword, SESSION_TTL, LOGIN_COOKIE
+  loginPage, registerPage, sessionCookie, getSessionToken,
+  generateToken, generateSalt, verifyPassword, hashPassword,
+  SESSION_TTL, LOGIN_COOKIE
 } from './auth'
 import { readSheet, listSheetTabs, appendSheet, fmtRM, sumCol, groupSum } from './sheets'
 
@@ -23,6 +24,7 @@ import { readSheet, listSheetTabs, appendSheet, fmtRM, sumCol, groupSum } from '
 type Bindings = {
   SESSIONS: KVNamespace
   // Secrets (set via wrangler secret put):
+  INVITE_CODE?: string
   ADMIN_EMAIL:          string
   ADMIN_PASSWORD_HASH:  string
   ADMIN_SALT:           string
@@ -60,7 +62,9 @@ async function getConfig(kv: KVNamespace): Promise<{ sheetId: string; tabs: Reco
 //   LOGIN / LOGOUT
 // ═══════════════════════════════════════════════════════════════════════════
 
-app.get('/login', (c) => c.html(loginPage()))
+app.get('/login',    (c) => c.html(loginPage()))
+app.get('/register', (c) => c.html(registerPage()))
+
 // Detect if request is over HTTPS (for Secure cookie flag)
 function isSecureRequest(c: any): boolean {
   const proto = c.req.header('X-Forwarded-Proto') || c.req.header('cf-visitor') || ''
@@ -114,6 +118,67 @@ app.post('/login', async (c) => {
   // Create session
   const token = generateToken()
   const sessionData = { email: matched.email, name: matched.name, role: matched.role, loginAt: Date.now() }
+  await c.env.SESSIONS.put('session:' + token, JSON.stringify(sessionData), { expirationTtl: SESSION_TTL })
+
+  const secure = isSecureRequest(c)
+  return new Response(null, {
+    status: 302,
+    headers: { Location: '/home', 'Set-Cookie': sessionCookie(token, false, secure) }
+  })
+})
+
+// ─── Register ──────────────────────────────────────────────────────────────
+app.post('/register', async (c) => {
+  const body         = await c.req.parseBody()
+  const firstName    = (body['firstName']    as string || '').trim()
+  const lastName     = (body['lastName']     as string || '').trim()
+  const email        = (body['email']        as string || '').toLowerCase().trim()
+  const password     = (body['password']     as string || '')
+  const confirmPwd   = (body['confirmPassword'] as string || '')
+  const inviteCode   = (body['inviteCode']   as string || '').trim()
+
+  const prefill = { firstName, lastName, email }
+
+  // ── Validation ────────────────────────────────────────────────────────
+  if (!firstName || !lastName)
+    return c.html(registerPage('Please enter your full name.', '', prefill))
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    return c.html(registerPage('Please enter a valid email address.', '', prefill))
+  if (password.length < 8)
+    return c.html(registerPage('Password must be at least 8 characters long.', '', prefill))
+  if (password !== confirmPwd)
+    return c.html(registerPage('Passwords do not match. Please try again.', '', prefill))
+
+  // ── Validate invite code ──────────────────────────────────────────────
+  // Accept: env secret INVITE_CODE  OR  a KV-stored code  OR  fallback default
+  const envCode = c.env.INVITE_CODE || 'ASTRO2025'
+  const kvCode  = await c.env.SESSIONS.get('config:invite_code') || envCode
+  if (inviteCode.toUpperCase() !== kvCode.toUpperCase())
+    return c.html(registerPage('Invalid invite code. Please contact your administrator.', '', prefill))
+
+  // ── Check email not already taken ─────────────────────────────────────
+  const adminEmail = (c.env.ADMIN_EMAIL || 'analytics@kult.my').toLowerCase()
+  if (email === adminEmail)
+    return c.html(registerPage('This email address is already registered. Please sign in.', '', prefill))
+
+  const usersRaw = await c.env.SESSIONS.get('config:users')
+  const users: { email: string; passwordHash: string; salt: string; name: string; role: string }[] =
+    usersRaw ? JSON.parse(usersRaw) : []
+
+  if (users.find(u => u.email === email))
+    return c.html(registerPage('This email address is already registered. Please sign in.', '', prefill))
+
+  // ── Hash password and save user ───────────────────────────────────────
+  const salt         = generateSalt()
+  const passwordHash = await hashPassword(password, salt)
+  const name         = `${firstName} ${lastName}`
+
+  users.push({ email, name, role: 'viewer', passwordHash, salt })
+  await c.env.SESSIONS.put('config:users', JSON.stringify(users))
+
+  // ── Auto-login: create session immediately ────────────────────────────
+  const token       = generateToken()
+  const sessionData = { email, name, role: 'viewer', loginAt: Date.now() }
   await c.env.SESSIONS.put('session:' + token, JSON.stringify(sessionData), { expirationTtl: SESSION_TTL })
 
   const secure = isSecureRequest(c)
@@ -253,10 +318,32 @@ app.post('/api/settings/change-password', requireAuth, async (c) => {
 })
 
 app.post('/api/settings/invalidate-sessions', requireAuth, async (c) => {
-  // In production you'd list and delete all sessions; here we just expire cookie
   const token = getSessionToken(c.req.header('Cookie') || null)
   if (token) await c.env.SESSIONS.delete('session:' + token)
   return new Response(null, { status: 302, headers: { Location: '/login', 'Set-Cookie': sessionCookie('', true) } })
+})
+
+// Get / set the invite code (admin only)
+app.get('/api/settings/invite-code', requireAuth, async (c) => {
+  const session = c.get('session') as { role: string }
+  if (session.role !== 'admin') return c.json({ ok: false, error: 'Admin only' })
+  const stored  = await c.env.SESSIONS.get('config:invite_code')
+  const current = stored || c.env.INVITE_CODE || 'ASTRO2025'
+  return c.json({ ok: true, code: current })
+})
+
+app.post('/api/settings/invite-code', requireAuth, async (c) => {
+  const session = c.get('session') as { role: string }
+  if (session.role !== 'admin') return c.json({ ok: false, error: 'Admin only' })
+  try {
+    const { code } = await c.req.json<{ code: string }>()
+    if (!code || code.trim().length < 4)
+      return c.json({ ok: false, error: 'Invite code must be at least 4 characters.' })
+    await c.env.SESSIONS.put('config:invite_code', code.trim().toUpperCase())
+    return c.json({ ok: true })
+  } catch (e: any) {
+    return c.json({ ok: false, error: e.message })
+  }
 })
 
 // ═══════════════════════════════════════════════════════════════════════════

@@ -131,15 +131,47 @@ export function settingsScreen(): string {
 
   <!-- ── USERS TAB ──────────────────────────────────────────────── -->
   <div id="st-users" style="display:none;margin-top:16px">
+
+    <!-- Invite Code Card (full width, above the 2-col grid) -->
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-hd">
+        <div class="card-title"><i class="fas fa-ticket" style="color:var(--orange);margin-right:7px"></i>Invite Code — Self-Registration Gate</div>
+        <span class="b b-gray" id="inviteCodeBadge" style="font-family:monospace;letter-spacing:.06em;font-size:11px">Loading…</span>
+      </div>
+      <div class="fs12 text-muted mb14">
+        Anyone with this code can create a new account via the <strong style="color:var(--text-primary)">Create Account</strong> button on the login page.
+        New accounts get <strong style="color:var(--info)">Viewer</strong> role by default — promote them in the user list below.
+        Change this code any time to prevent new registrations.
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-end">
+        <div class="field" style="flex:1">
+          <label class="field-label">Current Invite Code</label>
+          <input type="text" id="inviteCodeInput" placeholder="e.g. ASTRO2025"
+            style="width:100%;background:var(--bg-input);border:1px solid var(--border);color:var(--text-primary);border-radius:8px;padding:9px 12px;font-family:monospace;font-size:13px;letter-spacing:.08em;outline:none;text-transform:uppercase"/>
+        </div>
+        <button class="btn-primary" style="height:38px;padding:0 18px;flex-shrink:0;white-space:nowrap" onclick="saveInviteCode()">
+          <i class="fas fa-floppy-disk"></i>Save Code
+        </button>
+        <button class="btn-ghost" style="height:38px;padding:0 14px;flex-shrink:0" onclick="copyInviteCode()" title="Copy to clipboard">
+          <i class="fas fa-copy"></i>
+        </button>
+      </div>
+      <div class="fs11 text-muted mt8" style="display:flex;align-items:center;gap:6px">
+        <i class="fas fa-circle-info" style="color:var(--info)"></i>
+        Share this code only with people you want to grant access to this platform.
+      </div>
+    </div>
+
     <div class="g2">
       <div class="card">
         <div class="card-hd">
-          <div class="card-title"><i class="fas fa-user-plus" style="color:var(--success);margin-right:7px"></i>Add User</div>
+          <div class="card-title"><i class="fas fa-user-plus" style="color:var(--success);margin-right:7px"></i>Add User Directly</div>
         </div>
+        <div class="fs12 text-muted mb12">Create an account without needing an invite code. Useful for onboarding team members directly.</div>
         <div style="display:flex;flex-direction:column;gap:12px">
           <div class="field">
             <label class="field-label">Full Name</label>
-            <input type="text" id="newUserName" placeholder="e.g. Dato' Lee" style="width:100%;background:var(--bg-input);border:1px solid var(--border);color:var(--text-primary);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:12px;outline:none"/>
+            <input type="text" id="newUserName" placeholder="e.g. Ahmad Razif" style="width:100%;background:var(--bg-input);border:1px solid var(--border);color:var(--text-primary);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:12px;outline:none"/>
           </div>
           <div class="field">
             <label class="field-label">Email</label>
@@ -164,22 +196,11 @@ export function settingsScreen(): string {
       </div>
 
       <div class="card">
-        <div class="card-hd"><div class="card-title">Current Users</div><span class="b b-gray" id="userCount">3 users</span></div>
+        <div class="card-hd"><div class="card-title"><i class="fas fa-users" style="color:var(--info);margin-right:7px"></i>Current Users</div><span class="b b-gray" id="userCount">—</span></div>
         <div id="userList" style="display:flex;flex-direction:column;gap:0">
-          ${[
-            ["Dato' Lee","dato.lee@astro.com.my","Admin","DL","var(--magenta)"],
-            ['Ahmad Razif','ahmad.razif@astro.com.my','Editor','AR','var(--info)'],
-            ['Priya Subramaniam','priya.s@astro.com.my','Viewer','PS','var(--success)'],
-          ].map(([name, email, role, initials, col]) => `
-          <div class="user-row" data-email="${email}">
-            <div style="width:36px;height:36px;border-radius:9px;background:${col}22;color:${col};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">${initials}</div>
-            <div style="flex:1;min-width:0">
-              <div class="fw6 fs12">${name}</div>
-              <div class="fs11 text-muted ellipsis">${email}</div>
-            </div>
-            <span class="b ${role === 'Admin' ? 'b-pink' : role === 'Editor' ? 'b-info' : 'b-gray'}">${role}</span>
-            <button class="btn-ghost" style="height:28px;font-size:10.5px;padding:0 8px;color:var(--danger)" onclick="removeUser('${email}')"><i class="fas fa-trash"></i></button>
-          </div>`).join('')}
+          <div style="padding:24px;text-align:center;color:var(--text-muted);font-size:12px">
+            <i class="fas fa-spinner fa-spin" style="margin-right:6px"></i>Loading users…
+          </div>
         </div>
       </div>
     </div>
@@ -298,6 +319,10 @@ export function settingsScreen(): string {
 <script>
 // Load saved settings on page open
 window.addEventListener('DOMContentLoaded', function() {
+  // Pre-load invite code (so it's ready when user clicks Users tab)
+  loadInviteCode();
+  loadUsers();
+
   fetch('/api/settings/config').then(r=>r.json()).then(d=>{
     if (!d.ok) return;
     // Populate Sheet ID
@@ -336,7 +361,7 @@ function switchSettingsTab(tab, el) {
     const p = document.getElementById('st-' + id);
     if (p) p.style.display = id === tab ? 'block' : 'none';
   });
-  if (tab === 'users') loadUsers();
+  if (tab === 'users') { loadUsers(); loadInviteCode(); }
 }
 
 function loadUsers() {
@@ -364,6 +389,38 @@ function loadUsers() {
     }).join('');
   }).catch(function(){});
 }
+// ── Invite code ─────────────────────────────────────────────────────────
+function loadInviteCode() {
+  fetch('/api/settings/invite-code').then(r=>r.json()).then(d=>{
+    if (!d.ok) return;
+    const inp   = document.getElementById('inviteCodeInput');
+    const badge = document.getElementById('inviteCodeBadge');
+    if (inp)   inp.value = d.code || '';
+    if (badge) badge.textContent = d.code || '';
+  }).catch(function(){});
+}
+function saveInviteCode() {
+  const code = (document.getElementById('inviteCodeInput').value || '').trim().toUpperCase();
+  if (code.length < 4) { showSettingsToast('Code must be at least 4 characters.', 'error'); return; }
+  fetch('/api/settings/invite-code', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code}) })
+    .then(r=>r.json()).then(d=>{
+      if (d.ok) {
+        const badge = document.getElementById('inviteCodeBadge');
+        if (badge) badge.textContent = code;
+        showSettingsToast('Invite code updated to ' + code + ' ✓', 'success');
+      } else showSettingsToast(d.error||'Error saving code.', 'error');
+    }).catch(function(){ showSettingsToast('Network error.', 'error'); });
+}
+function copyInviteCode() {
+  const code = (document.getElementById('inviteCodeInput').value || '').trim();
+  if (!code) { showSettingsToast('No code to copy.', 'error'); return; }
+  navigator.clipboard.writeText(code).then(function(){
+    showSettingsToast('Invite code copied to clipboard ✓', 'success');
+  }).catch(function(){
+    showSettingsToast('Code: ' + code, 'info');
+  });
+}
+
 function saveAllSettings() { showSettingsToast('All settings saved successfully ✓', 'success'); }
 function saveSACredentials() {
   const v = document.getElementById('saJson').value.trim();
