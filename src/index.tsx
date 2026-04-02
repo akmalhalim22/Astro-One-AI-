@@ -9,7 +9,9 @@ import { digestScreen } from './screens/digest'
 import { pipelineScreen, clientsScreen, salesPerfScreen } from './screens/presales'
 import { revenueScreen, campaignScreen, adsScreen } from './screens/postsales'
 import { portalsScreen, socialScreen } from './screens/traffic'
-import { uploadScreen, apiConnScreen, setupScreen } from './screens/data'
+import { uploadScreen, apiConnScreen, setupScreen, blendScreen } from './screens/data'
+import { reportAiScreen } from './screens/reportai'
+import { canvasScreen } from './screens/canvas'
 
 const app = new Hono()
 app.use('/static/*', serveStatic({ root: './' }))
@@ -35,6 +37,9 @@ const routes: Record<string, { screen: string; content: () => string }> = {
   '/upload':    { screen: 'upload',   content: uploadScreen },
   '/apiconn':   { screen: 'apiconn',  content: apiConnScreen },
   '/setup':     { screen: 'setup',    content: setupScreen },
+  '/blend':     { screen: 'blend',    content: blendScreen },
+  '/reportai':  { screen: 'reportai', content: reportAiScreen },
+  '/canvas':    { screen: 'canvas',   content: canvasScreen },
 }
 
 function buildNav(active: string): string {
@@ -62,7 +67,10 @@ function buildNav(active: string): string {
       { id: 'upload',  label: 'Manual Upload',   icon: 'fa-upload' },
       { id: 'apiconn', label: 'API Connections', icon: 'fa-plug' },
       { id: 'setup',   label: 'Setup Guide',     icon: 'fa-book-open' },
+      { id: 'blend',   label: 'Data Blend',       icon: 'fa-code-merge' },
     ]},
+    { id: 'reportai', label: 'Report AI',  icon: 'fa-file-chart-pie', badge: 'New' },
+    { id: 'canvas',   label: 'Canvas',     icon: 'fa-layer-group',    badge: 'New' },
   ]
 
   function renderItem(n: NavItem, depth = 0): string {
@@ -555,6 +563,42 @@ window.addEventListener('DOMContentLoaded', () => {
         ...chartDefaults.scales,
         y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: function(v) { return (v / 1000) + 'K'; } } }
       }
+    }
+  });
+
+  // ── Report AI Charts ────────────────────────────────────
+  const raiRev = document.getElementById('raiRevChart');
+  if (raiRev) new Chart(raiRev, {
+    type: 'bar',
+    data: {
+      labels: ['Jan', 'Feb', 'Mar'],
+      datasets: [
+        { label: 'Actual', data: [18.4, 21.2, 24.1],
+          backgroundColor: ctx => mkGrad(ctx.chart.ctx, 'rgba(226,0,122,0.88)', 'rgba(226,0,122,0.18)'),
+          borderRadius: 5, borderSkipped: false },
+        { label: 'Target', data: [19, 20, 21],
+          backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 5, borderSkipped: false }
+      ]
+    },
+    options: {
+      ...chartDefaults,
+      plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'top', labels: { color: '#8080a8', font: { size: 10 }, padding: 10, boxWidth: 10 } } },
+      scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => 'RM' + v + 'M' } } }
+    }
+  });
+
+  const raiProd = document.getElementById('raiProductChart');
+  if (raiProd) new Chart(raiProd, {
+    type: 'doughnut',
+    data: {
+      labels: ['Digital Ads', 'Content Syndi.', 'Events & Live', 'Sponsorship'],
+      datasets: [{ data: [45, 27, 17, 10],
+        backgroundColor: ['rgba(226,0,122,0.82)','rgba(96,165,250,0.75)','rgba(167,139,250,0.75)','rgba(45,212,191,0.75)'],
+        borderColor: ['#e2007a','#60a5fa','#a78bfa','#2dd4bf'],
+        borderWidth: 1.5, hoverOffset: 5 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '66%',
+      plugins: { legend: { display: true, position: 'bottom', labels: { color: '#8080a8', font: { size: 9 }, padding: 8, boxWidth: 8 } }, tooltip: chartDefaults.plugins.tooltip }
     }
   });
 

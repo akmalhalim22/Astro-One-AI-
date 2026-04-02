@@ -446,3 +446,248 @@ cron.<span class="fn">schedule</span>(<span class="str">'0 4 * * *'</span>, <spa
   </div>
 </div>`;
 }
+
+export function blendScreen(): string {
+  return `
+<div class="content fade-in">
+
+  <!-- Header -->
+  <div class="section-hd mb20">
+    <div>
+      <div class="section-title"><i class="fas fa-code-merge" style="color:var(--purple);margin-right:8px"></i>Data Blend</div>
+      <div class="fs12 text-muted mt4">Combine multiple data sources into a unified blended dataset for cross-source analysis and reporting.</div>
+    </div>
+    <button class="btn-primary" onclick="newBlend()"><i class="fas fa-plus"></i>New Blend</button>
+  </div>
+
+  <div class="g62">
+
+    <!-- Left: Blend Builder -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+
+      <!-- Active Blend -->
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-title">Blend Builder</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="text" id="blendName" value="Revenue x Traffic Q1" placeholder="Blend name..."
+              style="background:var(--bg-input);border:1px solid var(--border);color:var(--text-primary);border-radius:7px;padding:5px 10px;font-family:inherit;font-size:12px;width:180px">
+            <button class="btn-ghost" style="height:30px;font-size:11px;padding:0 11px" onclick="previewBlend()"><i class="fas fa-eye"></i>Preview</button>
+            <button class="btn-primary" style="height:30px;font-size:11px;padding:0 12px" onclick="saveBlend()"><i class="fas fa-floppy-disk"></i>Save Blend</button>
+          </div>
+        </div>
+
+        <!-- Source A -->
+        <div class="blend-source-card" id="blendA">
+          <div class="blend-source-hd">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="blend-source-badge blue">A</div>
+              <select id="blendASource" onchange="updateBlendCols('A', this.value)"
+                style="background:var(--bg-input);border:1px solid var(--border);color:var(--text-primary);border-radius:7px;padding:5px 10px;font-family:inherit;font-size:12px">
+                <option value="revenue">Revenue Data</option>
+                <option value="pipeline">Pre-Sales Pipeline</option>
+                <option value="campaign">Campaign Performance</option>
+                <option value="ads">Ads Performance</option>
+                <option value="traffic">Traffic Data</option>
+                <option value="social">Social Media</option>
+              </select>
+            </div>
+            <span class="b b-green">Live · 2 min ago</span>
+          </div>
+          <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px;font-weight:700;letter-spacing:.06em;text-transform:uppercase">Select columns to include</div>
+          <div id="blendACols" style="display:flex;flex-wrap:wrap;gap:6px">
+            ${['month','client_name','product','amount','campaign_id','created_at'].map((col, i) => `
+            <label class="blend-col-check">
+              <input type="checkbox" ${i < 4 ? 'checked' : ''} style="accent-color:var(--info)">
+              <span>${col}</span>
+            </label>`).join('')}
+          </div>
+        </div>
+
+        <!-- Join Type -->
+        <div class="blend-join-row">
+          <div style="display:flex;align-items:center;gap:8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;padding:8px 14px">
+            <i class="fas fa-code-merge" style="color:var(--purple)"></i>
+            <span class="fw6 fs12">Join on:</span>
+            <select id="blendJoinKeyA" style="background:var(--bg-input);border:1px solid var(--border);color:var(--text-primary);border-radius:6px;padding:4px 8px;font-family:inherit;font-size:11px">
+              <option>client_name</option><option>campaign_id</option><option>month</option>
+            </select>
+            <span style="color:var(--text-muted);font-size:12px">=</span>
+            <select id="blendJoinKeyB" style="background:var(--bg-input);border:1px solid var(--border);color:var(--text-primary);border-radius:6px;padding:4px 8px;font-family:inherit;font-size:11px">
+              <option>portal</option><option>date</option><option>client_name</option>
+            </select>
+            <select id="blendJoinType" style="background:var(--bg-input);border:1px solid var(--border);color:var(--text-primary);border-radius:6px;padding:4px 8px;font-family:inherit;font-size:11px">
+              <option value="left">Left Join</option>
+              <option value="inner">Inner Join</option>
+              <option value="full">Full Outer</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Source B -->
+        <div class="blend-source-card" id="blendB">
+          <div class="blend-source-hd">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="blend-source-badge purple">B</div>
+              <select id="blendBSource" onchange="updateBlendCols('B', this.value)"
+                style="background:var(--bg-input);border:1px solid var(--border);color:var(--text-primary);border-radius:7px;padding:5px 10px;font-family:inherit;font-size:12px">
+                <option value="traffic">Traffic Data</option>
+                <option value="revenue">Revenue Data</option>
+                <option value="social">Social Media</option>
+                <option value="ads">Ads Performance</option>
+                <option value="campaign">Campaign Performance</option>
+                <option value="pipeline">Pre-Sales Pipeline</option>
+              </select>
+            </div>
+            <span class="b b-green">Live · 1 hr ago</span>
+          </div>
+          <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px;font-weight:700;letter-spacing:.06em;text-transform:uppercase">Select columns to include</div>
+          <div id="blendBCols" style="display:flex;flex-wrap:wrap;gap:6px">
+            ${['date','portal','sessions','users','engagement_rate','fill_rate'].map((col, i) => `
+            <label class="blend-col-check">
+              <input type="checkbox" ${i < 4 ? 'checked' : ''} style="accent-color:var(--purple)">
+              <span>${col}</span>
+            </label>`).join('')}
+          </div>
+        </div>
+
+        <!-- Add third source -->
+        <button class="btn-ghost" style="width:100%;justify-content:center;margin-top:8px;border-style:dashed" onclick="addBlendSource()">
+          <i class="fas fa-plus"></i>Add Third Source
+        </button>
+
+        <!-- Computed Columns -->
+        <div style="margin-top:16px">
+          <div class="card-hd" style="padding:0 0 10px"><div class="card-title" style="font-size:12px">Computed Columns</div><button class="btn-ghost" style="height:26px;font-size:10.5px;padding:0 9px" onclick="addComputed()"><i class="fas fa-plus"></i>Add</button></div>
+          <div style="display:flex;flex-direction:column;gap:8px" id="computedCols">
+            ${[
+              ['revenue_per_session','= amount / sessions','var(--teal)'],
+              ['engagement_x_revenue','= engagement_rate x amount','var(--orange)'],
+            ].map(([name, formula, col]) => `
+            <div style="display:flex;align-items:center;gap:10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:9px 12px">
+              <code style="color:${col};font-size:11px;flex:1">${name}</code>
+              <span class="text-muted fs11">${formula}</span>
+              <button class="cvs-widget-btn" onclick="this.closest('div').remove()"><i class="fas fa-xmark"></i></button>
+            </div>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      <!-- Schema Preview -->
+      <div class="card card-sm">
+        <div class="card-hd"><div class="card-title">Output Schema Preview</div><span class="b b-gray">Blended: Revenue x Traffic Q1</span></div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${['month','client_name','product','amount','campaign_id','date','portal','sessions','users','engagement_rate','revenue_per_session','engagement_x_revenue'].map(f => `
+          <span style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:5px;padding:3px 9px;font-family:monospace;font-size:11px;color:var(--purple)">${f}</span>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Saved Blends + Preview -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+
+      <!-- Saved Blends -->
+      <div class="card">
+        <div class="card-hd"><div class="card-title">Saved Blends</div><span class="card-action">Manage All</span></div>
+        ${[
+          ['Revenue x Traffic Q1','Revenue Data + Traffic Data','client_name','Left Join','27 Mar 2025','b-green','Active'],
+          ['Ads x Campaign ROI','Ads Performance + Campaign','campaign_id','Inner Join','22 Mar 2025','b-green','Active'],
+          ['Client x Social Reach','Pipeline + Social Media','client_name','Left Join','18 Mar 2025','b-amber','Draft'],
+          ['Full Cross-Source','Rev + Traffic + Ads + Social','date','Full Outer','10 Mar 2025','b-gray','Archived'],
+        ].map(([name, sources, key, join, date, b, status]) => `
+        <div style="padding:11px 0;border-bottom:1px solid var(--border)">
+          <div class="flex justify-between items-center mb6">
+            <div class="fw6 fs12">${name}</div>
+            <span class="b ${b}">${status}</span>
+          </div>
+          <div class="fs11 text-muted mb6">${sources}</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <span style="font-size:10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;padding:2px 8px;color:var(--text-secondary)"><i class="fas fa-link" style="margin-right:4px;opacity:.6"></i>${key}</span>
+            <span style="font-size:10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;padding:2px 8px;color:var(--text-secondary)">${join}</span>
+            <span class="text-muted" style="font-size:10px;margin-left:auto">${date}</span>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:9px">
+            <button class="btn-ghost" style="height:26px;font-size:10.5px;padding:0 9px" onclick="loadBlend('${name}')"><i class="fas fa-folder-open"></i>Open</button>
+            <button class="btn-ghost" style="height:26px;font-size:10.5px;padding:0 9px" onclick="useInCanvas('${name}')"><i class="fas fa-layer-group"></i>Canvas</button>
+            <button class="btn-ghost" style="height:26px;font-size:10.5px;padding:0 9px" onclick="useInReport('${name}')"><i class="fas fa-file-chart-pie"></i>Report AI</button>
+          </div>
+        </div>`).join('')}
+      </div>
+
+      <!-- Preview Table -->
+      <div class="card">
+        <div class="card-hd"><div class="card-title">Blend Preview</div><span class="b b-gray">10 rows · 12 columns</span></div>
+        <div style="overflow-x:auto">
+          <table class="tbl" style="font-size:11px">
+            <thead>
+              <tr>
+                <th>month</th><th>client_name</th><th>product</th><th>amount</th>
+                <th>portal</th><th>sessions</th><th>eng_rate</th><th>rev/session</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${[
+                ['Jan 2025','Maxis Berhad','Digital Ads','4.2M','Astro GO','820K','68%','RM 5.12'],
+                ['Jan 2025','Celcom Axiata','Content Syndi.','3.8M','Astro GO','820K','68%','RM 4.63'],
+                ['Feb 2025','Maxis Berhad','Digital Ads','4.6M','Astro on the Go','640K','61%','RM 7.19'],
+                ['Feb 2025','Petronas','Sponsorship','2.9M','eLive','280K','72%','RM 10.36'],
+                ['Mar 2025','Watsons','Events Live','2.1M','Astro GO','920K','66%','RM 2.28'],
+              ].map(row => `
+              <tr>
+                ${row.map((cell, i) => `<td ${i===3||i===7?'class="fw7 text-pink"':''}>${cell}</td>`).join('')}
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div class="flex justify-between items-center mt12">
+          <div class="fs11 text-muted">Showing 5 of 2,841 blended rows · Last refreshed 2 min ago</div>
+          <div style="display:flex;gap:7px">
+            <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 10px" onclick="refreshBlend()"><i class="fas fa-rotate"></i>Refresh</button>
+            <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 10px" onclick="exportBlend()"><i class="fas fa-download"></i>Export CSV</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+function newBlend() { document.getElementById('blendName').value='Untitled Blend'; showToast('New blend - configure sources above.'); }
+function previewBlend() { showToast('Preview refreshed with current config.'); }
+function saveBlend() { const n=document.getElementById('blendName').value; showToast('Blend saved: ' + (n||'Untitled')); }
+function addBlendSource() { showToast('Third source panel added - configure key mapping.'); }
+function addComputed() { showToast('Add computed column: define formula in the expression editor.'); }
+function loadBlend(name) { document.getElementById('blendName').value=name; showToast('Loaded: ' + name); }
+function useInCanvas(name) { window.location.href='/canvas'; }
+function useInReport(name) { window.location.href='/reportai'; }
+function refreshBlend() { showToast('Blend data refreshed'); }
+function exportBlend() { showToast('Exporting blended dataset as CSV...'); }
+function updateBlendCols(side, source) {
+  const colSets = {
+    revenue: ['month','client_name','product','amount','campaign_id','invoice_id','created_at'],
+    pipeline: ['deal_id','client_name','deal_value','stage','owner','probability','close_date'],
+    campaign: ['campaign_id','name','client','type','budget','impressions','clicks','ctr','revenue'],
+    ads: ['date','platform','campaign_id','spend','impressions','clicks','ctr','roas'],
+    traffic: ['date','portal','sessions','users','engagement_rate','bounce_rate','fill_rate'],
+    social: ['date','platform','reach','impressions','engagements','eng_rate','followers'],
+  };
+  const cols = colSets[source] || [];
+  const accent = side === 'A' ? 'var(--info)' : 'var(--purple)';
+  const container = document.getElementById('blend' + side + 'Cols');
+  if (container) container.innerHTML = cols.map((col, i) =>
+    '<label class="blend-col-check"><input type="checkbox" ' + (i<4?'checked':'') + ' style="accent-color:' + accent + '"><span>' + col + '</span></label>'
+  ).join('');
+}
+if (typeof showToast !== 'function') {
+  window.showToast = function(msg) {
+    let t = document.getElementById('globalToast');
+    if (!t) { t=document.createElement('div'); t.id='globalToast'; t.style.cssText='position:fixed;bottom:28px;right:28px;background:var(--bg-card);border:1px solid var(--border-light);color:var(--text-primary);padding:10px 18px;border-radius:10px;font-size:12px;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,.4)'; document.body.appendChild(t); }
+    t.textContent=msg; t.style.opacity='1';
+    setTimeout(function(){ t.style.opacity='0'; }, 2800);
+  };
+}
+</script>
+`;
+}
