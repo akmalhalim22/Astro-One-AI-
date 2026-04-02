@@ -30,17 +30,22 @@ export function generateToken(): string {
 }
 
 // ── Build a Set-Cookie header ─────────────────────────────────────────────
-export function sessionCookie(token: string, clear = false): string {
-  if (clear) return `${LOGIN_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`
-  return `${LOGIN_COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${SESSION_TTL}`
+export function sessionCookie(token: string, clear = false, secure = true): string {
+  const secureFlag = secure ? '; Secure' : ''
+  if (clear) return `${LOGIN_COOKIE}=; Path=/; HttpOnly${secureFlag}; SameSite=Lax; Max-Age=0`
+  return `${LOGIN_COOKIE}=${token}; Path=/; HttpOnly${secureFlag}; SameSite=Lax; Max-Age=${SESSION_TTL}`
 }
 
 // ── Parse Cookie header → token ───────────────────────────────────────────
 export function getSessionToken(cookieHeader: string | null): string | null {
   if (!cookieHeader) return null
   for (const part of cookieHeader.split(';')) {
-    const [k, v] = part.trim().split('=')
-    if (k.trim() === LOGIN_COOKIE && v) return v.trim()
+    const trimmed = part.trim()
+    const eqIdx = trimmed.indexOf('=')
+    if (eqIdx === -1) continue
+    const k = trimmed.slice(0, eqIdx).trim()
+    const v = trimmed.slice(eqIdx + 1).trim()  // everything after first '='
+    if (k === LOGIN_COOKIE && v) return v
   }
   return null
 }

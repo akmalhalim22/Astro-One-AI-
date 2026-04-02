@@ -61,10 +61,18 @@ async function getConfig(kv: KVNamespace): Promise<{ sheetId: string; tabs: Reco
 // ═══════════════════════════════════════════════════════════════════════════
 
 app.get('/login', (c) => c.html(loginPage()))
+// Detect if request is over HTTPS (for Secure cookie flag)
+function isSecureRequest(c: any): boolean {
+  const proto = c.req.header('X-Forwarded-Proto') || c.req.header('cf-visitor') || ''
+  const url = c.req.url || ''
+  return proto.includes('https') || url.startsWith('https')
+}
+
 app.get('/logout', async (c) => {
   const token = getSessionToken(c.req.header('Cookie') || null)
   if (token) await c.env.SESSIONS.delete('session:' + token)
-  return new Response(null, { status: 302, headers: { Location: '/login', 'Set-Cookie': sessionCookie('', true) } })
+  const secure = isSecureRequest(c)
+  return new Response(null, { status: 302, headers: { Location: '/login', 'Set-Cookie': sessionCookie('', true, secure) } })
 })
 
 app.post('/login', async (c) => {
@@ -108,9 +116,10 @@ app.post('/login', async (c) => {
   const sessionData = { email: matched.email, name: matched.name, role: matched.role, loginAt: Date.now() }
   await c.env.SESSIONS.put('session:' + token, JSON.stringify(sessionData), { expirationTtl: SESSION_TTL })
 
+  const secure = isSecureRequest(c)
   return new Response(null, {
     status: 302,
-    headers: { Location: '/home', 'Set-Cookie': sessionCookie(token) }
+    headers: { Location: '/home', 'Set-Cookie': sessionCookie(token, false, secure) }
   })
 })
 
