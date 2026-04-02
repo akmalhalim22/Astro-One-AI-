@@ -127,6 +127,26 @@ app.post('/login', async (c) => {
 //   SETTINGS API ROUTES (admin only)
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Load current settings (for populating the Settings form on page load)
+app.get('/api/settings/config', requireAuth, async (c) => {
+  const cfg = await getConfig(c.env.SESSIONS)
+  const hasCreds = !!(await c.env.SESSIONS.get('secret:service_account'))
+  return c.json({ ok: true, sheetId: cfg.sheetId, tabs: cfg.tabs, hasCreds })
+})
+
+// Load users list
+app.get('/api/settings/users', requireAuth, async (c) => {
+  const usersRaw = await c.env.SESSIONS.get('config:users')
+  const users: { email: string; name: string; role: string }[] = usersRaw ? JSON.parse(usersRaw) : []
+  // Add the bootstrap admin (from env) to the list if not already there
+  const adminEmail = (c.env.ADMIN_EMAIL || 'analytics@kult.my').toLowerCase()
+  const allUsers = [
+    { email: adminEmail, name: "Admin", role: 'admin' },
+    ...users.filter((u: any) => u.email !== adminEmail)
+  ]
+  return c.json({ ok: true, users: allUsers.map(u => ({ email: u.email, name: u.name, role: u.role })) })
+})
+
 app.post('/api/settings/credentials', requireAuth, async (c) => {
   const body = await c.req.json<{ serviceAccountJson: string }>()
   try {
@@ -408,6 +428,7 @@ function page(screen: string, body: string, session: { name: string; email: stri
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>Astro One — Digital Performance Hub</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;0,14..32,900&display=swap" rel="stylesheet"/>

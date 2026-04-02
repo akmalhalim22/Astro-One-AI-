@@ -296,6 +296,39 @@ export function settingsScreen(): string {
 </div>
 
 <script>
+// Load saved settings on page open
+window.addEventListener('DOMContentLoaded', function() {
+  fetch('/api/settings/config').then(r=>r.json()).then(d=>{
+    if (!d.ok) return;
+    // Populate Sheet ID
+    if (d.sheetId) {
+      const el = document.getElementById('sheetId');
+      if (el) el.value = d.sheetId;
+    }
+    // Populate tab mappings
+    const tabMap = { pipeline:'pipeline_tab', revenue:'revenue_tab', campaign:'campaign_tab',
+      ads:'ads_tab', traffic:'traffic_tab', social:'social_tab', clients:'clients_tab' };
+    if (d.tabs) {
+      Object.entries(tabMap).forEach(function([k,id]) {
+        const el = document.getElementById(id);
+        if (el && d.tabs[k]) el.value = d.tabs[k];
+      });
+    }
+    // Update credentials status badge
+    const badge = document.getElementById('saStatus');
+    if (badge) {
+      if (d.hasCreds) {
+        badge.textContent = 'CONFIGURED';
+        badge.style.cssText = 'background:rgba(0,214,143,0.12);color:#00d68f;border:1px solid rgba(0,214,143,.2);border-radius:6px;padding:3px 9px;font-size:10px;font-weight:700';
+        document.getElementById('saJson').placeholder = '••• Credentials already stored — paste new JSON to replace •••';
+      } else {
+        badge.textContent = 'NOT SET';
+        badge.style.cssText = 'background:rgba(244,63,94,0.12);color:#f43f5e;border:1px solid rgba(244,63,94,.2);border-radius:6px;padding:3px 9px;font-size:10px;font-weight:700';
+      }
+    }
+  }).catch(function(){});
+});
+
 function switchSettingsTab(tab, el) {
   document.querySelectorAll('#settingsTabs .tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
@@ -303,6 +336,33 @@ function switchSettingsTab(tab, el) {
     const p = document.getElementById('st-' + id);
     if (p) p.style.display = id === tab ? 'block' : 'none';
   });
+  if (tab === 'users') loadUsers();
+}
+
+function loadUsers() {
+  fetch('/api/settings/users').then(r=>r.json()).then(d=>{
+    if (!d.ok || !d.users) return;
+    const list = document.getElementById('userList');
+    const count = document.getElementById('userCount');
+    if (count) count.textContent = d.users.length + ' user' + (d.users.length!==1?'s':'');
+    if (!list) return;
+    const colors = ['var(--magenta)','var(--info)','var(--success)','var(--purple)','var(--teal)','var(--orange)'];
+    list.innerHTML = d.users.map(function(u,i) {
+      const initials = u.name.split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase() || u.email[0].toUpperCase();
+      const col = colors[i % colors.length];
+      const roleLabel = u.role==='admin'?'Admin':u.role==='editor'?'Editor':'Viewer';
+      const roleCls = u.role==='admin'?'b-pink':u.role==='editor'?'b-info':'b-gray';
+      return \`<div class="user-row" data-email="\${u.email}">
+        <div style="width:36px;height:36px;border-radius:9px;background:\${col}22;color:\${col};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">\${initials}</div>
+        <div style="flex:1;min-width:0">
+          <div class="fw6 fs12">\${u.name}</div>
+          <div class="fs11 text-muted ellipsis">\${u.email}</div>
+        </div>
+        <span class="b \${roleCls}">\${roleLabel}</span>
+        \${u.role!=='admin'?'<button class="btn-ghost" style="height:28px;font-size:10.5px;padding:0 8px;color:var(--danger)" onclick="removeUser(\''+u.email+'\')"><i class="fas fa-trash"></i></button>':''}
+      </div>\`;
+    }).join('');
+  }).catch(function(){});
 }
 function saveAllSettings() { showSettingsToast('All settings saved successfully ✓', 'success'); }
 function saveSACredentials() {
