@@ -23,6 +23,10 @@ export function topbar(screen: string): string {
     postsales: { title: 'Post-Sales Dashboard', sub: 'Revenue · Campaign · Ads Performance' },
     traffic:   { title: 'Traffic Performance Dashboard', sub: 'Portals · Sprout Social Analytics' },
     data:      { title: 'Data Management', sub: 'Upload · Connect · Automate · Monitor' },
+    blend:     { title: 'Data Blend', sub: 'Merge data sources for cross-source analysis' },
+    reportai:  { title: 'Report AI', sub: 'Generate charts, KPI summaries and slide decks from your data' },
+    canvas:    { title: 'Canvas', sub: 'Drag-and-drop pivot tables and charts from your data' },
+    settings:  { title: 'Platform Settings', sub: 'Google Sheets · Users · Security · Notifications' },
   };
 
   const t = titles[screen] || { title: 'Dashboard', sub: '' };
@@ -95,6 +99,10 @@ export function topbar(screen: string): string {
 
     setup: `
       <button class="btn-ghost"><i class="fas fa-download"></i>Export Guide</button>`,
+
+    settings: `
+      <button class="btn-ghost" onclick="navigate('home')"><i class="fas fa-arrow-left"></i>Back</button>
+      <button class="btn-primary" onclick="saveAllSettings()"><i class="fas fa-floppy-disk"></i>Save All</button>`,
   };
 
   return `

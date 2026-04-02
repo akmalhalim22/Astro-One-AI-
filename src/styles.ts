@@ -1590,5 +1590,44 @@ export const CSS = `
   }
   .blend-col-check:hover { background: var(--bg-card-hover); }
   .blend-col-check input { cursor: pointer; }
+
+  /* ═══════════════════════════════════════════════════
+     SETTINGS / USERS
+  ═══════════════════════════════════════════════════ */
+  .field-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    display: block;
+    margin-bottom: 5px;
+  }
+  .user-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    transition: background .15s;
+  }
+  .user-row:last-child { border-bottom: none; }
+
+  /* ═══════════════════════════════════════════════════
+     EXTRA BADGE COLOURS
+  ═══════════════════════════════════════════════════ */
+  .b-pink { background:var(--magenta-glow2); color:var(--magenta-bright); border:1px solid var(--magenta-glow3); }
+  .b-info { background:var(--info-dim); color:var(--info); border:1px solid rgba(96,165,250,.25); }
+  .b-gray { background:rgba(255,255,255,0.06); color:var(--text-secondary); border:1px solid var(--border); }
+  .mb2  { margin-bottom: 2px; }
+  .mb4  { margin-bottom: 4px; }
+  .mb6  { margin-bottom: 6px; }
+  .mb8  { margin-bottom: 8px; }
+  .mb12 { margin-bottom: 12px; }
+  .mb14 { margin-bottom: 14px; }
+  .mb20 { margin-bottom: 20px; }
+  .mt4  { margin-top: 4px; }
+  .mt12 { margin-top: 12px; }
+  .ellipsis { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 `;
 

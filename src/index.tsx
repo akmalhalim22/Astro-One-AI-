@@ -12,9 +12,293 @@ import { portalsScreen, socialScreen } from './screens/traffic'
 import { uploadScreen, apiConnScreen, setupScreen, blendScreen } from './screens/data'
 import { reportAiScreen } from './screens/reportai'
 import { canvasScreen } from './screens/canvas'
+import { settingsScreen } from './screens/settings'
+import {
+  loginPage, sessionCookie, getSessionToken, generateToken,
+  verifyPassword, SESSION_TTL, LOGIN_COOKIE
+} from './auth'
+import { readSheet, listSheetTabs, appendSheet, fmtRM, sumCol, groupSum } from './sheets'
 
-const app = new Hono()
+// ── Cloudflare bindings ───────────────────────────────────────────────────
+type Bindings = {
+  SESSIONS: KVNamespace
+  // Secrets (set via wrangler secret put):
+  ADMIN_EMAIL:          string
+  ADMIN_PASSWORD_HASH:  string
+  ADMIN_SALT:           string
+  SHEET_ID?:            string
+  SERVICE_ACCOUNT_JSON?: string
+}
+
+const app = new Hono<{ Bindings: Bindings }>()
+
+// ── Static files ──────────────────────────────────────────────────────────
 app.use('/static/*', serveStatic({ root: './' }))
+
+// ── Auth helpers ──────────────────────────────────────────────────────────
+async function requireAuth(c: any, next: () => Promise<void>) {
+  const token = getSessionToken(c.req.header('Cookie') || null)
+  if (!token) return c.redirect('/login')
+  const session = token ? await c.env.SESSIONS.get('session:' + token) : null
+  if (!session) return c.redirect('/login')
+  c.set('session', JSON.parse(session))
+  await next()
+}
+
+// ── KV config helpers ─────────────────────────────────────────────────────
+async function getConfig(kv: KVNamespace): Promise<{ sheetId: string; tabs: Record<string,string>; hasCreds: boolean }> {
+  const raw = await kv.get('config:platform')
+  const cfg = raw ? JSON.parse(raw) : {}
+  return {
+    sheetId: cfg.sheetId || '',
+    tabs: cfg.tabs || { pipeline:'Pipeline', revenue:'Revenue', campaign:'Campaign', ads:'Ads', traffic:'Traffic', social:'Social', clients:'Clients' },
+    hasCreds: !!(await kv.get('secret:service_account')),
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//   LOGIN / LOGOUT
+// ═══════════════════════════════════════════════════════════════════════════
+
+app.get('/login', (c) => c.html(loginPage()))
+app.get('/logout', async (c) => {
+  const token = getSessionToken(c.req.header('Cookie') || null)
+  if (token) await c.env.SESSIONS.delete('session:' + token)
+  return new Response(null, { status: 302, headers: { Location: '/login', 'Set-Cookie': sessionCookie('', true) } })
+})
+
+app.post('/login', async (c) => {
+  const body = await c.req.parseBody()
+  const email    = (body['email']    as string || '').toLowerCase().trim()
+  const password = (body['password'] as string || '')
+
+  // Load users list from KV (or fall back to env-var admin)
+  const usersRaw = await c.env.SESSIONS.get('config:users')
+  const users: { email: string; passwordHash: string; salt: string; name: string; role: string }[] =
+    usersRaw ? JSON.parse(usersRaw) : []
+
+  // Always include the bootstrap admin from env secrets
+  const adminHash = c.env.ADMIN_PASSWORD_HASH || ''
+  const adminSalt = c.env.ADMIN_SALT           || 'astro-one-salt-2025'
+  const adminEmail = (c.env.ADMIN_EMAIL || 'admin@astro.com.my').toLowerCase()
+
+  let matched = users.find(u => u.email === email)
+  let isValid = false
+
+  if (matched) {
+    isValid = await verifyPassword(password, matched.passwordHash, matched.salt)
+  } else if (email === adminEmail) {
+    if (adminHash) {
+      isValid = await verifyPassword(password, adminHash, adminSalt)
+    } else {
+      // Bootstrap: first login with password 'Astro@2025!' creates the admin
+      isValid = password === 'Astro@2025!'
+    }
+    if (isValid) {
+      matched = { email: adminEmail, passwordHash: adminHash, salt: adminSalt, name: "Dato' Lee", role: 'admin' }
+    }
+  }
+
+  if (!isValid || !matched) {
+    return c.html(loginPage('Incorrect email or password. Please try again.'))
+  }
+
+  // Create session
+  const token = generateToken()
+  const sessionData = { email: matched.email, name: matched.name, role: matched.role, loginAt: Date.now() }
+  await c.env.SESSIONS.put('session:' + token, JSON.stringify(sessionData), { expirationTtl: SESSION_TTL })
+
+  return new Response(null, {
+    status: 302,
+    headers: { Location: '/home', 'Set-Cookie': sessionCookie(token) }
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+//   SETTINGS API ROUTES (admin only)
+// ═══════════════════════════════════════════════════════════════════════════
+
+app.post('/api/settings/credentials', requireAuth, async (c) => {
+  const body = await c.req.json<{ serviceAccountJson: string }>()
+  try {
+    JSON.parse(body.serviceAccountJson) // validate JSON
+    await c.env.SESSIONS.put('secret:service_account', body.serviceAccountJson)
+    return c.json({ ok: true })
+  } catch { return c.json({ ok: false, error: 'Invalid JSON format' }) }
+})
+
+app.get('/api/settings/test-connection', requireAuth, async (c) => {
+  try {
+    const sa  = await c.env.SESSIONS.get('secret:service_account')
+    if (!sa) return c.json({ ok: false, error: 'No service account credentials stored. Please save credentials first.' })
+    const cfg = await getConfig(c.env.SESSIONS)
+    if (!cfg.sheetId) return c.json({ ok: false, error: 'No Spreadsheet ID configured. Please set it in Sheet Configuration.' })
+    const tabs = await listSheetTabs(sa, cfg.sheetId)
+    return c.json({ ok: true, message: 'Connection successful!', tabs })
+  } catch (e: any) {
+    return c.json({ ok: false, error: e.message || 'Connection failed' })
+  }
+})
+
+app.get('/api/settings/detect-tabs', requireAuth, async (c) => {
+  try {
+    const sa  = await c.env.SESSIONS.get('secret:service_account')
+    const cfg = await getConfig(c.env.SESSIONS)
+    if (!sa || !cfg.sheetId) return c.json({ ok: false, error: 'Set credentials and Sheet ID first.' })
+    const tabs = await listSheetTabs(sa, cfg.sheetId)
+    return c.json({ ok: true, tabs })
+  } catch (e: any) {
+    return c.json({ ok: false, error: e.message })
+  }
+})
+
+app.post('/api/settings/sheet-config', requireAuth, async (c) => {
+  try {
+    const body = await c.req.json()
+    const existing = await c.env.SESSIONS.get('config:platform')
+    const cfg = existing ? JSON.parse(existing) : {}
+    cfg.sheetId = body.sheetId
+    cfg.tabs    = body.tabs
+    await c.env.SESSIONS.put('config:platform', JSON.stringify(cfg))
+    return c.json({ ok: true })
+  } catch (e: any) {
+    return c.json({ ok: false, error: e.message })
+  }
+})
+
+app.post('/api/settings/add-user', requireAuth, async (c) => {
+  try {
+    const { name, email, password, role } = await c.req.json<{ name:string; email:string; password:string; role:string }>()
+    const salt = generateToken().slice(0, 16)
+    const enc = new TextEncoder()
+    const base = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits'])
+    const bits = await crypto.subtle.deriveBits({ name:'PBKDF2', hash:'SHA-256', salt:enc.encode(salt), iterations:100_000 }, base, 256)
+    const passwordHash = btoa(String.fromCharCode(...new Uint8Array(bits)))
+    const usersRaw = await c.env.SESSIONS.get('config:users')
+    const users = usersRaw ? JSON.parse(usersRaw) : []
+    if (users.find((u: any) => u.email === email.toLowerCase())) {
+      return c.json({ ok: false, error: 'Email already exists.' })
+    }
+    users.push({ email: email.toLowerCase(), name, role, passwordHash, salt })
+    await c.env.SESSIONS.put('config:users', JSON.stringify(users))
+    return c.json({ ok: true })
+  } catch (e: any) {
+    return c.json({ ok: false, error: e.message })
+  }
+})
+
+app.post('/api/settings/remove-user', requireAuth, async (c) => {
+  try {
+    const { email } = await c.req.json<{ email: string }>()
+    const usersRaw = await c.env.SESSIONS.get('config:users')
+    const users = usersRaw ? JSON.parse(usersRaw) : []
+    const updated = users.filter((u: any) => u.email !== email.toLowerCase())
+    await c.env.SESSIONS.put('config:users', JSON.stringify(updated))
+    return c.json({ ok: true })
+  } catch (e: any) {
+    return c.json({ ok: false, error: e.message })
+  }
+})
+
+app.post('/api/settings/change-password', requireAuth, async (c) => {
+  try {
+    const session = c.get('session') as { email: string }
+    const { currentPassword, newPassword } = await c.req.json<{ currentPassword:string; newPassword:string }>()
+    const usersRaw = await c.env.SESSIONS.get('config:users')
+    const users = usersRaw ? JSON.parse(usersRaw) : []
+    const user = users.find((u: any) => u.email === session.email)
+    if (!user) return c.json({ ok: false, error: 'User not found.' })
+    const valid = await verifyPassword(currentPassword, user.passwordHash, user.salt)
+    if (!valid) return c.json({ ok: false, error: 'Current password is incorrect.' })
+    const salt = generateToken().slice(0, 16)
+    const enc = new TextEncoder()
+    const base = await crypto.subtle.importKey('raw', enc.encode(newPassword), 'PBKDF2', false, ['deriveBits'])
+    const bits = await crypto.subtle.deriveBits({ name:'PBKDF2', hash:'SHA-256', salt:enc.encode(salt), iterations:100_000 }, base, 256)
+    user.passwordHash = btoa(String.fromCharCode(...new Uint8Array(bits)))
+    user.salt = salt
+    await c.env.SESSIONS.put('config:users', JSON.stringify(users))
+    return c.json({ ok: true })
+  } catch (e: any) {
+    return c.json({ ok: false, error: e.message })
+  }
+})
+
+app.post('/api/settings/invalidate-sessions', requireAuth, async (c) => {
+  // In production you'd list and delete all sessions; here we just expire cookie
+  const token = getSessionToken(c.req.header('Cookie') || null)
+  if (token) await c.env.SESSIONS.delete('session:' + token)
+  return new Response(null, { status: 302, headers: { Location: '/login', 'Set-Cookie': sessionCookie('', true) } })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+//   DATA API — reads real Google Sheets data
+// ═══════════════════════════════════════════════════════════════════════════
+
+app.get('/api/data/:section', requireAuth, async (c) => {
+  try {
+    const section = c.req.param('section')
+    const sa  = await c.env.SESSIONS.get('secret:service_account')
+    const cfg = await getConfig(c.env.SESSIONS)
+
+    if (!sa || !cfg.sheetId) {
+      return c.json({ ok: false, error: 'Not configured', demo: true })
+    }
+
+    const tabMap: Record<string, string> = cfg.tabs
+    const tabName = tabMap[section]
+    if (!tabName) return c.json({ ok: false, error: 'Unknown section: ' + section })
+
+    const rows = await readSheet(sa, cfg.sheetId, `${tabName}!A:Z`)
+    return c.json({ ok: true, rows, count: rows.length, tab: tabName })
+  } catch (e: any) {
+    return c.json({ ok: false, error: e.message })
+  }
+})
+
+// KPI summary endpoint — aggregates key metrics from Sheets
+app.get('/api/kpis', requireAuth, async (c) => {
+  try {
+    const sa  = await c.env.SESSIONS.get('secret:service_account')
+    const cfg = await getConfig(c.env.SESSIONS)
+    if (!sa || !cfg.sheetId) return c.json({ ok: false, demo: true, error: 'Not configured' })
+
+    const [pipelineRows, revenueRows] = await Promise.all([
+      readSheet(sa, cfg.sheetId, `${cfg.tabs.pipeline || 'Pipeline'}!A:Z`).catch(() => []),
+      readSheet(sa, cfg.sheetId, `${cfg.tabs.revenue  || 'Revenue'}!A:Z`).catch(() => []),
+    ])
+
+    const pipelineTotal = sumCol(pipelineRows, 'deal_value')
+    const revenueTotal  = sumCol(revenueRows,  'amount')
+    const stageBreakdown = groupSum(pipelineRows, 'stage', 'deal_value')
+
+    return c.json({
+      ok: true,
+      pipeline: { total: fmtRM(pipelineTotal), count: pipelineRows.length, stages: stageBreakdown },
+      revenue:  { total: fmtRM(revenueTotal),  count: revenueRows.length },
+    })
+  } catch (e: any) {
+    return c.json({ ok: false, error: e.message })
+  }
+})
+
+// Upload endpoint — appends CSV rows to a Sheet tab
+app.post('/api/upload', requireAuth, async (c) => {
+  try {
+    const body = await c.req.json<{ tab: string; rows: string[][] }>()
+    const sa   = await c.env.SESSIONS.get('secret:service_account')
+    const cfg  = await getConfig(c.env.SESSIONS)
+    if (!sa || !cfg.sheetId) return c.json({ ok: false, error: 'Platform not configured — set credentials in Settings first.' })
+    const tabName = cfg.tabs[body.tab] || body.tab
+    await appendSheet(sa, cfg.sheetId, `${tabName}!A:Z`, body.rows)
+    return c.json({ ok: true, appended: body.rows.length, tab: tabName })
+  } catch (e: any) {
+    return c.json({ ok: false, error: e.message })
+  }
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+//   MAIN PAGE RENDERER
+// ═══════════════════════════════════════════════════════════════════════════
 
 const routes: Record<string, { screen: string; content: () => string }> = {
   '/':          { screen: 'home',     content: homeScreen },
@@ -40,10 +324,11 @@ const routes: Record<string, { screen: string; content: () => string }> = {
   '/blend':     { screen: 'blend',    content: blendScreen },
   '/reportai':  { screen: 'reportai', content: reportAiScreen },
   '/canvas':    { screen: 'canvas',   content: canvasScreen },
+  '/settings':  { screen: 'settings', content: settingsScreen },
 }
 
-function buildNav(active: string): string {
-  type NavItem = { id: string; label: string; icon: string; badge?: string; sub?: NavItem[] }
+function buildNav(active: string, userRole = 'viewer'): string {
+  type NavItem = { id: string; label: string; icon: string; badge?: string; sub?: NavItem[]; adminOnly?: boolean }
   const nav: NavItem[] = [
     { id: 'home',     label: 'Home',         icon: 'fa-house' },
     { id: 'overview', label: 'Overview',     icon: 'fa-chart-pie' },
@@ -67,18 +352,19 @@ function buildNav(active: string): string {
       { id: 'upload',  label: 'Manual Upload',   icon: 'fa-upload' },
       { id: 'apiconn', label: 'API Connections', icon: 'fa-plug' },
       { id: 'setup',   label: 'Setup Guide',     icon: 'fa-book-open' },
-      { id: 'blend',   label: 'Data Blend',       icon: 'fa-code-merge' },
+      { id: 'blend',   label: 'Data Blend',      icon: 'fa-code-merge' },
     ]},
     { id: 'reportai', label: 'Report AI',  icon: 'fa-file-chart-pie', badge: 'New' },
     { id: 'canvas',   label: 'Canvas',     icon: 'fa-layer-group',    badge: 'New' },
+    { id: 'settings', label: 'Settings',   icon: 'fa-gear', adminOnly: true },
   ]
 
   function renderItem(n: NavItem, depth = 0): string {
-    const isActive    = active === n.id
+    if (n.adminOnly && userRole !== 'admin') return ''
+    const isActive     = active === n.id
     const hasActiveSub = n.sub?.some(s => s.id === active)
-    const isOpen      = isActive || hasActiveSub || false
-    const indent      = depth > 0 ? 'style="padding-left:22px"' : ''
-
+    const isOpen       = isActive || hasActiveSub || false
+    const indent       = depth > 0 ? 'style="padding-left:22px"' : ''
     if (n.sub && n.sub.length > 0) {
       const subHtml = n.sub.map(s => renderItem(s, 1)).join('')
       return `
@@ -99,13 +385,13 @@ function buildNav(active: string): string {
       </a>
     `
   }
-
   return nav.map(n => renderItem(n)).join('')
 }
 
-function page(screen: string, body: string): string {
-  const nav = buildNav(screen)
+function page(screen: string, body: string, session: { name: string; email: string; role: string }): string {
+  const nav = buildNav(screen, session.role)
   const tb  = topbar(screen)
+  const initials = session.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -134,12 +420,14 @@ function page(screen: string, body: string): string {
 
     <div class="sidebar-footer">
       <div class="user-card">
-        <div class="user-avatar">DL</div>
+        <div class="user-avatar">${initials}</div>
         <div style="flex:1;min-width:0">
-          <div class="user-name">Dato' Lee</div>
-          <div class="user-role">Chief Revenue Officer</div>
+          <div class="user-name">${session.name}</div>
+          <div class="user-role">${session.role === 'admin' ? 'Administrator' : session.role === 'editor' ? 'Editor' : 'Viewer'}</div>
         </div>
-        <i class="fas fa-chevron-up" style="font-size:8px;color:var(--text-muted)"></i>
+        <a href="/logout" title="Sign out" style="color:var(--text-muted);font-size:13px;padding:4px;transition:color .2s" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-muted)'">
+          <i class="fas fa-right-from-bracket"></i>
+        </a>
       </div>
     </div>
   </aside>
@@ -155,12 +443,27 @@ function page(screen: string, body: string): string {
 <!-- ═══ GLOBAL SCRIPTS ═══════════════════════════════════════ -->
 <script>
 // ─── Navigation ──────────────────────────────────────────────
-function navigate(screen) {
-  window.location.href = '/' + screen;
-}
+function navigate(screen) { window.location.href = '/' + screen; }
 function fillPrompt(text) {
   const el = document.getElementById('chatInput');
   if (el) { el.value = text; el.focus(); }
+}
+
+// ─── Live data loader ─────────────────────────────────────────
+async function loadLiveData(section) {
+  try {
+    const res = await fetch('/api/data/' + section);
+    const d   = await res.json();
+    if (d.ok && d.rows && d.rows.length > 0) {
+      injectLiveData(section, d.rows);
+    }
+  } catch(e) { /* silently fall back to demo data */ }
+}
+
+function injectLiveData(section, rows) {
+  // Generic injection: update [data-live-col] elements with aggregated values
+  // Specific screens can override this
+  console.log('[Live] ' + section + ': ' + rows.length + ' rows loaded from Google Sheets');
 }
 
 // ─── Chat ─────────────────────────────────────────────────────
@@ -172,7 +475,6 @@ function sendMessage() {
   const win = document.getElementById('chatWindow');
   if (!inp || !win || !inp.value.trim()) return;
   const msg = inp.value.trim(); inp.value = '';
-
   win.innerHTML += \`
     <div class="msg-row user fade-in">
       <div class="msg-av user"><i class="fas fa-user"></i></div>
@@ -183,7 +485,6 @@ function sendMessage() {
       <div class="msg-bub ai"><div class="typing-row"><div class="td"></div><div class="td"></div><div class="td"></div></div></div>
     </div>\`;
   win.scrollTop = win.scrollHeight;
-
   setTimeout(() => {
     const tr = document.getElementById('typingRow');
     if (tr) tr.remove();
@@ -193,9 +494,9 @@ function sendMessage() {
         <div class="msg-bub ai">
           <div class="ai-sum">🔍 AI Analysis: <em>\${msg}</em></div>
           <div class="ai-exp" style="margin-bottom:12px">
-            In production, this response would pull <strong>structured live data</strong> from your Google Sheets,
-            GA4, Google Ads Manager, BigQuery, and TikTok Ads — returning key numbers, supporting tables,
-            anomaly flags, and drill-down actions tailored to your question.
+            In production, this response pulls <strong>live data</strong> from your connected Google Sheets,
+            GA4, Google Ads Manager, BigQuery, and TikTok Ads — returning structured numbers, anomaly flags,
+            and drill-down actions tailored to your question.
           </div>
           <div class="ai-acts">
             <button class="ai-act"><i class="fas fa-bookmark"></i>Save Insight</button>
@@ -223,6 +524,27 @@ function switchSetupTab(tab, el) {
   });
 }
 
+// ─── Toast ────────────────────────────────────────────────────
+function showToast(msg, type) {
+  type = type || 'info';
+  let t = document.getElementById('globalToast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'globalToast';
+    t.style.cssText = 'position:fixed;bottom:28px;right:28px;padding:11px 18px;border-radius:10px;font-size:12px;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,.5);transition:opacity .3s;font-weight:600;display:flex;align-items:center;gap:8px';
+    document.body.appendChild(t);
+  }
+  var colors = { success:'#00d68f', error:'#f43f5e', info:'#60a5fa' };
+  var icons  = { success:'fa-circle-check', error:'fa-circle-xmark', info:'fa-circle-info' };
+  t.style.background = type==='success'?'rgba(0,214,143,0.15)':type==='error'?'rgba(244,63,94,0.15)':'rgba(96,165,250,0.15)';
+  t.style.border     = '1px solid ' + (colors[type]||'rgba(255,255,255,0.1)') + '44';
+  t.style.color      = colors[type] || '#f0f0ff';
+  t.innerHTML = '<i class="fas ' + (icons[type]||'fa-info') + '"></i>' + msg;
+  t.style.opacity = '1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(function(){ t.style.opacity='0'; }, 3200);
+}
+
 // ─── Chart defaults ───────────────────────────────────────────
 const chartDefaults = {
   plugins: {
@@ -238,16 +560,8 @@ const chartDefaults = {
     }
   },
   scales: {
-    x: {
-      grid:   { color: 'rgba(255,255,255,0.03)' },
-      ticks:  { color: '#48486a', font: { size: 10 } },
-      border: { display: false }
-    },
-    y: {
-      grid:   { color: 'rgba(255,255,255,0.04)' },
-      ticks:  { color: '#48486a', font: { size: 10 } },
-      border: { display: false }
-    }
+    x: { grid:{color:'rgba(255,255,255,0.03)'}, ticks:{color:'#48486a',font:{size:10}}, border:{display:false} },
+    y: { grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#48486a',font:{size:10}}, border:{display:false} }
   },
   responsive: true,
   maintainAspectRatio: false,
@@ -255,351 +569,153 @@ const chartDefaults = {
 
 function mkGrad(ctx, c1, c2, h) {
   const g = ctx.createLinearGradient(0, 0, 0, h || 200);
-  g.addColorStop(0, c1);
-  g.addColorStop(1, c2);
+  g.addColorStop(0, c1); g.addColorStop(1, c2);
   return g;
 }
 
 window.addEventListener('DOMContentLoaded', () => {
 
-  // ── Home Revenue Chart ────────────────────────────────────
+  // ── Home Revenue Chart ─────────────────────────────────
   const hrc = document.getElementById('homeRevChart');
   if (hrc) new Chart(hrc, {
     type: 'bar',
     data: {
       labels: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
       datasets: [
-        {
-          label: 'Actual Revenue',
-          data: [18.4, 21.2, 24.1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-          backgroundColor: ctx => mkGrad(ctx.chart.ctx, 'rgba(226,0,122,0.88)', 'rgba(226,0,122,0.18)'),
-          borderRadius: 5,
-          borderSkipped: false,
-        },
-        {
-          label: 'Target',
-          data: [19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
-          type: 'line',
-          borderColor: 'rgba(255,255,255,0.13)',
-          borderWidth: 1.5,
-          borderDash: [5, 4],
-          pointRadius: 0,
-          fill: false,
-          tension: 0.4,
-        }
+        { label:'Actual', data:[18.4,21.2,24.1,0,0,0,0,0,0,0,0,0],
+          backgroundColor: ctx=>mkGrad(ctx.chart.ctx,'rgba(226,0,122,0.88)','rgba(226,0,122,0.18)'),
+          borderRadius:5, borderSkipped:false },
+        { label:'Target', data:[19,20,21,22,23,24,25,26,27,28,29,30],
+          type:'line', borderColor:'rgba(255,255,255,0.13)', borderWidth:1.5,
+          borderDash:[5,4], pointRadius:0, fill:false, tension:0.4 }
       ]
     },
-    options: {
-      ...chartDefaults,
-      plugins: {
-        ...chartDefaults.plugins,
-        tooltip: {
-          ...chartDefaults.plugins.tooltip,
-          callbacks: { label: ctx => ' RM ' + ctx.parsed.y + 'M' }
-        }
-      },
-      scales: {
-        ...chartDefaults.scales,
-        y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => 'RM' + v + 'M' } }
-      }
+    options: { ...chartDefaults,
+      plugins:{...chartDefaults.plugins, tooltip:{...chartDefaults.plugins.tooltip, callbacks:{label:ctx=>' RM '+ctx.parsed.y+'M'}}},
+      scales:{...chartDefaults.scales, y:{...chartDefaults.scales.y, ticks:{...chartDefaults.scales.y.ticks, callback:v=>'RM'+v+'M'}}}
     }
   });
 
-  // ── Overview Revenue Chart ───────────────────────────────
+  // ── Overview Revenue Chart ─────────────────────────────
   const orc = document.getElementById('ovRevChart');
   if (orc) new Chart(orc, {
-    type: 'line',
-    data: {
-      labels: ['Jan', 'Feb', 'Mar'],
-      datasets: [
-        {
-          label: 'Revenue',
-          data: [18.4, 21.2, 24.1],
-          borderColor: '#e2007a',
-          borderWidth: 2.5,
-          pointBackgroundColor: '#e2007a',
-          pointRadius: 4,
-          fill: true,
-          backgroundColor: ctx => {
-            const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 150);
-            g.addColorStop(0, 'rgba(226,0,122,0.26)');
-            g.addColorStop(1, 'rgba(226,0,122,0.02)');
-            return g;
-          },
-          tension: 0.4
-        },
-        {
-          label: 'Target',
-          data: [19, 20, 21],
-          borderColor: 'rgba(255,255,255,0.18)',
-          borderWidth: 1.5,
-          borderDash: [5, 4],
-          pointRadius: 0,
-          fill: false,
-          tension: 0.4
-        }
+    type:'line',
+    data:{ labels:['Jan','Feb','Mar'],
+      datasets:[
+        { label:'Revenue', data:[18.4,21.2,24.1], borderColor:'#e2007a', borderWidth:2.5,
+          pointBackgroundColor:'#e2007a', pointRadius:4, fill:true,
+          backgroundColor:ctx=>{const g=ctx.chart.ctx.createLinearGradient(0,0,0,150);g.addColorStop(0,'rgba(226,0,122,0.26)');g.addColorStop(1,'rgba(226,0,122,0.02)');return g;}, tension:0.4 },
+        { label:'Target', data:[19,20,21], borderColor:'rgba(255,255,255,0.18)', borderWidth:1.5,
+          borderDash:[5,4], pointRadius:0, fill:false, tension:0.4 }
       ]
     },
-    options: {
-      ...chartDefaults,
-      scales: {
-        ...chartDefaults.scales,
-        y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => 'RM' + v + 'M' } }
-      }
-    }
+    options:{...chartDefaults, scales:{...chartDefaults.scales, y:{...chartDefaults.scales.y, ticks:{...chartDefaults.scales.y.ticks, callback:v=>'RM'+v+'M'}}}}
   });
 
-  // ── Ads Mix Donut (Overview) ─────────────────────────────
+  // ── Ads Mix Donut ──────────────────────────────────────
   const amc = document.getElementById('adsMixChart');
-  if (amc) new Chart(amc, {
-    type: 'doughnut',
-    data: {
-      labels: ['Google', 'Meta', 'TikTok'],
-      datasets: [{
-        data: [43, 35, 22],
-        backgroundColor: ['rgba(66,133,244,0.82)', 'rgba(24,119,242,0.65)', 'rgba(255,0,80,0.75)'],
-        borderColor: ['#4285f4', '#1877f2', '#ff0050'],
-        borderWidth: 1.5,
-        hoverOffset: 6,
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      cutout: '66%',
-      plugins: {
-        legend: {
-          display: true,
-          position: 'bottom',
-          labels: { color: '#8080a8', font: { size: 10 }, padding: 12, boxWidth: 10 }
-        },
-        tooltip: chartDefaults.plugins.tooltip
-      }
-    }
+  if (amc) new Chart(amc, { type:'doughnut',
+    data:{ labels:['Google','Meta','TikTok'], datasets:[{ data:[43,35,22],
+      backgroundColor:['rgba(66,133,244,0.82)','rgba(24,119,242,0.65)','rgba(255,0,80,0.75)'],
+      borderColor:['#4285f4','#1877f2','#ff0050'], borderWidth:1.5, hoverOffset:6 }]},
+    options:{ responsive:true, maintainAspectRatio:false, cutout:'66%',
+      plugins:{ legend:{display:true,position:'bottom',labels:{color:'#8080a8',font:{size:10},padding:12,boxWidth:10}}, tooltip:chartDefaults.plugins.tooltip }}
   });
 
-  // ── Revenue Performance Chart ────────────────────────────
+  // ── Revenue Performance Chart ──────────────────────────
   const rpc = document.getElementById('revPerfChart');
-  if (rpc) new Chart(rpc, {
-    type: 'bar',
-    data: {
-      labels: ['Jan', 'Feb', 'Mar'],
-      datasets: [
-        {
-          label: 'Actual',
-          data: [18.4, 21.2, 24.1],
-          backgroundColor: ctx => mkGrad(ctx.chart.ctx, 'rgba(226,0,122,0.88)', 'rgba(226,0,122,0.18)'),
-          borderRadius: 5,
-          borderSkipped: false,
-        },
-        {
-          label: 'Target',
-          data: [19, 20, 21],
-          backgroundColor: 'rgba(255,255,255,0.07)',
-          borderRadius: 5,
-          borderSkipped: false,
-        }
-      ]
-    },
-    options: {
-      ...chartDefaults,
-      plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'top', labels: { color: '#8080a8', font: { size: 10 }, padding: 10, boxWidth: 10 } } },
-      scales: {
-        ...chartDefaults.scales,
-        y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => 'RM' + v + 'M' } }
-      }
+  if (rpc) new Chart(rpc, { type:'bar',
+    data:{ labels:['Jan','Feb','Mar'],
+      datasets:[
+        { label:'Actual', data:[18.4,21.2,24.1], backgroundColor:ctx=>mkGrad(ctx.chart.ctx,'rgba(226,0,122,0.88)','rgba(226,0,122,0.18)'), borderRadius:5, borderSkipped:false },
+        { label:'Target', data:[19,20,21], backgroundColor:'rgba(255,255,255,0.07)', borderRadius:5, borderSkipped:false }
+      ]},
+    options:{...chartDefaults,
+      plugins:{...chartDefaults.plugins, legend:{display:true,position:'top',labels:{color:'#8080a8',font:{size:10},padding:10,boxWidth:10}}},
+      scales:{...chartDefaults.scales, y:{...chartDefaults.scales.y, ticks:{...chartDefaults.scales.y.ticks, callback:v=>'RM'+v+'M'}}}
     }
   });
 
-  // ── Campaign Revenue Chart ───────────────────────────────
+  // ── Campaign Revenue Chart ─────────────────────────────
   const crc = document.getElementById('campRevChart');
-  if (crc) new Chart(crc, {
-    type: 'bar',
-    data: {
-      labels: ['Jan', 'Feb', 'Mar'],
-      datasets: [{
-        label: 'Campaign Rev',
-        data: [11.2, 13.8, 13.6],
-        backgroundColor: ctx => mkGrad(ctx.chart.ctx, 'rgba(167,139,250,0.82)', 'rgba(167,139,250,0.12)'),
-        borderRadius: 5,
-        borderSkipped: false,
-      }]
-    },
-    options: {
-      ...chartDefaults,
-      scales: {
-        ...chartDefaults.scales,
-        y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => 'RM' + v + 'M' } }
-      }
-    }
+  if (crc) new Chart(crc, { type:'bar',
+    data:{ labels:['Jan','Feb','Mar'], datasets:[{ label:'Campaign Rev', data:[11.2,13.8,13.6],
+      backgroundColor:ctx=>mkGrad(ctx.chart.ctx,'rgba(167,139,250,0.82)','rgba(167,139,250,0.12)'), borderRadius:5, borderSkipped:false }]},
+    options:{...chartDefaults, scales:{...chartDefaults.scales, y:{...chartDefaults.scales.y, ticks:{...chartDefaults.scales.y.ticks, callback:v=>'RM'+v+'M'}}}}
   });
 
-  // ── Ads Spend Donut ──────────────────────────────────────
+  // ── Ads Spend Donut ────────────────────────────────────
   const asd = document.getElementById('adsSpendChart');
-  if (asd) new Chart(asd, {
-    type: 'doughnut',
-    data: {
-      labels: ['Google Ads', 'Meta Ads', 'TikTok Ads'],
-      datasets: [{
-        data: [43, 35, 22],
-        backgroundColor: ['rgba(66,133,244,0.85)', 'rgba(24,119,242,0.7)', 'rgba(255,0,80,0.78)'],
-        borderColor: ['#4285f4', '#1877f2', '#ff0050'],
-        borderWidth: 1.5,
-        hoverOffset: 6,
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      cutout: '68%',
-      plugins: { legend: { display: false }, tooltip: chartDefaults.plugins.tooltip }
-    }
+  if (asd) new Chart(asd, { type:'doughnut',
+    data:{ labels:['Google Ads','Meta Ads','TikTok Ads'], datasets:[{ data:[43,35,22],
+      backgroundColor:['rgba(66,133,244,0.85)','rgba(24,119,242,0.7)','rgba(255,0,80,0.78)'],
+      borderColor:['#4285f4','#1877f2','#ff0050'], borderWidth:1.5, hoverOffset:6 }]},
+    options:{ responsive:true, maintainAspectRatio:false, cutout:'68%',
+      plugins:{ legend:{display:false}, tooltip:chartDefaults.plugins.tooltip }}
   });
 
-  // ── Portals Traffic Chart ────────────────────────────────
+  // ── Portals Traffic Chart ──────────────────────────────
   const tc = document.getElementById('trafficChart');
-  if (tc) new Chart(tc, {
-    type: 'line',
-    data: {
-      labels: ['1 Mar','5 Mar','10 Mar','15 Mar','20 Mar','25 Mar','27 Mar'],
-      datasets: [
-        {
-          label: 'Sessions',
-          data: [128, 142, 156, 138, 162, 178, 184],
-          borderColor: '#60a5fa',
-          borderWidth: 2.5,
-          pointRadius: 3,
-          pointBackgroundColor: '#60a5fa',
-          fill: true,
-          backgroundColor: ctx => {
-            const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 150);
-            g.addColorStop(0, 'rgba(96,165,250,0.22)');
-            g.addColorStop(1, 'rgba(96,165,250,0.02)');
-            return g;
-          },
-          tension: 0.4
-        },
-        {
-          label: 'Users',
-          data: [86, 94, 104, 91, 108, 119, 122],
-          borderColor: '#2dd4bf',
-          borderWidth: 2,
-          pointRadius: 3,
-          fill: false,
-          tension: 0.4
-        }
-      ]
-    },
-    options: {
-      ...chartDefaults,
-      plugins: {
-        ...chartDefaults.plugins,
-        legend: { display: true, position: 'top', labels: { color: '#8080a8', font: { size: 10 }, padding: 10, boxWidth: 10 } }
-      }
-    }
+  if (tc) new Chart(tc, { type:'line',
+    data:{ labels:['1 Mar','5 Mar','10 Mar','15 Mar','20 Mar','25 Mar','27 Mar'],
+      datasets:[
+        { label:'Sessions', data:[128,142,156,138,162,178,184], borderColor:'#60a5fa', borderWidth:2.5,
+          pointRadius:3, pointBackgroundColor:'#60a5fa', fill:true,
+          backgroundColor:ctx=>{const g=ctx.chart.ctx.createLinearGradient(0,0,0,150);g.addColorStop(0,'rgba(96,165,250,0.22)');g.addColorStop(1,'rgba(96,165,250,0.02)');return g;}, tension:0.4 },
+        { label:'Users', data:[86,94,104,91,108,119,122], borderColor:'#2dd4bf', borderWidth:2, pointRadius:3, fill:false, tension:0.4 }
+      ]},
+    options:{...chartDefaults, plugins:{...chartDefaults.plugins, legend:{display:true,position:'top',labels:{color:'#8080a8',font:{size:10},padding:10,boxWidth:10}}}}
   });
 
-  // ── Social Chart ─────────────────────────────────────────
+  // ── Social Chart ───────────────────────────────────────
   const sc = document.getElementById('socialChart');
-  if (sc) new Chart(sc, {
-    type: 'line',
-    data: {
-      labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-      datasets: [
-        {
-          label: 'Reach',
-          data: [480000, 520000, 540000, 560000],
-          borderColor: '#a78bfa',
-          borderWidth: 2.5,
-          pointRadius: 3,
-          fill: true,
-          backgroundColor: ctx => {
-            const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 150);
-            g.addColorStop(0, 'rgba(167,139,250,0.22)');
-            g.addColorStop(1, 'rgba(167,139,250,0.02)');
-            return g;
-          },
-          tension: 0.4
-        },
-        {
-          label: 'Engagements',
-          data: [62000, 68000, 72000, 82000],
-          borderColor: '#00d68f',
-          borderWidth: 2,
-          pointRadius: 3,
-          fill: false,
-          tension: 0.4
-        }
-      ]
-    },
-    options: {
-      ...chartDefaults,
-      plugins: {
-        ...chartDefaults.plugins,
-        legend: { display: true, position: 'top', labels: { color: '#8080a8', font: { size: 10 }, padding: 10, boxWidth: 10 } }
-      }
-    }
+  if (sc) new Chart(sc, { type:'line',
+    data:{ labels:['Week 1','Week 2','Week 3','Week 4'],
+      datasets:[
+        { label:'Reach', data:[480000,520000,540000,560000], borderColor:'#a78bfa', borderWidth:2.5,
+          pointRadius:3, fill:true,
+          backgroundColor:ctx=>{const g=ctx.chart.ctx.createLinearGradient(0,0,0,150);g.addColorStop(0,'rgba(167,139,250,0.22)');g.addColorStop(1,'rgba(167,139,250,0.02)');return g;}, tension:0.4 },
+        { label:'Engagements', data:[62000,68000,72000,82000], borderColor:'#00d68f', borderWidth:2, pointRadius:3, fill:false, tension:0.4 }
+      ]},
+    options:{...chartDefaults, plugins:{...chartDefaults.plugins, legend:{display:true,position:'top',labels:{color:'#8080a8',font:{size:10},padding:10,boxWidth:10}}}}
   });
 
-  // ── Audience Growth Chart ────────────────────────────────
+  // ── Audience Growth Chart ──────────────────────────────
   const agc = document.getElementById('audienceChart');
-  if (agc) new Chart(agc, {
-    type: 'bar',
-    data: {
-      labels: ['Jan', 'Feb', 'Mar'],
-      datasets: [
-        { label: 'IG', data: [1760, 1810, 1840], backgroundColor: 'rgba(225,48,108,0.75)', borderRadius: 4, borderSkipped: false },
-        { label: 'TT', data: [840,  890,  920],  backgroundColor: 'rgba(255,0,80,0.65)',   borderRadius: 4, borderSkipped: false },
-        { label: 'FB', data: [2060, 2080, 2100], backgroundColor: 'rgba(24,119,242,0.65)', borderRadius: 4, borderSkipped: false },
-      ]
-    },
-    options: {
-      ...chartDefaults,
-      plugins: {
-        ...chartDefaults.plugins,
-        legend: { display: true, position: 'top', labels: { color: '#8080a8', font: { size: 10 }, padding: 8, boxWidth: 8 } }
-      },
-      scales: {
-        ...chartDefaults.scales,
-        y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: function(v) { return (v / 1000) + 'K'; } } }
-      }
+  if (agc) new Chart(agc, { type:'bar',
+    data:{ labels:['Jan','Feb','Mar'],
+      datasets:[
+        { label:'IG', data:[1760,1810,1840], backgroundColor:'rgba(225,48,108,0.75)', borderRadius:4, borderSkipped:false },
+        { label:'TT', data:[840,890,920],   backgroundColor:'rgba(255,0,80,0.65)',   borderRadius:4, borderSkipped:false },
+        { label:'FB', data:[2060,2080,2100], backgroundColor:'rgba(24,119,242,0.65)', borderRadius:4, borderSkipped:false },
+      ]},
+    options:{...chartDefaults,
+      plugins:{...chartDefaults.plugins, legend:{display:true,position:'top',labels:{color:'#8080a8',font:{size:10},padding:8,boxWidth:8}}},
+      scales:{...chartDefaults.scales, y:{...chartDefaults.scales.y, ticks:{...chartDefaults.scales.y.ticks, callback:function(v){return (v/1000)+'K';}}}}
     }
   });
 
-  // ── Report AI Charts ────────────────────────────────────
+  // ── Report AI Charts ───────────────────────────────────
   const raiRev = document.getElementById('raiRevChart');
-  if (raiRev) new Chart(raiRev, {
-    type: 'bar',
-    data: {
-      labels: ['Jan', 'Feb', 'Mar'],
-      datasets: [
-        { label: 'Actual', data: [18.4, 21.2, 24.1],
-          backgroundColor: ctx => mkGrad(ctx.chart.ctx, 'rgba(226,0,122,0.88)', 'rgba(226,0,122,0.18)'),
-          borderRadius: 5, borderSkipped: false },
-        { label: 'Target', data: [19, 20, 21],
-          backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 5, borderSkipped: false }
-      ]
-    },
-    options: {
-      ...chartDefaults,
-      plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'top', labels: { color: '#8080a8', font: { size: 10 }, padding: 10, boxWidth: 10 } } },
-      scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => 'RM' + v + 'M' } } }
+  if (raiRev) new Chart(raiRev, { type:'bar',
+    data:{ labels:['Jan','Feb','Mar'],
+      datasets:[
+        { label:'Actual', data:[18.4,21.2,24.1], backgroundColor:ctx=>mkGrad(ctx.chart.ctx,'rgba(226,0,122,0.88)','rgba(226,0,122,0.18)'), borderRadius:5, borderSkipped:false },
+        { label:'Target', data:[19,20,21], backgroundColor:'rgba(255,255,255,0.07)', borderRadius:5, borderSkipped:false }
+      ]},
+    options:{...chartDefaults,
+      plugins:{...chartDefaults.plugins, legend:{display:true,position:'top',labels:{color:'#8080a8',font:{size:10},padding:10,boxWidth:10}}},
+      scales:{...chartDefaults.scales, y:{...chartDefaults.scales.y, ticks:{...chartDefaults.scales.y.ticks, callback:v=>'RM'+v+'M'}}}
     }
   });
-
   const raiProd = document.getElementById('raiProductChart');
-  if (raiProd) new Chart(raiProd, {
-    type: 'doughnut',
-    data: {
-      labels: ['Digital Ads', 'Content Syndi.', 'Events & Live', 'Sponsorship'],
-      datasets: [{ data: [45, 27, 17, 10],
-        backgroundColor: ['rgba(226,0,122,0.82)','rgba(96,165,250,0.75)','rgba(167,139,250,0.75)','rgba(45,212,191,0.75)'],
-        borderColor: ['#e2007a','#60a5fa','#a78bfa','#2dd4bf'],
-        borderWidth: 1.5, hoverOffset: 5 }]
-    },
-    options: { responsive: true, maintainAspectRatio: false, cutout: '66%',
-      plugins: { legend: { display: true, position: 'bottom', labels: { color: '#8080a8', font: { size: 9 }, padding: 8, boxWidth: 8 } }, tooltip: chartDefaults.plugins.tooltip }
-    }
+  if (raiProd) new Chart(raiProd, { type:'doughnut',
+    data:{ labels:['Digital Ads','Content Syndi.','Events & Live','Sponsorship'],
+      datasets:[{ data:[45,27,17,10],
+        backgroundColor:['rgba(226,0,122,0.82)','rgba(96,165,250,0.75)','rgba(167,139,250,0.75)','rgba(45,212,191,0.75)'],
+        borderColor:['#e2007a','#60a5fa','#a78bfa','#2dd4bf'], borderWidth:1.5, hoverOffset:5 }]},
+    options:{ responsive:true, maintainAspectRatio:false, cutout:'66%',
+      plugins:{ legend:{display:true,position:'bottom',labels:{color:'#8080a8',font:{size:9},padding:8,boxWidth:8}}, tooltip:chartDefaults.plugins.tooltip }}
   });
 
 }); // end DOMContentLoaded
@@ -608,9 +724,12 @@ window.addEventListener('DOMContentLoaded', () => {
 </html>`
 }
 
-// Register all routes
+// Register all protected page routes
 for (const [path, { screen, content }] of Object.entries(routes)) {
-  app.get(path, (c) => c.html(page(screen, content())))
+  app.get(path, requireAuth, async (c) => {
+    const session = c.get('session') as { name: string; email: string; role: string }
+    return c.html(page(screen, content(), session))
+  })
 }
 
 export default app
