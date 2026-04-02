@@ -90,10 +90,11 @@ export const CSS = `
   }
   .logo-img {
     display: block;
-    width: 108px;
+    width: 148px;
     height: auto;
     mix-blend-mode: screen;
-    filter: brightness(1.05) saturate(1.1);
+    filter: brightness(1.05) saturate(1.15);
+    margin: 0 auto;
   }
   .logo-sub {
     font-size: 8px;
@@ -101,7 +102,8 @@ export const CSS = `
     letter-spacing: 2.8px;
     color: var(--text-muted);
     text-transform: uppercase;
-    margin-top: 8px;
+    margin-top: 6px;
+    text-align: center;
     padding-left: 1px;
   }
 

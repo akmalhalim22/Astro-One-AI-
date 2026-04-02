@@ -50,7 +50,9 @@ const AUTH_HEAD = (title: string) => `<!DOCTYPE html>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>${title}</title>
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico"/>
+  <link rel="icon" type="image/png" sizes="64x64" href="/favicon.png"/>
+  <link rel="apple-touch-icon" href="/static/apple-touch-icon.png"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
   <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css" rel="stylesheet"/>
@@ -121,8 +123,7 @@ export function loginPage(error = ''): string {
 <div class="auth-wrap">
   <div class="auth-card">
     <div class="auth-logo">
-      <div class="auth-logo-mark">A1</div>
-      <div class="auth-logo-name">Astro One</div>
+      <img src="/static/astro-one-logo.png" alt="Astro One" style="width:200px;height:auto;display:block;margin:0 auto 4px"/>
       <div class="auth-logo-sub">Management AI Assistant · Digital Performance Hub</div>
     </div>
 
@@ -189,8 +190,7 @@ export function registerPage(error = '', success = '', prefill: Record<string,st
 <div class="auth-wrap">
   <div class="auth-card">
     <div class="auth-logo">
-      <div class="auth-logo-mark">A1</div>
-      <div class="auth-logo-name">Astro One</div>
+      <img src="/static/astro-one-logo.png" alt="Astro One" style="width:200px;height:auto;display:block;margin:0 auto 4px"/>
       <div class="auth-logo-sub">Management AI Assistant · Digital Performance Hub</div>
     </div>
 

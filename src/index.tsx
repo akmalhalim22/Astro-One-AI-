@@ -515,7 +515,9 @@ function page(screen: string, body: string, session: { name: string; email: stri
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>Astro One — Digital Performance Hub</title>
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico"/>
+  <link rel="icon" type="image/png" sizes="64x64" href="/favicon.png"/>
+  <link rel="apple-touch-icon" href="/static/apple-touch-icon.png"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;0,14..32,900&display=swap" rel="stylesheet"/>
@@ -529,8 +531,8 @@ function page(screen: string, body: string, session: { name: string; email: stri
   <!-- ═══ SIDEBAR ════════════════════════════════════════════ -->
   <aside class="sidebar">
     <div class="sidebar-logo">
-      <img src="/static/astro-logo.png" alt="Astro" class="logo-img"/>
-      <div class="logo-sub">Digital Performance Hub</div>
+      <img src="/static/astro-one-logo.png" alt="Astro One" class="logo-img"/>
+      <div class="logo-sub">Management AI Assistant</div>
     </div>
 
     <nav class="sidebar-nav">${nav}</nav>
