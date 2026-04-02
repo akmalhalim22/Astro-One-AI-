@@ -347,6 +347,77 @@ app.post('/api/settings/invite-code', requireAuth, async (c) => {
 })
 
 // ═══════════════════════════════════════════════════════════════════════════
+//   API CONNECTION CONFIG — stores/reads credentials for GA4, GAM, BQ, etc.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Get status of a specific connection source
+app.get('/api/conn/status/:sourceId', requireAuth, async (c) => {
+  const sourceId = c.req.param('sourceId')
+  const key = 'config:conn:' + sourceId
+  const stored = await c.env.SESSIONS.get(key)
+  if (stored) {
+    const cfg = JSON.parse(stored)
+    // Don't expose secrets, just confirm configured
+    return c.json({ ok: true, configured: true, sourceId, configuredAt: cfg.savedAt })
+  }
+  return c.json({ ok: true, configured: false, sourceId })
+})
+
+// Save connection config (credentials stored in KV)
+app.post('/api/conn/config', requireAuth, async (c) => {
+  try {
+    const body = await c.req.json<Record<string, string>>()
+    const { sourceId } = body
+    if (!sourceId) return c.json({ ok: false, error: 'sourceId required' })
+
+    const key = 'config:conn:' + sourceId
+    const payload = { ...body, savedAt: new Date().toISOString() }
+    await c.env.SESSIONS.put(key, JSON.stringify(payload))
+    return c.json({ ok: true, sourceId })
+  } catch (e: any) {
+    return c.json({ ok: false, error: e.message })
+  }
+})
+
+// Trigger a manual sync for a source (currently demonstrates the pattern;
+// real sync requires a Cloudflare Cron Worker with the respective API library)
+app.post('/api/conn/sync/:sourceId', requireAuth, async (c) => {
+  const sourceId = c.req.param('sourceId')
+  const key = 'config:conn:' + sourceId
+  const stored = await c.env.SESSIONS.get(key)
+
+  if (!stored) {
+    return c.json({ ok: false, error: sourceId + ' is not configured — open Config to enter credentials first.' })
+  }
+
+  // For Google Sheets: test the real connection
+  if (sourceId === 'sheets') {
+    try {
+      const sa  = await c.env.SESSIONS.get('secret:service_account')
+      const cfg = await getConfig(c.env.SESSIONS)
+      if (!sa || !cfg.sheetId)
+        return c.json({ ok: false, error: 'Google Sheets not configured in Settings yet.' })
+      const tabs = await listSheetTabs(sa, cfg.sheetId)
+      return c.json({ ok: true, message: 'Google Sheets live — ' + tabs.length + ' tabs found.', records: tabs.length })
+    } catch (e: any) {
+      return c.json({ ok: false, error: e.message })
+    }
+  }
+
+  // For other sources: record the sync attempt with timestamp
+  const connData = JSON.parse(stored)
+  connData.lastSync = new Date().toISOString()
+  await c.env.SESSIONS.put(key, JSON.stringify(connData))
+
+  return c.json({
+    ok: true,
+    message: sourceId.toUpperCase() + ' sync triggered. In production this fires the respective API integration worker.',
+    records: 0,
+    note: 'To enable real sync, deploy a Cloudflare Cron Worker with the ' + sourceId + ' API integration code shown in the Setup Guide.'
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
 //   DATA API — reads real Google Sheets data
 // ═══════════════════════════════════════════════════════════════════════════
 
