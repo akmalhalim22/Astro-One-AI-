@@ -555,11 +555,10 @@ const SOURCE_CONFIGS = {
     ]
   },
   gam: {
-    title: 'Google Ads Manager Setup',
+    title: 'Google Ad Manager (GAM) Setup',
     fields: [
-      { label: 'Customer ID', id: 'gam_customer_id', placeholder: 'e.g. 123-456-7890', hint: 'Your Google Ads MCC or account customer ID' },
-      { label: 'Developer Token', id: 'gam_dev_token', placeholder: 'From Google Ads API Center', hint: 'Found in Google Ads → Tools → API Center' },
-      { label: 'OAuth Refresh Token', id: 'gam_refresh_token', placeholder: 'Obtained via OAuth 2.0 flow', hint: 'See Setup Guide → Google Ads Manager tab for OAuth steps' },
+      { label: 'Network Code', id: 'gam_network_code', placeholder: 'e.g. 142680780', hint: 'Found in GAM UI → Admin → Global Settings → Network code' },
+      { label: 'Service Account JSON', id: 'gam_sa_json', type: 'textarea', placeholder: 'Paste the full contents of your service account .json key file here', hint: 'Service account must be added in GAM: Admin → Global Settings → API access → Service accounts' },
     ]
   },
   bq: {
@@ -594,7 +593,7 @@ async function testConnection(id, name) {
   const statusBadge = document.getElementById('status-' + id);
   if (icon) { icon.className = 'fas fa-spinner fa-spin'; }
 
-  // For Google Sheets, test the real API
+  // For Google Sheets, test the real Sheets API
   if (id === 'sheets') {
     try {
       const res = await fetch('/api/settings/test-connection');
@@ -620,6 +619,39 @@ async function testConnection(id, name) {
     return;
   }
 
+  // For Google Ad Manager — call the real GAM test endpoint
+  if (id === 'gam') {
+    try {
+      const res = await fetch('/api/gam/test');
+      const d = await res.json();
+      if (d.ok && d.network) {
+        const net = d.network;
+        statusBadge.textContent = 'CONNECTED';
+        statusBadge.className = 'b b-green';
+        const ncEl = document.getElementById('field-gam-network-code');
+        if (ncEl) ncEl.textContent = net.networkCode || 'Connected';
+        const tzEl = document.getElementById('field-gam-time-zone');
+        if (tzEl) tzEl.textContent = net.timeZone || '—';
+        const curEl = document.getElementById('field-gam-currency');
+        if (curEl) curEl.textContent = net.currencyCode || '—';
+        const rowSt = document.getElementById('rowStatus-gam');
+        if (rowSt) { rowSt.textContent = 'Live'; rowSt.className = 'b b-green'; }
+        if (icon) icon.className = 'fas fa-circle-check';
+        showToast('Google Ad Manager connected! Network: ' + (net.displayName || net.networkCode), 'success');
+        loadGAMSummary();
+      } else {
+        statusBadge.textContent = 'NOT CONFIGURED';
+        statusBadge.className = 'b b-amber';
+        if (icon) icon.className = 'fas fa-rotate';
+        showToast('GAM: ' + (d.error || 'Not configured — click Config to set up'), 'error');
+      }
+    } catch(e) {
+      if (icon) icon.className = 'fas fa-rotate';
+      showToast('GAM test failed: ' + e.message, 'error');
+    }
+    return;
+  }
+
   // For other sources: check if we have stored config
   try {
     const res = await fetch('/api/conn/status/' + id);
@@ -634,9 +666,84 @@ async function testConnection(id, name) {
       showToast(name + ' not configured yet — click Config to set up', 'info');
     }
   } catch(e) {
-    // Fallback if endpoint not available
     if (icon) icon.className = 'fas fa-rotate';
     showToast(name + ' — click Config to enter credentials', 'info');
+  }
+}
+
+// ── Load GAM summary panel ──────────────────────────────────────────────────
+async function loadGAMSummary() {
+  try {
+    const res = await fetch('/api/gam/summary');
+    const d = await res.json();
+    if (!d.ok) return;
+    const panel = document.getElementById('gamSummaryPanel');
+    if (!panel) return;
+    panel.style.display = '';
+    panel.innerHTML = \`
+      <div class="card-hd" style="margin-bottom:14px">
+        <div class="card-title"><i class="fas fa-rectangle-ad" style="color:#4285f4;margin-right:7px"></i>Google Ad Manager — Live Summary</div>
+        <span class="b b-green">LIVE</span>
+      </div>
+      <div class="g3" style="gap:12px">
+        <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;padding:14px 16px;text-align:center">
+          <div style="font-size:22px;font-weight:800;color:var(--text-primary)">\${d.orders.total}</div>
+          <div class="fs11 text-muted mt4">Total Orders</div>
+          <div class="fs11" style="margin-top:6px">\${Object.entries(d.orders.byStatus).map(([s,c]) => '<span class="b b-gray" style="margin-right:4px;font-size:10px">'+s+': '+c+'</span>').join('')}</div>
+        </div>
+        <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;padding:14px 16px;text-align:center">
+          <div style="font-size:22px;font-weight:800;color:var(--text-primary)">\${d.lineItems.total}</div>
+          <div class="fs11 text-muted mt4">Line Items</div>
+          <div class="fs11" style="margin-top:6px">\${d.lineItems.totalImpressions > 0 ? d.lineItems.totalImpressions.toLocaleString() + ' impr.' : 'Active'}</div>
+        </div>
+        <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;padding:14px 16px;text-align:center">
+          <div style="font-size:22px;font-weight:800;color:var(--text-primary)">\${d.adUnits.active}</div>
+          <div class="fs11 text-muted mt4">Active Ad Units</div>
+          <div class="fs11" style="margin-top:6px">\${d.adUnits.total} total</div>
+        </div>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 11px" onclick="loadGAMData('orders')"><i class="fas fa-list"></i>View Orders</button>
+        <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 11px" onclick="loadGAMData('lineitems')"><i class="fas fa-bars"></i>Line Items</button>
+        <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 11px" onclick="loadGAMData('adunits')"><i class="fas fa-th-large"></i>Ad Units</button>
+        <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 11px" onclick="loadGAMData('reports')"><i class="fas fa-file-chart-pie"></i>Reports</button>
+      </div>
+    \`;
+  } catch(e) { /* silent */ }
+}
+
+// ── Load GAM data table ─────────────────────────────────────────────────────
+async function loadGAMData(type) {
+  const panel = document.getElementById('gamDataPanel');
+  if (!panel) return;
+  panel.style.display = '';
+  panel.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted)"><i class="fas fa-spinner fa-spin" style="margin-right:8px"></i>Loading ' + type + '…</div>';
+
+  try {
+    const res = await fetch('/api/gam/' + type);
+    const d = await res.json();
+    if (!d.ok) { panel.innerHTML = '<div style="padding:12px;color:var(--danger);font-size:12px">Error: ' + d.error + '</div>'; return; }
+
+    const items = d.orders || d.lineItems || d.adUnits || d.reports || [];
+    if (items.length === 0) { panel.innerHTML = '<div style="padding:12px;color:var(--text-muted);font-size:12px">No ' + type + ' found.</div>'; return; }
+
+    const cols = Object.keys(items[0]).filter(k => !['reportDefinition'].includes(k)).slice(0, 6);
+    panel.innerHTML = \`
+      <div class="card-hd" style="margin-bottom:10px">
+        <div class="card-title">\${type.charAt(0).toUpperCase()+type.slice(1)} (\${items.length})</div>
+        <button class="btn-ghost" style="height:26px;font-size:11px;padding:0 9px" onclick="document.getElementById('gamDataPanel').style.display='none'"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div style="overflow-x:auto;max-height:260px;overflow-y:auto">
+        <table class="tbl" style="font-size:11px">
+          <thead><tr>\${cols.map(c => '<th>'+c.replace(/([A-Z])/g,' $1').trim()+'</th>').join('')}</tr></thead>
+          <tbody>\${items.slice(0,20).map(row =>
+            '<tr>'+cols.map(c => '<td>'+(row[c]||'—')+'</td>').join('')+'</tr>'
+          ).join('')}</tbody>
+        </table>
+      </div>
+    \`;
+  } catch(e) {
+    panel.innerHTML = '<div style="padding:12px;color:var(--danger);font-size:12px">Error: ' + e.message + '</div>';
   }
 }
 

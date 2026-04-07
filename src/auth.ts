@@ -123,7 +123,7 @@ export function loginPage(error = ''): string {
 <div class="auth-wrap">
   <div class="auth-card">
     <div class="auth-logo">
-      <img src="/static/astro-one-logo.png" alt="Astro One" style="width:200px;height:auto;display:block;margin:0 auto 4px"/>
+      <img src="/static/astro-one-logo-transparent.png" alt="Astro One" style="width:220px;height:auto;display:block;margin:0 auto 4px"/>
       <div class="auth-logo-sub">Management AI Assistant · Digital Performance Hub</div>
     </div>
 
@@ -190,7 +190,7 @@ export function registerPage(error = '', success = '', prefill: Record<string,st
 <div class="auth-wrap">
   <div class="auth-card">
     <div class="auth-logo">
-      <img src="/static/astro-one-logo.png" alt="Astro One" style="width:200px;height:auto;display:block;margin:0 auto 4px"/>
+      <img src="/static/astro-one-logo-transparent.png" alt="Astro One" style="width:220px;height:auto;display:block;margin:0 auto 4px"/>
       <div class="auth-logo-sub">Management AI Assistant · Digital Performance Hub</div>
     </div>
 

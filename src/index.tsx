@@ -18,7 +18,8 @@ import {
   generateToken, generateSalt, verifyPassword, hashPassword,
   SESSION_TTL, LOGIN_COOKIE
 } from './auth'
-import { readSheet, listSheetTabs, appendSheet, fmtRM, sumCol, groupSum } from './sheets'
+import { readSheet, listSheetTabs, appendSheet, fmtRM, sumCol, groupSum,
+  getGAMNetwork, listGAMOrders, listGAMLineItems, listGAMAdUnits, listGAMReports, runGAMReport } from './sheets'
 
 // ── Cloudflare bindings ───────────────────────────────────────────────────
 type Bindings = {
@@ -418,6 +419,156 @@ app.post('/api/conn/sync/:sourceId', requireAuth, async (c) => {
 })
 
 // ═══════════════════════════════════════════════════════════════════════════
+//   GOOGLE AD MANAGER (GAM) API ROUTES — READ-ONLY
+//   All GAM calls use admanager.readonly OAuth scope.
+//   No create / update / delete operations are exposed.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Helper: get stored GAM config from KV
+async function getGAMConfig(kv: KVNamespace): Promise<{ saJson: string; networkCode: string } | null> {
+  const raw = await kv.get('config:conn:gam')
+  if (!raw) return null
+  const cfg = JSON.parse(raw)
+  if (!cfg.gam_sa_json || !cfg.gam_network_code) return null
+  return { saJson: cfg.gam_sa_json, networkCode: cfg.gam_network_code }
+}
+
+// Test GAM connection — get network info
+app.get('/api/gam/test', requireAuth, async (c) => {
+  try {
+    const gam = await getGAMConfig(c.env.SESSIONS)
+    if (!gam) return c.json({ ok: false, error: 'GAM not configured. Click Config on the Google Ad Manager card to set it up.' })
+    const network = await getGAMNetwork(gam.saJson, gam.networkCode)
+    return c.json({ ok: true, network })
+  } catch (e: any) {
+    return c.json({ ok: false, error: e.message })
+  }
+})
+
+// Get network info
+app.get('/api/gam/network', requireAuth, async (c) => {
+  try {
+    const gam = await getGAMConfig(c.env.SESSIONS)
+    if (!gam) return c.json({ ok: false, error: 'GAM not configured.' })
+    const network = await getGAMNetwork(gam.saJson, gam.networkCode)
+    return c.json({ ok: true, network })
+  } catch (e: any) {
+    return c.json({ ok: false, error: e.message })
+  }
+})
+
+// List orders
+app.get('/api/gam/orders', requireAuth, async (c) => {
+  try {
+    const gam = await getGAMConfig(c.env.SESSIONS)
+    if (!gam) return c.json({ ok: false, error: 'GAM not configured.' })
+    const pageSize = parseInt(c.req.query('pageSize') || '50')
+    const orders = await listGAMOrders(gam.saJson, gam.networkCode, pageSize)
+    return c.json({ ok: true, orders, count: orders.length })
+  } catch (e: any) {
+    return c.json({ ok: false, error: e.message })
+  }
+})
+
+// List line items
+app.get('/api/gam/lineitems', requireAuth, async (c) => {
+  try {
+    const gam = await getGAMConfig(c.env.SESSIONS)
+    if (!gam) return c.json({ ok: false, error: 'GAM not configured.' })
+    const pageSize = parseInt(c.req.query('pageSize') || '50')
+    const lineItems = await listGAMLineItems(gam.saJson, gam.networkCode, pageSize)
+    return c.json({ ok: true, lineItems, count: lineItems.length })
+  } catch (e: any) {
+    return c.json({ ok: false, error: e.message })
+  }
+})
+
+// List ad units
+app.get('/api/gam/adunits', requireAuth, async (c) => {
+  try {
+    const gam = await getGAMConfig(c.env.SESSIONS)
+    if (!gam) return c.json({ ok: false, error: 'GAM not configured.' })
+    const adUnits = await listGAMAdUnits(gam.saJson, gam.networkCode)
+    return c.json({ ok: true, adUnits, count: adUnits.length })
+  } catch (e: any) {
+    return c.json({ ok: false, error: e.message })
+  }
+})
+
+// List saved reports
+app.get('/api/gam/reports', requireAuth, async (c) => {
+  try {
+    const gam = await getGAMConfig(c.env.SESSIONS)
+    if (!gam) return c.json({ ok: false, error: 'GAM not configured.' })
+    const reports = await listGAMReports(gam.saJson, gam.networkCode)
+    return c.json({ ok: true, reports, count: reports.length })
+  } catch (e: any) {
+    return c.json({ ok: false, error: e.message })
+  }
+})
+
+// Run a specific saved report (GET — read-only; :run is GAM's report-fetch verb, no data is written)
+app.get('/api/gam/reports/:reportId/run', requireAuth, async (c) => {
+  try {
+    const gam = await getGAMConfig(c.env.SESSIONS)
+    if (!gam) return c.json({ ok: false, error: 'GAM not configured.' })
+    const reportId = c.req.param('reportId')
+    const result = await runGAMReport(gam.saJson, gam.networkCode, reportId)
+    return c.json({ ok: true, ...result })
+  } catch (e: any) {
+    return c.json({ ok: false, error: e.message })
+  }
+})
+
+// Dashboard summary — pulls orders + line items and aggregates
+app.get('/api/gam/summary', requireAuth, async (c) => {
+  try {
+    const gam = await getGAMConfig(c.env.SESSIONS)
+    if (!gam) return c.json({ ok: false, error: 'GAM not configured.', demo: true })
+
+    const [network, orders, lineItems, adUnits] = await Promise.all([
+      getGAMNetwork(gam.saJson, gam.networkCode).catch(() => null),
+      listGAMOrders(gam.saJson, gam.networkCode, 100).catch(() => []),
+      listGAMLineItems(gam.saJson, gam.networkCode, 100).catch(() => []),
+      listGAMAdUnits(gam.saJson, gam.networkCode, 100).catch(() => []),
+    ])
+
+    // Aggregate order stats
+    const ordersByStatus: Record<string, number> = {}
+    for (const o of orders) {
+      const s = o.status || 'UNKNOWN'
+      ordersByStatus[s] = (ordersByStatus[s] || 0) + 1
+    }
+
+    // Aggregate line item stats
+    const liByStatus: Record<string, number> = {}
+    let totalImpressions = 0
+    let totalClicks = 0
+    for (const li of lineItems) {
+      const s = li.status || 'UNKNOWN'
+      liByStatus[s] = (liByStatus[s] || 0) + 1
+      totalImpressions += parseInt(li.impressionsDelivered || '0')
+      totalClicks += parseInt(li.clicksDelivered || '0')
+    }
+
+    const activeAdUnits = adUnits.filter(u => u.status === 'ACTIVE' || !u.status).length
+
+    return c.json({
+      ok: true,
+      networkCode: gam.networkCode,
+      networkName: network?.displayName || gam.networkCode,
+      currency: network?.currencyCode || 'USD',
+      timeZone: network?.timeZone || '',
+      orders: { total: orders.length, byStatus: ordersByStatus },
+      lineItems: { total: lineItems.length, byStatus: liByStatus, totalImpressions, totalClicks },
+      adUnits: { total: adUnits.length, active: activeAdUnits },
+    })
+  } catch (e: any) {
+    return c.json({ ok: false, error: e.message })
+  }
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
 //   DATA API — reads real Google Sheets data
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -602,7 +753,7 @@ function page(screen: string, body: string, session: { name: string; email: stri
   <!-- ═══ SIDEBAR ════════════════════════════════════════════ -->
   <aside class="sidebar">
     <div class="sidebar-logo">
-      <img src="/static/astro-one-logo.png" alt="Astro One" class="logo-img"/>
+      <img src="/static/astro-one-logo-transparent.png" alt="Astro One" class="logo-img"/>
       <div class="logo-sub">Management AI Assistant</div>
     </div>
 

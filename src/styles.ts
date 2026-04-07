@@ -90,10 +90,9 @@ export const CSS = `
   }
   .logo-img {
     display: block;
-    width: 148px;
+    width: 160px;
     height: auto;
-    mix-blend-mode: screen;
-    filter: brightness(1.05) saturate(1.15);
+    filter: brightness(1.05) saturate(1.1);
     margin: 0 auto;
   }
   .logo-sub {
