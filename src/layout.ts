@@ -14,6 +14,7 @@ export function topbar(screen: string): string {
     revenue:   { title: 'Revenue Performance', sub: 'Post-Sales · FY2025 YTD · Google Sheets' },
     campaign:  { title: 'Campaign Performance', sub: 'Post-Sales · Direct Sales · Q1 2025' },
     ads:       { title: 'Ads Performance', sub: 'Post-Sales · Google Ads · Meta · TikTok' },
+    gamanalytics: { title: '<i class="fab fa-google" style="color:#4285f4;margin-right:6px"></i>GAM Analytics', sub: 'Google Ad Manager · Live · Orders · Line Items · Ad Units · Reports' },
     portals:   { title: 'Portals Traffic Performance', sub: 'GA4 · Sessions · Engagement · Revenue/User' },
     social:    { title: 'Sprout Social Performance', sub: 'Reach · Impressions · Engagement · Growth' },
     upload:    { title: 'Manual Data Upload', sub: 'CSV / Excel → Google Sheets auto-transform' },
@@ -78,6 +79,11 @@ export function topbar(screen: string): string {
     ads: `
       <button class="btn-ghost"><i class="fas fa-calendar"></i>Mar 2025</button>
       <button class="btn-ghost"><i class="fas fa-download"></i>Export</button>
+      <button class="btn-primary" onclick="navigate('ai')"><i class="fas fa-sparkles"></i>Ask AI</button>`,
+
+    gamanalytics: `
+      <button class="btn-ghost" onclick="loadGAMAnalytics()"><i class="fas fa-rotate"></i>Refresh Live</button>
+      <button class="btn-ghost" onclick="exportOrdersCSV()"><i class="fas fa-download"></i>Export CSV</button>
       <button class="btn-primary" onclick="navigate('ai')"><i class="fas fa-sparkles"></i>Ask AI</button>`,
 
     portals: `

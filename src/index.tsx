@@ -7,7 +7,7 @@ import { overviewScreen } from './screens/overview'
 import { aiScreen } from './screens/ai'
 import { digestScreen } from './screens/digest'
 import { pipelineScreen, clientsScreen, salesPerfScreen } from './screens/presales'
-import { revenueScreen, campaignScreen, adsScreen } from './screens/postsales'
+import { revenueScreen, campaignScreen, adsScreen, gamAnalyticsScreen } from './screens/postsales'
 import { portalsScreen, socialScreen } from './screens/traffic'
 import { uploadScreen, apiConnScreen, setupScreen, blendScreen } from './screens/data'
 import { reportAiScreen } from './screens/reportai'
@@ -652,6 +652,7 @@ const routes: Record<string, { screen: string; content: () => string }> = {
   '/revenue':   { screen: 'revenue',  content: revenueScreen },
   '/campaign':  { screen: 'campaign', content: campaignScreen },
   '/ads':       { screen: 'ads',      content: adsScreen },
+  '/gamanalytics': { screen: 'gamanalytics', content: gamAnalyticsScreen },
   '/traffic':   { screen: 'traffic',  content: portalsScreen },
   '/portals':   { screen: 'portals',  content: portalsScreen },
   '/social':    { screen: 'social',   content: socialScreen },
@@ -678,9 +679,10 @@ function buildNav(active: string, userRole = 'viewer'): string {
       { id: 'salesperf', label: 'Sales Performance',  icon: 'fa-chart-line' },
     ]},
     { id: 'postsales', label: 'Post-Sales',  icon: 'fa-rocket', sub: [
-      { id: 'revenue',  label: 'Revenue Performance',  icon: 'fa-sack-dollar' },
-      { id: 'campaign', label: 'Campaign Performance', icon: 'fa-megaphone' },
-      { id: 'ads',      label: 'Ads Performance',      icon: 'fa-rectangle-ad' },
+      { id: 'revenue',       label: 'Revenue Performance',  icon: 'fa-sack-dollar' },
+      { id: 'campaign',      label: 'Campaign Performance', icon: 'fa-megaphone' },
+      { id: 'ads',           label: 'Ads Performance',      icon: 'fa-rectangle-ad' },
+      { id: 'gamanalytics', label: 'GAM Analytics',         icon: 'fa-rectangle-ad', badge: 'Live' },
     ]},
     { id: 'traffic', label: 'Traffic Performance', icon: 'fa-signal', sub: [
       { id: 'portals', label: 'Portals Traffic', icon: 'fa-globe' },
