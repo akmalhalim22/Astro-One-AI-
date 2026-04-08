@@ -987,16 +987,17 @@ export function gamAnalyticsScreen(): string {
     <span style="font-size:11px;color:var(--text-muted);font-weight:600">DATA SOURCE</span>
     <span style="font-size:11px;color:var(--text-primary)">Google Ad Manager <span class="text-muted">·</span> Orders &amp; Line Items</span>
     <span class="b b-blue" style="font-size:10px;margin-left:4px">GAM API · Live</span>
-    <span class="b b-gray" style="font-size:10px">Network: <span id="gam-ds-network" style="color:#60a5fa">Loading…</span></span>
+    <span class="b b-gray" style="font-size:10px">Network: <span id="gam-ds-network" style="color:#60a5fa">—</span></span>
     <span style="margin-left:auto;font-size:10.5px;color:var(--text-muted)"><i class="fas fa-satellite-dish" style="margin-right:4px"></i>Real-time · Refreshes on page load</span>
   </div>
 
-  <!-- ── STATUS BANNER (hidden once loaded) ─────────────────────────────── -->
-  <div id="gamBanner" style="display:flex;align-items:center;gap:10px;background:rgba(66,133,244,0.08);border:1px solid rgba(66,133,244,0.2);border-radius:12px;padding:12px 16px;margin-bottom:16px">
-    <i class="fas fa-spinner fa-spin" id="gamBannerIcon" style="color:#4285f4"></i>
-    <span id="gamBannerText" style="font-size:12px;color:#60a5fa">Loading live data from Google Ad Manager…</span>
-    <button class="btn-ghost" style="margin-left:auto;height:26px;font-size:11px;padding:0 10px" onclick="loadGAMAnalytics()">
-      <i class="fas fa-rotate"></i>Refresh
+  <!-- ── STATUS BANNER ─────────────────────────────────────────────────── -->
+  <div id="gamBanner" style="display:flex;align-items:center;gap:10px;background:rgba(66,133,244,0.08);border:1px solid rgba(66,133,244,0.2);border-radius:12px;padding:11px 16px;margin-bottom:16px">
+    <i class="fas fa-spinner fa-spin" id="gamBannerIcon" style="color:#4285f4;font-size:14px"></i>
+    <span id="gamBannerText" style="font-size:12px;color:#60a5fa;flex:1">Loading live data from Google Ad Manager…</span>
+    <span id="gamLastRefresh" style="font-size:10px;color:var(--text-muted)"></span>
+    <button class="btn-ghost" style="height:26px;font-size:11px;padding:0 10px" onclick="loadGAMAnalytics()" id="gamRefreshBtn">
+      <i class="fas fa-rotate" id="gamRefreshIcon"></i>Refresh
     </button>
   </div>
 
@@ -1009,8 +1010,8 @@ export function gamAnalyticsScreen(): string {
       <div class="kpi-chg" id="kc-orders"></div>
     </div>
     <div class="kpi" id="kpi-active">
-      <div class="kpi-icon green"><i class="fas fa-circle-check"></i></div>
-      <div class="kpi-lbl">Active / Running</div>
+      <div class="kpi-icon green"><i class="fas fa-circle-play"></i></div>
+      <div class="kpi-lbl">Active / Delivering</div>
       <div class="kpi-val" id="kv-active"><span class="text-muted fs12">—</span></div>
       <div class="kpi-chg" id="kc-active"></div>
     </div>
@@ -1031,7 +1032,6 @@ export function gamAnalyticsScreen(): string {
   <!-- ── ROW 2: STATUS OVERVIEW + DELIVERY HEALTH ──────────────────────── -->
   <div class="g62">
 
-    <!-- Order Status Breakdown -->
     <div class="card">
       <div class="card-hd">
         <div class="card-title"><i class="fas fa-circle-dot" style="color:#4285f4;margin-right:7px"></i>Order Status Overview</div>
@@ -1043,10 +1043,8 @@ export function gamAnalyticsScreen(): string {
       <div style="height:150px;margin-top:14px"><canvas id="orderStatusChart"></canvas></div>
     </div>
 
-    <!-- Line Item Health + Network Info -->
     <div style="display:flex;flex-direction:column;gap:14px">
 
-      <!-- Line Item Status summary -->
       <div class="card">
         <div class="card-hd">
           <div class="card-title"><i class="fas fa-layer-group" style="color:#a78bfa;margin-right:7px"></i>Line Item Health</div>
@@ -1057,7 +1055,6 @@ export function gamAnalyticsScreen(): string {
         </div>
       </div>
 
-      <!-- Top Active Line Items by Impressions -->
       <div class="card card-sm">
         <div class="card-hd">
           <div class="card-title"><i class="fas fa-trophy" style="color:#f59e0b;margin-right:7px"></i>Top Delivering Line Items</div>
@@ -1068,7 +1065,6 @@ export function gamAnalyticsScreen(): string {
         </div>
       </div>
 
-      <!-- Network Info -->
       <div class="card card-sm" id="networkInfoCard">
         <div class="card-hd">
           <div class="card-title"><i class="fas fa-network-wired" style="color:#00d68f;margin-right:7px"></i>Network</div>
@@ -1081,26 +1077,39 @@ export function gamAnalyticsScreen(): string {
     </div>
   </div>
 
-  <!-- ── ROW 3: ORDERS + LINE ITEMS (expandable hierarchy) ─────────────────── -->
+  <!-- ── ROW 3: ORDERS + LINE ITEMS ─────────────────────────────────────── -->
   <div class="card" id="ordersTableCard">
-    <div class="card-hd">
-      <div class="card-title"><i class="fas fa-list-check" style="color:#4285f4;margin-right:7px"></i>Orders &amp; Line Items</div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <span class="fs11 text-muted" style="white-space:nowrap;display:flex;align-items:center;gap:4px">
-          <i class="fas fa-chevron-right" style="font-size:9px"></i>Click row to expand line items
-        </span>
-        <input id="orderSearch" type="text" placeholder="Search orders…"
-          style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:5px 10px;color:var(--text-primary);font-size:11px;width:150px;outline:none"
-          oninput="filterOrders(this.value)">
+    <div class="card-hd" style="flex-wrap:wrap;gap:10px">
+      <div class="card-title">
+        <i class="fas fa-list-check" style="color:#4285f4;margin-right:7px"></i>Orders &amp; Line Items
+        <span id="ordersCountBadge" style="font-size:10px;font-weight:600;padding:2px 8px;background:rgba(66,133,244,0.12);color:#4285f4;border-radius:10px;margin-left:8px">—</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto">
+        <div style="position:relative">
+          <i class="fas fa-search" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--text-muted)"></i>
+          <input id="orderSearch" type="text" placeholder="Search orders, advertiser…"
+            style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:5px 10px 5px 26px;color:var(--text-primary);font-size:11px;width:190px;outline:none"
+            oninput="filterOrders(this.value)">
+        </div>
         <select id="orderStatusFilter"
           style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:5px 8px;color:var(--text-primary);font-size:11px;outline:none"
           onchange="filterOrders(document.getElementById('orderSearch').value)">
           <option value="ACTIVE_DELIVERING">Active &amp; Delivering</option>
-          <option value="COMPLETED">Completed</option>
+          <option value="ACTIVE">Active</option>
+          <option value="DELIVERING">Delivering</option>
           <option value="PAUSED">Paused</option>
+          <option value="COMPLETED">Completed</option>
           <option value="CANCELED">Canceled</option>
           <option value="">All (excl. Draft)</option>
-          <option value="ALL_INCL_DRAFT">All Including Draft</option>
+          <option value="ALL_INCL_DRAFT">All (incl. Draft)</option>
+        </select>
+        <select id="orderPageSize"
+          style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:5px 8px;color:var(--text-primary);font-size:11px;outline:none"
+          onchange="_ordersPageSize=parseInt(this.value);_ordersPageNum=1;renderOrdersPage()">
+          <option value="15">15 / page</option>
+          <option value="25" selected>25 / page</option>
+          <option value="50">50 / page</option>
+          <option value="100">100 / page</option>
         </select>
         <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 10px" onclick="toggleExpandAll()" id="expandAllBtn">
           <i class="fas fa-expand-alt"></i>Expand All
@@ -1112,186 +1121,223 @@ export function gamAnalyticsScreen(): string {
     </div>
 
     <style>
-      .order-row { cursor:pointer; transition:background 0.12s; }
-      .order-row:hover td { background:rgba(66,133,244,0.07) !important; }
-      .li-child-row td { font-size:11px; background:rgba(66,133,244,0.03); }
-      .li-child-row td:nth-child(2) { padding-left:38px; }
-      .expand-icon { display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:4px;background:rgba(66,133,244,0.12);color:#4285f4;font-size:9px;transition:transform 0.2s;flex-shrink:0; }
-      .expand-icon.open { transform:rotate(90deg);background:rgba(66,133,244,0.22); }
-      .li-count-badge { display:inline-flex;align-items:center;background:rgba(167,139,250,0.15);color:#a78bfa;font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:6px; }
-      .li-subhdr td { background:rgba(66,133,244,0.10) !important; }
-      @keyframes liSlide { from{opacity:0;transform:translateY(-3px)} to{opacity:1;transform:translateY(0)} }
-      .li-child-row { animation:liSlide 0.15s ease; }
+      #ordersTable { border-collapse:collapse; width:100%; }
+      #ordersTable th { white-space:nowrap; }
+      .order-row { cursor:pointer; transition:background 0.1s; }
+      .order-row:hover td { background:rgba(66,133,244,0.06) !important; }
+      .order-row.order-expanded > td { background:rgba(66,133,244,0.04); }
+      .li-child-row td { font-size:11px; background:rgba(66,133,244,0.025); }
+      .li-child-row:hover td { background:rgba(167,139,250,0.07) !important; }
+      .li-child-row td:nth-child(2) { padding-left:44px; }
+      .expand-icon { display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:5px;background:rgba(66,133,244,0.12);color:#4285f4;font-size:9px;transition:transform 0.18s;flex-shrink:0; }
+      .expand-icon.open { transform:rotate(90deg);background:rgba(66,133,244,0.25); }
+      .li-count-badge { display:inline-flex;align-items:center;background:rgba(167,139,250,0.15);color:#a78bfa;font-size:9px;font-weight:700;padding:1px 7px;border-radius:10px;white-space:nowrap; }
+      .li-subhdr td { background:rgba(66,133,244,0.08) !important;font-size:10px;font-weight:700;color:#a78bfa;text-transform:uppercase;letter-spacing:0.04em;padding-top:5px !important;padding-bottom:5px !important; }
+      .li-subhdr td:nth-child(2) { padding-left:44px; }
+      @keyframes liSlide { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:translateY(0)} }
+      .li-child-row { animation:liSlide 0.12s ease; }
+      .sort-active { color:#60a5fa !important; }
+      .tbl-th-sort { cursor:pointer;user-select:none; }
+      .tbl-th-sort:hover { color:#d0d0e8; }
     </style>
 
-    <div id="ordersTableWrap" style="overflow-x:auto">
+    <div id="ordersTableWrap" style="overflow-x:auto;margin-top:2px">
       <table class="tbl" id="ordersTable">
         <thead>
           <tr>
             <th style="width:36px"></th>
-            <th onclick="sortOrdersBy('displayName')" style="cursor:pointer">Order Name <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
-            <th onclick="sortOrdersBy('status')" style="cursor:pointer">Status <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
-            <th onclick="sortOrdersBy('totalBudget')" style="cursor:pointer">Budget <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
-            <th onclick="sortOrdersBy('startTime')" style="cursor:pointer">Start <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
-            <th onclick="sortOrdersBy('endTime')" style="cursor:pointer">End <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
-            <th>Delivery / Adv.</th>
+            <th class="tbl-th-sort" onclick="sortOrdersBy('displayName')" id="th-displayName">Order Name <i class="fas fa-sort" id="si-displayName" style="opacity:0.35;font-size:9px;margin-left:3px"></i></th>
+            <th class="tbl-th-sort" onclick="sortOrdersBy('advertiserId')" id="th-advertiserId">Advertiser <i class="fas fa-sort" id="si-advertiserId" style="opacity:0.35;font-size:9px;margin-left:3px"></i></th>
+            <th class="tbl-th-sort" onclick="sortOrdersBy('status')" id="th-status">Status <i class="fas fa-sort" id="si-status" style="opacity:0.35;font-size:9px;margin-left:3px"></i></th>
+            <th class="tbl-th-sort" onclick="sortOrdersBy('startTime')" id="th-startTime">Start <i class="fas fa-sort" id="si-startTime" style="opacity:0.35;font-size:9px;margin-left:3px"></i></th>
+            <th class="tbl-th-sort" onclick="sortOrdersBy('endTime')" id="th-endTime">End <i class="fas fa-sort" id="si-endTime" style="opacity:0.35;font-size:9px;margin-left:3px"></i></th>
+            <th class="tbl-th-sort" onclick="sortOrdersBy('totalBudget')" id="th-totalBudget">Budget <i class="fas fa-sort" id="si-totalBudget" style="opacity:0.35;font-size:9px;margin-left:3px"></i></th>
+            <th>Line Items</th>
+            <th class="tbl-th-sort" onclick="sortOrdersBy('impressions')" id="th-impressions">Impressions <i class="fas fa-sort" id="si-impressions" style="opacity:0.35;font-size:9px;margin-left:3px"></i></th>
+            <th>Clicks / CTR</th>
           </tr>
         </thead>
         <tbody id="ordersTbody">
-          <tr><td colspan="7" class="text-muted" style="text-align:center;padding:24px"><i class="fas fa-spinner fa-spin"></i> Loading orders…</td></tr>
+          <tr><td colspan="10" class="text-muted" style="text-align:center;padding:32px">
+            <i class="fas fa-spinner fa-spin" style="font-size:18px"></i>
+            <br><span style="font-size:11px;display:block;margin-top:8px">Loading orders from Google Ad Manager…</span>
+          </td></tr>
         </tbody>
       </table>
     </div>
+
     <div id="ordersPagination" style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
       <span class="fs11 text-muted" id="ordersCount">—</span>
-      <div style="display:flex;gap:6px">
+      <div style="display:flex;gap:6px;align-items:center">
         <button class="btn-ghost" style="height:26px;font-size:11px;padding:0 10px" id="ordersPrevBtn" onclick="ordersPage(-1)" disabled>← Prev</button>
-        <span class="fs11 text-muted" id="ordersPageLabel" style="padding:0 6px;line-height:26px">Page 1</span>
+        <span class="fs11 text-muted" id="ordersPageLabel" style="padding:0 6px;line-height:26px;min-width:80px;text-align:center">Page 1 / 1</span>
         <button class="btn-ghost" style="height:26px;font-size:11px;padding:0 10px" id="ordersNextBtn" onclick="ordersPage(1)">Next →</button>
       </div>
     </div>
   </div>
 
-  <!-- ── END OF CONTENT ───────────────────────────────────────────────────── -->
-
 </div>
 
 <script>
-// ── State ───────────────────────────────────────────────────────────────────
-let _gamOrders    = [];
-let _gamLineItems = [];
-let _gamNetwork   = null;
+// ── State ──────────────────────────────────────────────────────────────────
+let _gamOrders      = [];
+let _gamLineItems   = [];
+let _gamNetwork     = null;
 let _ordersFiltered = [];
 let _ordersPageNum  = 1;
-const PAGE_SIZE     = 15;
-let _ordersSortKey  = 'displayName';
+let _ordersPageSize = 25;
+let _ordersSortKey  = 'status';
 let _ordersSortAsc  = true;
 let _orderStatusChart = null;
 let _expandedOrders = new Set();
 let _allExpanded    = false;
+let _orderMetaCache = {};
 
-// ── Utility ─────────────────────────────────────────────────────────────────
+// ── Utilities ──────────────────────────────────────────────────────────────
 function fmtImpr(n) {
-  if (n >= 1_000_000_000) return (n/1_000_000_000).toFixed(1) + 'B';
-  if (n >= 1_000_000)     return (n/1_000_000).toFixed(1) + 'M';
-  if (n >= 1_000)         return (n/1_000).toFixed(1) + 'K';
-  return String(n);
+  n = parseInt(n)||0;
+  if(n>=1_000_000_000) return (n/1_000_000_000).toFixed(1)+'B';
+  if(n>=1_000_000)     return (n/1_000_000).toFixed(1)+'M';
+  if(n>=1_000)         return (n/1_000).toFixed(1)+'K';
+  return n===0?'—':n.toLocaleString();
 }
-function fmtDate(s) {
-  if (!s) return '—';
-  try { return new Date(s).toLocaleDateString('en-MY',{day:'2-digit',month:'short',year:'numeric'}); } catch { return s.slice(0,10); }
+function fmtDateShort(s){
+  if(!s) return '—';
+  try{ const d=new Date(s); return d.toLocaleDateString('en-MY',{day:'2-digit',month:'short',year:'2-digit'}); }catch{ return s.slice(0,10); }
 }
-function fmtBudget(b) {
-  if (!b) return '—';
-  const units = parseFloat(b.units || '0');
-  const cur = b.currencyCode || '';
-  if (units >= 1_000_000) return cur + ' ' + (units/1_000_000).toFixed(2) + 'M';
-  if (units >= 1_000)     return cur + ' ' + (units/1_000).toFixed(1) + 'K';
-  return cur + ' ' + units.toFixed(0);
+function fmtBudget(b){
+  if(!b) return '—';
+  const u=parseFloat(b.units||'0'); if(u===0) return '—';
+  const c=b.currencyCode||'';
+  if(u>=1_000_000) return c+'\u00a0'+(u/1_000_000).toFixed(2)+'M';
+  if(u>=1_000)     return c+'\u00a0'+(u/1_000).toFixed(1)+'K';
+  return c+'\u00a0'+u.toFixed(0);
 }
-const STATUS_COLOR = {
-  ACTIVE:'#00d68f', DELIVERING:'#00d68f', COMPLETED:'#60a5fa',
-  PAUSED:'#f59e0b', CANCELED:'#f43f5e', DRAFT:'#8080a8',
-  PENDING:'#a78bfa', UNKNOWN:'#48486a'
-};
-const STATUS_BADGE = {
-  ACTIVE:'b-green', DELIVERING:'b-green', COMPLETED:'b-blue',
-  PAUSED:'b-amber', CANCELED:'b-red', DRAFT:'b-gray',
-  PENDING:'b-purple', UNKNOWN:'b-gray'
-};
-function statusBadge(s) {
-  const cls = STATUS_BADGE[s] || 'b-gray';
-  return \`<span class="b \${cls}" style="font-size:9px">\${s||'UNKNOWN'}</span>\`;
+function advShort(id){ if(!id) return '—'; const n=id.split('/').pop(); return n?'#'+n:id; }
+const STATUS_COLOR={ACTIVE:'#00d68f',DELIVERING:'#00c07f',COMPLETED:'#60a5fa',PAUSED:'#f59e0b',CANCELED:'#f43f5e',DRAFT:'#8080a8',PENDING_APPROVAL:'#a78bfa',UNKNOWN:'#48486a'};
+const STATUS_BADGE={ACTIVE:'b-green',DELIVERING:'b-green',COMPLETED:'b-blue',PAUSED:'b-amber',CANCELED:'b-red',DRAFT:'b-gray',PENDING_APPROVAL:'b-purple',UNKNOWN:'b-gray'};
+function statusBadge(s){
+  const cls=STATUS_BADGE[s]||'b-gray';
+  const lbl=(s||'UNKNOWN').replace(/_/g,'\u00a0');
+  return \`<span class="b \${cls}" style="font-size:9px;white-space:nowrap">\${lbl}</span>\`;
 }
 
-// ── Main loader ─────────────────────────────────────────────────────────────
-async function loadGAMAnalytics() {
-  const banner = document.getElementById('gamBanner');
-  const bannerIcon = document.getElementById('gamBannerIcon');
-  const bannerText = document.getElementById('gamBannerText');
-  bannerIcon.className = 'fas fa-spinner fa-spin';
-  bannerIcon.style.color = '#4285f4';
-  bannerText.textContent = 'Loading live data from Google Ad Manager…';
-  banner.style.display = 'flex';
+// ── Main Loader ────────────────────────────────────────────────────────────
+async function loadGAMAnalytics(){
+  const icon=document.getElementById('gamBannerIcon');
+  const txt=document.getElementById('gamBannerText');
+  const ri=document.getElementById('gamRefreshIcon');
+  const banner=document.getElementById('gamBanner');
+  icon.className='fas fa-spinner fa-spin'; icon.style.color='#4285f4';
+  txt.textContent='Loading live data from Google Ad Manager…'; txt.style.color='#60a5fa';
+  banner.style.background='rgba(66,133,244,0.08)'; banner.style.borderColor='rgba(66,133,244,0.2)';
+  if(ri) ri.className='fas fa-spinner fa-spin';
+  const tb=document.getElementById('ordersTbody');
+  if(tb) tb.innerHTML='<tr><td colspan="10" class="text-muted" style="text-align:center;padding:32px"><i class="fas fa-spinner fa-spin" style="font-size:18px"></i><br><span style="font-size:11px;display:block;margin-top:8px">Fetching orders…</span></td></tr>';
 
-  try {
-    // Parallel fetch: summary + orders + line items
-    const [sumRes, ordRes, liRes] = await Promise.all([
+  try{
+    const [sumRes,ordRes,liRes]=await Promise.all([
       fetch('/api/gam/summary').then(r=>r.json()),
-      fetch('/api/gam/orders?pageSize=100').then(r=>r.json()),
-      fetch('/api/gam/lineitems?pageSize=100').then(r=>r.json()),
+      fetch('/api/gam/orders?pageSize=500').then(r=>r.json()),
+      fetch('/api/gam/lineitems?pageSize=500').then(r=>r.json()),
     ]);
-
-    if (!sumRes.ok) {
-      bannerIcon.className = 'fas fa-triangle-exclamation';
-      bannerIcon.style.color = '#f59e0b';
-      bannerText.textContent = 'GAM not connected: ' + (sumRes.error || 'Unknown error. Go to API Connections → Config to set up.');
-      bannerText.style.color = '#f59e0b';
-      // Clear loading spinners
-      ['ordersTbody','gamTopLI','orderStatusBars','liStatusBars','networkInfoBody'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.innerHTML = '<div class="text-muted fs12" style="padding:12px 0;text-align:center"><i class="fas fa-plug" style="color:#f59e0b"></i> GAM not configured</div>';
-      });
+    if(!sumRes.ok){
+      const em=sumRes.error||'Unknown error. Set up GAM in API Connections.';
+      icon.className='fas fa-triangle-exclamation'; icon.style.color='#f59e0b';
+      txt.textContent='GAM not connected — '+em; txt.style.color='#f59e0b';
+      banner.style.background='rgba(245,158,11,0.07)'; banner.style.borderColor='rgba(245,158,11,0.2)';
+      const noConf='<div class="text-muted fs12" style="padding:14px 0;text-align:center"><i class="fas fa-plug" style="color:#f59e0b;margin-right:6px"></i>GAM not configured — <a href="#" onclick="navigate(\'api\')" style="color:#60a5fa">Set up in API Connections</a></div>';
+      ['ordersTbody','gamTopLI','orderStatusBars','liStatusBars','networkInfoBody'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=noConf;});
+      if(ri) ri.className='fas fa-rotate';
       return;
     }
-
-    _gamOrders    = ordRes.orders    || [];
-    _gamLineItems = liRes.lineItems  || [];
-    _gamNetwork   = sumRes;
-
-    // Update banner to success
-    bannerIcon.className = 'fas fa-circle-check';
-    bannerIcon.style.color = '#00d68f';
-    bannerText.textContent = 'Connected to ' + (sumRes.networkName || sumRes.networkCode) + ' · ' + _gamOrders.length + ' orders · ' + _gamLineItems.length + ' line items · Last refreshed just now';
-    bannerText.style.color = '#00d68f';
-
+    _gamOrders   =(ordRes.ok?ordRes.orders:[])||[];
+    _gamLineItems=(liRes.ok?liRes.lineItems:[])||[];
+    _gamNetwork  =sumRes;
+    _orderMetaCache={};
+    _buildOrderMetaCache();
+    const now=new Date().toLocaleTimeString('en-MY',{hour:'2-digit',minute:'2-digit'});
+    icon.className='fas fa-circle-check'; icon.style.color='#00d68f';
+    txt.textContent='Connected to '+(sumRes.networkName||sumRes.networkCode)+' · '+_gamOrders.length+' orders · '+_gamLineItems.length+' line items';
+    txt.style.color='#00d68f';
+    banner.style.background='rgba(0,214,143,0.06)'; banner.style.borderColor='rgba(0,214,143,0.18)';
+    const lr=document.getElementById('gamLastRefresh'); if(lr) lr.textContent='Last refresh: '+now;
+    if(ri) ri.className='fas fa-rotate';
     renderKPIs(sumRes);
-    renderOrderStatusBars(sumRes.orders?.byStatus || {});
-    renderLIStatusBars(sumRes.lineItems?.byStatus || {});
+    renderOrderStatusBars(sumRes.orders?.byStatus||{});
+    renderLIStatusBars(sumRes.lineItems?.byStatus||{});
     renderNetworkInfo(sumRes);
     renderTopLI();
     renderOrdersTable();
     renderCharts(sumRes);
-
-  } catch(e) {
-    bannerIcon.className = 'fas fa-circle-xmark';
-    bannerIcon.style.color = '#f43f5e';
-    bannerText.textContent = 'Failed to load GAM data: ' + e.message;
-    bannerText.style.color = '#f43f5e';
+  }catch(e){
+    icon.className='fas fa-circle-xmark'; icon.style.color='#f43f5e';
+    txt.textContent='Failed to load GAM data: '+e.message; txt.style.color='#f43f5e';
+    banner.style.background='rgba(244,63,94,0.07)'; banner.style.borderColor='rgba(244,63,94,0.2)';
+    if(ri) ri.className='fas fa-rotate';
   }
 }
 
-// ── KPIs ────────────────────────────────────────────────────────────────────
-function renderKPIs(s) {
-  const totalOrders  = s.orders?.total || 0;
-  const activeOrders = (s.orders?.byStatus?.ACTIVE || 0) + (s.orders?.byStatus?.DELIVERING || 0);
-  const totalImpr    = s.lineItems?.totalImpressions || 0;
-  const totalLI      = s.lineItems?.total || 0;
-
-  document.getElementById('kv-orders').textContent = totalOrders;
-  document.getElementById('kc-orders').innerHTML   = \`<span class="text-muted">\${s.adUnits?.total || 0} ad units</span>\`;
-  document.getElementById('kv-active').textContent = activeOrders;
-  document.getElementById('kc-active').innerHTML   = \`<span class="up"><i class="fas fa-circle" style="font-size:7px;margin-right:4px;color:#00d68f"></i>Live campaigns</span>\`;
-  document.getElementById('kv-impr').innerHTML     = \`\${fmtImpr(totalImpr)}<sup style="font-size:12px;font-weight:600"> total</sup>\`;
-  document.getElementById('kc-impr').innerHTML     = \`<span class="text-muted">\${fmtImpr(s.lineItems?.totalClicks||0)} clicks</span>\`;
-  document.getElementById('kv-li').textContent     = totalLI;
-  const activeLI = (s.lineItems?.byStatus?.ACTIVE||0) + (s.lineItems?.byStatus?.DELIVERING||0);
-  document.getElementById('kc-li').innerHTML = \`<span class="up">\${activeLI} active</span>\`;
+// ── Build per-order metrics cache ──────────────────────────────────────────
+function _buildOrderMetaCache(){
+  const map={};
+  for(const li of _gamLineItems){
+    const oid=li.orderId||(li.name?li.name.split('/lineItems/')[0]:'');
+    if(!oid) continue;
+    if(!map[oid]) map[oid]={impr:0,clicks:0,lis:[],activeCount:0};
+    const im=parseInt(li.impressionsDelivered||'0');
+    const cl=parseInt(li.clicksDelivered||'0');
+    map[oid].impr+=im; map[oid].clicks+=cl; map[oid].lis.push(li);
+    if(li.status==='ACTIVE'||li.status==='DELIVERING') map[oid].activeCount++;
+  }
+  for(const key of Object.keys(map)){
+    const num=key.split('/').pop();
+    if(num&&num!==key) map[num]=map[key];
+  }
+  _orderMetaCache=map;
+}
+function _getOrderMeta(o){
+  const oid=o.name||o.id||'';
+  const num=oid.split('/').pop();
+  return _orderMetaCache[oid]||_orderMetaCache[num]||{impr:0,clicks:0,lis:[],activeCount:0};
 }
 
-// ── Order Status Bars ───────────────────────────────────────────────────────
-function renderOrderStatusBars(byStatus) {
-  const el = document.getElementById('orderStatusBars');
-  const total = Object.values(byStatus).reduce((a,b)=>a+b,0) || 1;
-  const sorted = Object.entries(byStatus).sort((a,b)=>b[1]-a[1]);
-  if (!sorted.length) { el.innerHTML = '<div class="text-muted fs12" style="text-align:center;padding:16px">No order data</div>'; return; }
-  el.innerHTML = sorted.map(([st, cnt]) => {
-    const pct = Math.round(cnt/total*100);
-    const col = STATUS_COLOR[st] || '#48486a';
-    return \`
-    <div>
+// ── KPIs ───────────────────────────────────────────────────────────────────
+function renderKPIs(s){
+  const tot=s.orders?.total||0;
+  const act=(s.orders?.byStatus?.ACTIVE||0)+(s.orders?.byStatus?.DELIVERING||0);
+  const impr=s.lineItems?.totalImpressions||0;
+  const li=s.lineItems?.total||0;
+  const ali=(s.lineItems?.byStatus?.ACTIVE||0)+(s.lineItems?.byStatus?.DELIVERING||0);
+  const clk=s.lineItems?.totalClicks||0;
+  const ctr=impr>0?(clk/impr*100).toFixed(2)+'%':'—';
+  document.getElementById('kv-orders').textContent=tot.toLocaleString();
+  document.getElementById('kc-orders').innerHTML='<span class="text-muted">'+li+' line items total</span>';
+  document.getElementById('kv-active').textContent=act.toLocaleString();
+  document.getElementById('kc-active').innerHTML='<span class="up"><i class="fas fa-circle" style="font-size:7px;margin-right:4px;color:#00d68f"></i>'+ali+' active LIs</span>';
+  document.getElementById('kv-impr').innerHTML=fmtImpr(impr);
+  document.getElementById('kc-impr').innerHTML='<span class="text-muted">'+fmtImpr(clk)+' clicks · '+ctr+' CTR</span>';
+  document.getElementById('kv-li').textContent=li.toLocaleString();
+  document.getElementById('kc-li').innerHTML='<span class="up">'+ali+' active</span>';
+}
+
+// ── Order Status Bars ──────────────────────────────────────────────────────
+function renderOrderStatusBars(by){
+  const el=document.getElementById('orderStatusBars');
+  const order=['ACTIVE','DELIVERING','PAUSED','COMPLETED','CANCELED','PENDING_APPROVAL','UNKNOWN'];
+  const all=Object.entries(by).filter(([s])=>s!=='DRAFT');
+  const tot=all.reduce((a,[,v])=>a+v,0)||1;
+  all.sort((a,b)=>{const ia=order.indexOf(a[0]),ib=order.indexOf(b[0]);if(ia!==-1&&ib!==-1)return ia-ib;if(ia!==-1)return -1;if(ib!==-1)return 1;return b[1]-a[1];});
+  if(!all.length){el.innerHTML='<div class="text-muted fs12" style="text-align:center;padding:16px">No order data</div>';return;}
+  el.innerHTML=all.map(([st,cnt])=>{
+    const pct=Math.round(cnt/tot*100);
+    const col=STATUS_COLOR[st]||'#48486a';
+    return \`<div>
       <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-        <span class="fs12">\${st}</span>
+        <span class="fs12" style="display:flex;align-items:center;gap:5px">
+          <span style="width:8px;height:8px;border-radius:50%;background:\${col};display:inline-block"></span>
+          \${st.replace(/_/g,' ')}
+        </span>
         <span class="fs12 fw7">\${cnt} <span class="text-muted">(\${pct}%)</span></span>
       </div>
       <div class="prog-wrap"><div class="prog-fill" style="width:\${pct}%;background:\${col};border-radius:4px;height:6px;transition:width 0.6s"></div></div>
@@ -1299,322 +1345,319 @@ function renderOrderStatusBars(byStatus) {
   }).join('');
 }
 
-// ── Line Item Status Bars ───────────────────────────────────────────────────
-function renderLIStatusBars(byStatus) {
-  const el = document.getElementById('liStatusBars');
-  // Exclude DRAFT from health display
-  const filtered = Object.entries(byStatus).filter(([st]) => st !== 'DRAFT');
-  const total = filtered.reduce((a,[,v])=>a+v,0) || 1;
-  const sorted = filtered.sort((a,b)=>b[1]-a[1]).slice(0,6);
-  if (!sorted.length) { el.innerHTML = '<div class="text-muted fs12" style="text-align:center;padding:10px">No line item data</div>'; return; }
-  el.innerHTML = sorted.map(([st, cnt]) => {
-    const pct = Math.round(cnt/total*100);
-    const col = STATUS_COLOR[st] || '#48486a';
-    return \`
-    <div style="display:flex;align-items:center;gap:8px">
-      <span class="fs11 text-muted" style="width:80px;flex-shrink:0">\${st}</span>
+// ── LI Status Bars ─────────────────────────────────────────────────────────
+function renderLIStatusBars(by){
+  const el=document.getElementById('liStatusBars');
+  const filt=Object.entries(by).filter(([s])=>s!=='DRAFT');
+  const tot=filt.reduce((a,[,v])=>a+v,0)||1;
+  const srt=[...filt].sort((a,b)=>b[1]-a[1]).slice(0,7);
+  if(!srt.length){el.innerHTML='<div class="text-muted fs12" style="text-align:center;padding:10px">No line item data</div>';return;}
+  el.innerHTML=srt.map(([st,cnt])=>{
+    const pct=Math.round(cnt/tot*100);
+    const col=STATUS_COLOR[st]||'#48486a';
+    return \`<div style="display:flex;align-items:center;gap:8px">
+      <span class="fs11 text-muted" style="width:90px;flex-shrink:0">\${st.replace(/_/g,' ')}</span>
       <div class="prog-wrap" style="flex:1"><div class="prog-fill" style="width:\${pct}%;background:\${col};border-radius:3px;height:5px"></div></div>
-      <span class="fs11 fw7" style="width:28px;text-align:right">\${cnt}</span>
+      <span class="fs11 fw7" style="width:32px;text-align:right">\${cnt}</span>
     </div>\`;
   }).join('');
 }
 
-// ── Network Info ────────────────────────────────────────────────────────────
-function renderNetworkInfo(s) {
-  const badge = document.getElementById('networkStatusBadge');
-  badge.textContent = 'Live';
-  badge.className = 'b b-green';
-  // Update data-source indicator
-  const dsNet = document.getElementById('gam-ds-network');
-  if (dsNet) dsNet.textContent = s.networkName || s.networkCode || '—';
-  document.getElementById('networkInfoBody').innerHTML = [
-    ['Network', s.networkName || s.networkCode],
-    ['Network Code', s.networkCode || '—'],
-    ['Currency', s.currency || '—'],
-    ['Time Zone', s.timeZone || '—'],
-    ['Ad Units', (s.adUnits?.total || 0) + ' total · ' + (s.adUnits?.active || 0) + ' active'],
-  ].map(([k,v]) => \`
-  <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)">
-    <span class="fs12 text-muted">\${k}</span>
-    <span class="fs12 fw6">\${v}</span>
+// ── Network Info ───────────────────────────────────────────────────────────
+function renderNetworkInfo(s){
+  const b=document.getElementById('networkStatusBadge');
+  if(b){b.textContent='Live';b.className='b b-green';}
+  const dn=document.getElementById('gam-ds-network');
+  if(dn) dn.textContent=s.networkName||s.networkCode||'—';
+  const body=document.getElementById('networkInfoBody');
+  if(!body) return;
+  body.innerHTML=[
+    ['Network',s.networkName||s.networkCode||'—'],
+    ['Code',s.networkCode||'—'],
+    ['Currency',s.currency||'—'],
+    ['Time Zone',s.timeZone||'—'],
+    ['Orders',(s.orders?.total||0)+' total'],
+    ['Line Items',(s.lineItems?.total||0)+' total'],
+  ].map(([k,v])=>\`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)">
+    <span class="fs12 text-muted">\${k}</span><span class="fs12 fw6">\${v}</span>
   </div>\`).join('');
 }
 
-// ── Orders Table (expandable hierarchy) ──────────────────────────────────────
-
-// Build a map: orderResourceName -> [lineItems]
-function buildOrderLineItemMap() {
-  const map = {};
-  for (const li of _gamLineItems) {
-    const oid = li.orderId || (li.name ? li.name.split('/lineItems/')[0] : null);
-    if (!oid) continue;
-    if (!map[oid]) map[oid] = [];
-    map[oid].push(li);
-  }
-  return map;
-}
-
-function filterOrders(query) {
-  const sf = document.getElementById('orderStatusFilter').value;
-  const q = (query||'').toLowerCase();
-  _ordersFiltered = _gamOrders.filter(o => {
-    const matchQ  = !q || (o.displayName||'').toLowerCase().includes(q) || (o.advertiserId||'').toLowerCase().includes(q);
-    let matchSt;
-    if (sf === 'ACTIVE_DELIVERING') {
-      matchSt = o.status === 'ACTIVE' || o.status === 'DELIVERING';
-    } else if (sf === 'ALL_INCL_DRAFT') {
-      matchSt = true; // include everything including DRAFT
-    } else if (sf === '') {
-      matchSt = o.status !== 'DRAFT'; // default: exclude DRAFT
-    } else {
-      matchSt = o.status === sf;
-    }
-    return matchQ && matchSt;
-  });
-  // sort
-  _ordersFiltered.sort((a,b) => {
-    let va = a[_ordersSortKey] || '', vb = b[_ordersSortKey] || '';
-    if (_ordersSortKey === 'totalBudget') { va = parseFloat(a.totalBudget?.units||'0'); vb = parseFloat(b.totalBudget?.units||'0'); }
-    if (va < vb) return _ordersSortAsc ? -1 : 1;
-    if (va > vb) return _ordersSortAsc ?  1 : -1;
-    return 0;
-  });
-  _ordersPageNum = 1;
-  renderOrdersPage();
-}
-function sortOrdersBy(key) {
-  if (_ordersSortKey === key) _ordersSortAsc = !_ordersSortAsc;
-  else { _ordersSortKey = key; _ordersSortAsc = true; }
-  filterOrders(document.getElementById('orderSearch')?.value || '');
-}
-function renderOrdersTable() {
-  _ordersFiltered = [..._gamOrders];
-  // Default: show Active & Delivering orders first
-  const sel = document.getElementById('orderStatusFilter');
-  if (sel && sel.value === '') sel.value = 'ACTIVE_DELIVERING';
-  filterOrders('');
-}
-
-function toggleOrder(orderId) {
-  if (_expandedOrders.has(orderId)) {
-    _expandedOrders.delete(orderId);
-  } else {
-    _expandedOrders.add(orderId);
-  }
-  renderOrdersPage();
-}
-
-function toggleExpandAll() {
-  _allExpanded = !_allExpanded;
-  const btn = document.getElementById('expandAllBtn');
-  if (_allExpanded) {
-    _expandedOrders = new Set(_ordersFiltered.map(o => o.name || o.id || o.displayName));
-    if (btn) btn.innerHTML = '<i class="fas fa-compress-alt"></i>Collapse All';
-  } else {
-    _expandedOrders.clear();
-    if (btn) btn.innerHTML = '<i class="fas fa-expand-alt"></i>Expand All';
-  }
-  renderOrdersPage();
-}
-
-function renderOrdersPage() {
-  const tbody  = document.getElementById('ordersTbody');
-  const start  = (_ordersPageNum - 1) * PAGE_SIZE;
-  const page   = _ordersFiltered.slice(start, start + PAGE_SIZE);
-  const total  = _ordersFiltered.length;
-  const pages  = Math.ceil(total / PAGE_SIZE);
-
-  document.getElementById('ordersCount').textContent    = total + ' orders' + (total !== _gamOrders.length ? ' (filtered from ' + _gamOrders.length + ')' : '');
-  document.getElementById('ordersPageLabel').textContent = 'Page ' + _ordersPageNum + ' / ' + (pages||1);
-  document.getElementById('ordersPrevBtn').disabled = _ordersPageNum <= 1;
-  document.getElementById('ordersNextBtn').disabled = _ordersPageNum >= pages;
-
-  if (!page.length) {
-    tbody.innerHTML = '<tr><td colspan="7" class="text-muted" style="text-align:center;padding:20px">No orders match the current filter.</td></tr>';
-    return;
-  }
-
-  const liMap = buildOrderLineItemMap();
-  const rows = [];
-
-  for (const o of page) {
-    // Use resource name as stable key (e.g. networks/123/orders/456), fallback to displayName
-    const oid      = o.name || o.id || o.displayName;
-    const isOpen   = _expandedOrders.has(oid);
-    // Try to match line items: by orderId field, or by order resource name prefix
-    const orderNumericId = oid?.split('/').pop();
-    let lis = liMap[oid] || liMap[orderNumericId] || [];
-    // Fallback: match by orderId field that ends with our numeric id
-    if (!lis.length && orderNumericId) {
-      lis = _gamLineItems.filter(li => {
-        const liOid = (li.orderId||'').split('/').pop();
-        return liOid === orderNumericId;
-      });
-    }
-    const liCount  = lis.length;
-
-    // ── Order (parent) row ──────────────────────────────────────────────────
-    // Summary metrics: total impressions + clicks across child line items
-    const totalImpr   = lis.reduce((s, li) => s + parseInt(li.impressionsDelivered||'0'), 0);
-    const totalClicks = lis.reduce((s, li) => s + parseInt(li.clicksDelivered||'0'), 0);
-    const ctr         = totalImpr > 0 ? (totalClicks / totalImpr * 100).toFixed(2) + '%' : '—';
-    const activeCount = lis.filter(li => li.status === 'ACTIVE' || li.status === 'DELIVERING').length;
-
-    rows.push(\`
-    <tr class="order-row" onclick="toggleOrder(\${JSON.stringify(oid)})">
-      <td style="text-align:center;vertical-align:middle">
-        <span class="expand-icon\${isOpen?' open':''}"><i class="fas fa-chevron-right" style="font-size:9px"></i></span>
-      </td>
-      <td style="max-width:240px">
-        <div class="fw6" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="\${o.displayName||''}">\${o.displayName||o.name||'—'}</div>
-        <div class="fs10 text-muted" style="margin-top:2px">\${o.advertiserId ? 'Adv: '+o.advertiserId.split('/').pop() : ''}\${liCount>0?'<span class=\\"li-count-badge\\">'+liCount+' line items</span>':''}</div>
-      </td>
-      <td>\${statusBadge(o.status)}</td>
-      <td class="fw7" style="color:#60a5fa">\${fmtBudget(o.totalBudget)}</td>
-      <td class="dim">\${fmtDate(o.startTime)}</td>
-      <td class="dim">\${fmtDate(o.endTime)}</td>
-      <td class="dim fs11">
-        \${totalImpr > 0 ? \`<span title="Impressions" style="color:#f59e0b">\${fmtImpr(totalImpr)}</span> <span class="text-muted">/ \${fmtImpr(totalClicks)} clk</span>\` : '<span class="text-muted">No delivery</span>'}
-        \${activeCount > 0 ? \`<br><span style="color:#00d68f;font-size:9px">\${activeCount} active</span>\` : ''}
-      </td>
-    </tr>\`);
-
-    // ── Line Item (child) rows — only when expanded ──────────────────────────
-    if (isOpen && liCount > 0) {
-      // Sub-header row
-      rows.push(\`
-      <tr class="li-subhdr">
-        <td></td>
-        <td style="padding-left:38px;font-size:10px;font-weight:700;color:#a78bfa;text-transform:uppercase;letter-spacing:0.05em">Line Item</td>
-        <td style="font-size:10px;font-weight:700;color:#a78bfa">Status</td>
-        <td style="font-size:10px;font-weight:700;color:#a78bfa">Type</td>
-        <td style="font-size:10px;font-weight:700;color:#a78bfa">Impressions</td>
-        <td style="font-size:10px;font-weight:700;color:#a78bfa">Clicks / CTR</td>
-        <td style="font-size:10px;font-weight:700;color:#a78bfa">Dates</td>
-      </tr>\`);
-
-      for (const li of lis) {
-        const liImpr   = parseInt(li.impressionsDelivered||'0');
-        const liClicks = parseInt(li.clicksDelivered||'0');
-        const liCTR    = liImpr > 0 ? (liClicks/liImpr*100).toFixed(2)+'%' : '—';
-        rows.push(\`
-        <tr class="li-child-row">
-          <td style="text-align:center">
-            <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:rgba(167,139,250,0.18);font-size:8px;line-height:14px;text-align:center;color:#a78bfa"><i class="fas fa-minus"></i></span>
-          </td>
-          <td style="padding-left:38px;max-width:200px">
-            <div class="fw6" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px" title="\${li.displayName||''}">\${li.displayName||li.name||'—'}</div>
-          </td>
-          <td>\${statusBadge(li.status)}</td>
-          <td class="dim fs10">\${li.lineItemType||'—'}</td>
-          <td class="fw6 fs11" style="color:#f59e0b">\${fmtImpr(liImpr)}</td>
-          <td class="fs11">\${fmtImpr(liClicks)} <span class="text-muted">(\${liCTR})</span></td>
-          <td class="dim fs10">\${fmtDate(li.startTime)}\${li.endTime?' → '+fmtDate(li.endTime):''}</td>
-        </tr>\`);
-      }
-    } else if (isOpen && liCount === 0) {
-      rows.push(\`
-      <tr class="li-child-row">
-        <td></td>
-        <td colspan="6" class="text-muted fs11" style="padding-left:38px;padding-top:8px;padding-bottom:8px">
-          <i class="fas fa-info-circle" style="margin-right:4px"></i>No line items found for this order
-        </td>
-      </tr>\`);
-    }
-  }
-
-  tbody.innerHTML = rows.join('');
-}
-function ordersPage(dir) {
-  const pages = Math.ceil(_ordersFiltered.length / PAGE_SIZE);
-  _ordersPageNum = Math.max(1, Math.min(pages, _ordersPageNum + dir));
-  renderOrdersPage();
-}
-
-
-// ── Top Delivering Line Items (replaces Ad Units / Revenue / Reports) ─────────
-function renderTopLI() {
-  const el = document.getElementById('gamTopLI');
-  if (!el) return;
-  const active = _gamLineItems
-    .filter(li => (li.status === 'ACTIVE' || li.status === 'DELIVERING') && parseInt(li.impressionsDelivered||'0') > 0)
-    .sort((a,b) => parseInt(b.impressionsDelivered||'0') - parseInt(a.impressionsDelivered||'0'))
-    .slice(0, 5);
-  if (!active.length) {
-    el.innerHTML = '<div class="text-muted fs12" style="text-align:center;padding:10px">No active deliveries</div>';
-    return;
-  }
-  el.innerHTML = active.map((li, i) => {
-    const impr = parseInt(li.impressionsDelivered||'0');
-    const clk  = parseInt(li.clicksDelivered||'0');
-    const ctr  = impr > 0 ? (clk/impr*100).toFixed(2)+'%' : '—';
-    const name = li.displayName||li.name||'—';
-    return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">'+
-      '<span style="width:16px;height:16px;border-radius:50%;background:rgba(0,214,143,0.15);display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#00d68f;flex-shrink:0">'+(i+1)+'</span>'+
-      '<div style="flex:1;min-width:0">'+
-        '<div class="fs11 fw6" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+name+'">'+name+'</div>'+
-        '<div class="fs10 text-muted">'+fmtImpr(impr)+' impr · '+ctr+' CTR</div>'+
+// ── Top Delivering LIs ──────────────────────────────────────────────────────
+function renderTopLI(){
+  const el=document.getElementById('gamTopLI');
+  if(!el) return;
+  const act=_gamLineItems
+    .filter(li=>(li.status==='ACTIVE'||li.status==='DELIVERING')&&parseInt(li.impressionsDelivered||'0')>0)
+    .sort((a,b)=>parseInt(b.impressionsDelivered||'0')-parseInt(a.impressionsDelivered||'0'))
+    .slice(0,6);
+  if(!act.length){el.innerHTML='<div class="text-muted fs12" style="text-align:center;padding:12px 0">No active deliveries</div>';return;}
+  const mx=parseInt(act[0].impressionsDelivered||'0')||1;
+  el.innerHTML=act.map((li,i)=>{
+    const im=parseInt(li.impressionsDelivered||'0');
+    const cl=parseInt(li.clicksDelivered||'0');
+    const ctr=im>0?(cl/im*100).toFixed(2)+'%':'—';
+    const pct=Math.round(im/mx*100);
+    const nm=li.displayName||li.name||'—';
+    return '<div style="padding:5px 0;border-bottom:1px solid var(--border)">'+
+      '<div style="display:flex;align-items:center;gap:7px;margin-bottom:3px">'+
+        '<span style="min-width:16px;height:16px;border-radius:50%;background:rgba(0,214,143,0.15);display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#00d68f">'+(i+1)+'</span>'+
+        '<div style="flex:1;min-width:0"><div class="fs11 fw6" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+nm+'">'+nm+'</div></div>'+
+        '<span class="b b-green" style="font-size:9px;flex-shrink:0">LIVE</span>'+
       '</div>'+
-      '<span class="b b-green" style="font-size:9px">LIVE</span>'+
+      '<div style="display:flex;align-items:center;gap:8px;padding-left:23px">'+
+        '<div style="flex:1;height:3px;background:rgba(66,133,244,0.12);border-radius:2px">'+
+          '<div style="width:'+pct+'%;height:3px;background:#4285f4;border-radius:2px;transition:width 0.5s"></div>'+
+        '</div>'+
+        '<span class="fs10 text-muted" style="white-space:nowrap">'+fmtImpr(im)+' impr · '+ctr+'</span>'+
+      '</div>'+
     '</div>';
   }).join('');
 }
 
-// ── Charts ──────────────────────────────────────────────────────────────────
-function renderCharts(s) {
-  renderOrderStatusChart(s.orders?.byStatus || {});
-}
-
-function renderOrderStatusChart(byStatus) {
-  const ctx = document.getElementById('orderStatusChart');
-  if (!ctx) return;
-  if (_orderStatusChart) { _orderStatusChart.destroy(); _orderStatusChart = null; }
-  // Exclude DRAFT from the chart
-  const entries = Object.entries(byStatus).filter(([st]) => st !== 'DRAFT');
-  const labels = entries.map(([l]) => l);
-  const values = entries.map(([,v]) => v);
-  if (!labels.length) return;
-  const colors = labels.map(l => STATUS_COLOR[l] || '#48486a');
-  _orderStatusChart = new Chart(ctx, {
-    type: 'doughnut',
-    data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0, hoverOffset: 4 }] },
-    options: {
-      responsive: true, maintainAspectRatio: false, cutout: '70%',
-      plugins: {
-        legend: { position: 'right', labels: { color: '#8080a8', font: { size: 11 }, boxWidth: 10, padding: 10 } },
-        tooltip: { callbacks: { label: ctx => ' ' + ctx.label + ': ' + ctx.parsed } }
+// ── Charts ─────────────────────────────────────────────────────────────────
+function renderCharts(s){ renderOrderStatusChart(s.orders?.byStatus||{}); }
+function renderOrderStatusChart(by){
+  const ctx=document.getElementById('orderStatusChart');
+  if(!ctx) return;
+  if(_orderStatusChart){_orderStatusChart.destroy();_orderStatusChart=null;}
+  const ent=Object.entries(by).filter(([s])=>s!=='DRAFT');
+  if(!ent.length) return;
+  const labels=ent.map(([l])=>l.replace(/_/g,' '));
+  const values=ent.map(([,v])=>v);
+  const colors=ent.map(([l])=>STATUS_COLOR[l]||'#48486a');
+  _orderStatusChart=new Chart(ctx,{
+    type:'doughnut',
+    data:{labels,datasets:[{data:values,backgroundColor:colors,borderWidth:0,hoverOffset:4}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'68%',
+      plugins:{
+        legend:{position:'right',labels:{color:'#8080a8',font:{size:10},boxWidth:10,padding:8}},
+        tooltip:{callbacks:{label:c=>' '+c.label+': '+c.parsed}}
       }
     }
   });
 }
 
-// ── Export CSV ──────────────────────────────────────────────────────────────
-function exportOrdersCSV() {
-  const data = _ordersFiltered.length ? _ordersFiltered : _gamOrders;
-  if (!data.length) return;
-  const headers = ['Order Name','Status','Budget','Currency','Start','End','Advertiser ID'];
-  const rows = data.map(o => [
-    '"' + (o.displayName||o.name||'').replace(/"/g,'""') + '"',
-    o.status || '',
-    o.totalBudget?.units || '',
-    o.totalBudget?.currencyCode || '',
-    o.startTime ? o.startTime.slice(0,10) : '',
-    o.endTime   ? o.endTime.slice(0,10)   : '',
-    o.advertiserId?.split('/').pop() || '',
-  ].join(','));
-  const csv = [headers.join(','), ...rows].join('\\n');
-  const a = document.createElement('a');
-  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-  a.download = 'gam-orders.csv';
+// ── Orders Table ───────────────────────────────────────────────────────────
+function renderOrdersTable(){
+  const sel=document.getElementById('orderStatusFilter');
+  if(sel) sel.value='ACTIVE_DELIVERING';
+  _ordersFiltered=[..._gamOrders];
+  filterOrders('');
+}
+
+function filterOrders(query){
+  const sf=document.getElementById('orderStatusFilter').value;
+  const q=(query||'').toLowerCase().trim();
+  _ordersFiltered=_gamOrders.filter(o=>{
+    const mq=!q||(o.displayName||'').toLowerCase().includes(q)||(o.name||'').toLowerCase().includes(q)||(o.advertiserId||'').toLowerCase().includes(q);
+    let ms;
+    if(sf==='ACTIVE_DELIVERING') ms=o.status==='ACTIVE'||o.status==='DELIVERING';
+    else if(sf==='ALL_INCL_DRAFT') ms=true;
+    else if(sf==='') ms=o.status!=='DRAFT';
+    else ms=o.status===sf;
+    return mq&&ms;
+  });
+  _ordersFiltered.sort((a,b)=>{
+    let va,vb;
+    if(_ordersSortKey==='totalBudget'){va=parseFloat(a.totalBudget?.units||'0');vb=parseFloat(b.totalBudget?.units||'0');}
+    else if(_ordersSortKey==='impressions'){va=_getOrderMeta(a).impr;vb=_getOrderMeta(b).impr;}
+    else if(_ordersSortKey==='advertiserId'){va=(a.advertiserId||'').split('/').pop()||'';vb=(b.advertiserId||'').split('/').pop()||'';}
+    else{va=(a[_ordersSortKey]||'').toString().toLowerCase();vb=(b[_ordersSortKey]||'').toString().toLowerCase();}
+    if(va<vb) return _ordersSortAsc?-1:1;
+    if(va>vb) return _ordersSortAsc?1:-1;
+    return 0;
+  });
+  _ordersPageNum=1;
+  _updateSortIcons();
+  renderOrdersPage();
+}
+
+function _updateSortIcons(){
+  const keys=['displayName','advertiserId','status','startTime','endTime','totalBudget','impressions'];
+  for(const k of keys){
+    const ic=document.getElementById('si-'+k);
+    const th=document.getElementById('th-'+k);
+    if(!ic||!th) continue;
+    if(k===_ordersSortKey){
+      ic.className=_ordersSortAsc?'fas fa-sort-up':'fas fa-sort-down';
+      ic.style.opacity='0.9';ic.style.color='#60a5fa';
+      th.classList.add('sort-active');
+    }else{
+      ic.className='fas fa-sort';ic.style.opacity='0.35';ic.style.color='';
+      th.classList.remove('sort-active');
+    }
+  }
+}
+
+function sortOrdersBy(key){
+  if(_ordersSortKey===key) _ordersSortAsc=!_ordersSortAsc;
+  else{_ordersSortKey=key;_ordersSortAsc=true;}
+  filterOrders(document.getElementById('orderSearch')?.value||'');
+}
+
+function toggleOrder(oid){
+  if(_expandedOrders.has(oid)) _expandedOrders.delete(oid);
+  else _expandedOrders.add(oid);
+  renderOrdersPage();
+}
+
+function toggleExpandAll(){
+  _allExpanded=!_allExpanded;
+  const btn=document.getElementById('expandAllBtn');
+  if(_allExpanded){
+    _expandedOrders=new Set(_ordersFiltered.map(o=>o.name||o.id||o.displayName));
+    if(btn) btn.innerHTML='<i class="fas fa-compress-alt"></i>Collapse All';
+  }else{
+    _expandedOrders.clear();
+    if(btn) btn.innerHTML='<i class="fas fa-expand-alt"></i>Expand All';
+  }
+  renderOrdersPage();
+}
+
+function renderOrdersPage(){
+  const tbody=document.getElementById('ordersTbody');
+  const start=(_ordersPageNum-1)*_ordersPageSize;
+  const page=_ordersFiltered.slice(start,start+_ordersPageSize);
+  const total=_ordersFiltered.length;
+  const pages=Math.max(1,Math.ceil(total/_ordersPageSize));
+  const cb=document.getElementById('ordersCountBadge');
+  if(cb) cb.textContent=total+' orders'+(total!==_gamOrders.length?' of '+_gamOrders.length:'');
+  document.getElementById('ordersCount').textContent=(start+1)+'–'+Math.min(start+_ordersPageSize,total)+' of '+total.toLocaleString()+' orders';
+  document.getElementById('ordersPageLabel').textContent='Page '+_ordersPageNum+' / '+pages;
+  document.getElementById('ordersPrevBtn').disabled=_ordersPageNum<=1;
+  document.getElementById('ordersNextBtn').disabled=_ordersPageNum>=pages;
+  if(!page.length){
+    tbody.innerHTML='<tr><td colspan="10" class="text-muted" style="text-align:center;padding:28px"><i class="fas fa-filter" style="margin-right:6px"></i>No orders match the current filter</td></tr>';
+    return;
+  }
+  const rows=[];
+  for(const o of page){
+    const oid=o.name||o.id||o.displayName;
+    const isOpen=_expandedOrders.has(oid);
+    const meta=_getOrderMeta(o);
+    const lis=meta.lis||[];
+    const liCount=lis.length;
+    const ctr=meta.impr>0?(meta.clicks/meta.impr*100).toFixed(2)+'%':'—';
+    const adv=advShort(o.advertiserId);
+    rows.push(\`
+    <tr class="order-row\${isOpen?' order-expanded':''}" onclick="toggleOrder(\${JSON.stringify(oid)})">
+      <td style="text-align:center;vertical-align:middle;padding:8px 4px">
+        <span class="expand-icon\${isOpen?' open':''}"><i class="fas fa-chevron-right" style="font-size:8px"></i></span>
+      </td>
+      <td style="max-width:220px;padding:8px 10px">
+        <div class="fw6 fs12" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="\${o.displayName||''}">\${o.displayName||o.name||'—'}</div>
+        <div class="fs10 text-muted">\${oid?oid.split('/').pop():''}</div>
+      </td>
+      <td class="fs11 text-muted" style="max-width:100px">
+        <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="\${o.advertiserId||''}">\${adv}</div>
+      </td>
+      <td>\${statusBadge(o.status)}</td>
+      <td class="dim fs11">\${fmtDateShort(o.startTime)}</td>
+      <td class="dim fs11">\${fmtDateShort(o.endTime)}</td>
+      <td class="fw6 fs11" style="color:#60a5fa;white-space:nowrap">\${fmtBudget(o.totalBudget)}</td>
+      <td>
+        \${liCount>0
+          ? '<span class="li-count-badge">'+liCount+'</span>'+(meta.activeCount>0?'<span style="font-size:9px;color:#00d68f;display:block;margin-top:2px">'+meta.activeCount+' active</span>':'')
+          : '<span class="text-muted fs11">—</span>'}
+      </td>
+      <td class="fw6 fs11" style="color:\${meta.impr>0?'#f59e0b':'var(--text-muted)'}">
+        \${fmtImpr(meta.impr)}
+      </td>
+      <td class="fs11" style="white-space:nowrap">
+        \${meta.impr>0?fmtImpr(meta.clicks)+' <span class="text-muted">('+ctr+')</span>':'<span class="text-muted">—</span>'}
+      </td>
+    </tr>\`);
+
+    if(isOpen){
+      if(liCount>0){
+        rows.push(\`
+        <tr class="li-subhdr">
+          <td></td>
+          <td>Line Item Name</td><td>Advertiser</td><td>Status</td>
+          <td>Start</td><td>End</td><td>Budget</td><td>Type</td>
+          <td>Impressions</td><td>Clicks / CTR</td>
+        </tr>\`);
+        const slis=[...lis].sort((a,b)=>{
+          const aa=a.status==='ACTIVE'||a.status==='DELIVERING'?1:0;
+          const ba=b.status==='ACTIVE'||b.status==='DELIVERING'?1:0;
+          if(ba!==aa) return ba-aa;
+          return parseInt(b.impressionsDelivered||'0')-parseInt(a.impressionsDelivered||'0');
+        });
+        for(const li of slis){
+          const lim=parseInt(li.impressionsDelivered||'0');
+          const lcl=parseInt(li.clicksDelivered||'0');
+          const lctr=lim>0?(lcl/lim*100).toFixed(2)+'%':'—';
+          const ladv=advShort(li.advertiserId||o.advertiserId);
+          const ltyp=(li.lineItemType||'—').replace(/_/g,' ');
+          rows.push(\`
+          <tr class="li-child-row">
+            <td style="text-align:center;vertical-align:middle">
+              <span style="display:inline-flex;width:16px;height:16px;border-radius:4px;background:rgba(167,139,250,0.14);align-items:center;justify-content:center;font-size:8px;color:#a78bfa"><i class="fas fa-minus"></i></span>
+            </td>
+            <td style="padding:6px 10px 6px 44px;max-width:200px">
+              <div class="fw6" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11.5px" title="\${li.displayName||''}">\${li.displayName||li.name||'—'}</div>
+              <div class="fs10 text-muted">\${li.name?li.name.split('/').pop():''}</div>
+            </td>
+            <td class="fs11 text-muted">\${ladv}</td>
+            <td>\${statusBadge(li.status)}</td>
+            <td class="dim fs10">\${fmtDateShort(li.startTime)}</td>
+            <td class="dim fs10">\${fmtDateShort(li.endTime)}</td>
+            <td class="fs10" style="color:#60a5fa">\${fmtBudget(li.budget)}</td>
+            <td class="fs10 text-muted" style="white-space:nowrap">\${ltyp}</td>
+            <td class="fw6 fs11" style="color:\${lim>0?'#f59e0b':'var(--text-muted)'}">
+              \${fmtImpr(lim)}
+            </td>
+            <td class="fs11" style="white-space:nowrap">
+              \${lim>0?fmtImpr(lcl)+' <span class="text-muted">('+lctr+')</span>':'<span class="text-muted">—</span>'}
+            </td>
+          </tr>\`);
+        }
+      }else{
+        rows.push(\`
+        <tr class="li-child-row">
+          <td></td>
+          <td colspan="9" class="text-muted fs11" style="padding-left:44px;padding-top:8px;padding-bottom:8px">
+            <i class="fas fa-circle-info" style="margin-right:5px;color:#60a5fa"></i>No line items found for this order
+          </td>
+        </tr>\`);
+      }
+    }
+  }
+  tbody.innerHTML=rows.join('');
+}
+
+function ordersPage(dir){
+  const pages=Math.max(1,Math.ceil(_ordersFiltered.length/_ordersPageSize));
+  _ordersPageNum=Math.max(1,Math.min(pages,_ordersPageNum+dir));
+  renderOrdersPage();
+}
+
+// ── CSV Export ─────────────────────────────────────────────────────────────
+function exportOrdersCSV(){
+  const data=_ordersFiltered.length?_ordersFiltered:_gamOrders;
+  if(!data.length) return;
+  const esc=s=>'"'+String(s||'').replace(/"/g,'""')+'"';
+  const hdrs=['Order ID','Order Name','Advertiser ID','Status','Budget Currency','Budget Amount','Start','End','Line Items','Impressions','Clicks','CTR'];
+  const rows=data.map(o=>{
+    const m=_getOrderMeta(o);
+    const ctr=m.impr>0?(m.clicks/m.impr*100).toFixed(2)+'%':'';
+    return [esc(o.name?o.name.split('/').pop():''),esc(o.displayName||o.name||''),esc(o.advertiserId?o.advertiserId.split('/').pop():''),esc(o.status||''),esc(o.totalBudget?.currencyCode||''),esc(o.totalBudget?.units||''),esc(o.startTime?o.startTime.slice(0,10):''),esc(o.endTime?o.endTime.slice(0,10):''),m.lis.length,m.impr,m.clicks,esc(ctr)].join(',');
+  });
+  const csv=[hdrs.join(','),...rows].join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='gam-orders-'+new Date().toISOString().slice(0,10)+'.csv';
   a.click();
 }
 
-// ── Auto-load on page render ────────────────────────────────────────────────
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', loadGAMAnalytics);
-} else {
-  setTimeout(loadGAMAnalytics, 80);
+// ── Auto-load ──────────────────────────────────────────────────────────────
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',loadGAMAnalytics);
+}else{
+  setTimeout(loadGAMAnalytics,80);
 }
 </script>
 `;
 }
+

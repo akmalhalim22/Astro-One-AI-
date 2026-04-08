@@ -528,9 +528,9 @@ app.get('/api/gam/summary', requireAuth, async (c) => {
 
     const [network, orders, lineItems, adUnits] = await Promise.all([
       getGAMNetwork(gam.saJson, gam.networkCode).catch(() => null),
-      listGAMOrders(gam.saJson, gam.networkCode, 100).catch(() => []),
-      listGAMLineItems(gam.saJson, gam.networkCode, 100).catch(() => []),
-      listGAMAdUnits(gam.saJson, gam.networkCode, 100).catch(() => []),
+      listGAMOrders(gam.saJson, gam.networkCode, 500).catch(() => []),
+      listGAMLineItems(gam.saJson, gam.networkCode, 500).catch(() => []),
+      listGAMAdUnits(gam.saJson, gam.networkCode, 200).catch(() => []),
     ])
 
     // Aggregate order stats
