@@ -135,102 +135,415 @@ export function campaignScreen(): string {
   return `
 <div class="content fade-in">
 
-  <!-- ── KPIs ─────────────────────────────────────────────────── -->
+  <!-- ── Connection Banner ────────────────────────────────────────────────── -->
+  <div id="campBanner" style="display:flex;align-items:center;gap:10px;background:rgba(66,133,244,0.08);border:1px solid rgba(66,133,244,0.2);border-radius:12px;padding:11px 16px;margin-bottom:4px">
+    <i class="fas fa-spinner fa-spin" id="campBannerIcon" style="color:#4285f4;font-size:13px"></i>
+    <span id="campBannerText" style="font-size:12px;color:#60a5fa">Loading campaign data from Google Ad Manager…</span>
+    <button class="btn-ghost" style="margin-left:auto;height:26px;font-size:11px;padding:0 10px" onclick="loadCampaignData()">
+      <i class="fas fa-rotate"></i>Refresh
+    </button>
+  </div>
+
+  <!-- ── KPI STRIP ─────────────────────────────────────────────────────────── -->
   <div class="kpi-grid-4">
     <div class="kpi accent">
       <div class="kpi-icon pink"><i class="fas fa-megaphone"></i></div>
       <div class="kpi-lbl">Active Campaigns</div>
-      <div class="kpi-val">24</div>
-      <div class="kpi-chg up">+4 vs last month</div>
+      <div class="kpi-val" id="camp-kv-active"><span class="text-muted fs13">—</span></div>
+      <div class="kpi-chg" id="camp-kc-active"></div>
     </div>
     <div class="kpi">
       <div class="kpi-icon green"><i class="fas fa-sack-dollar"></i></div>
-      <div class="kpi-lbl">Campaign Revenue</div>
-      <div class="kpi-val">RM 38.6<sup>M</sup></div>
-      <div class="kpi-chg up">+14% vs Q1 LY</div>
+      <div class="kpi-lbl">Total Budget (Orders)</div>
+      <div class="kpi-val" id="camp-kv-budget"><span class="text-muted fs13">—</span></div>
+      <div class="kpi-chg" id="camp-kc-budget"></div>
     </div>
     <div class="kpi">
-      <div class="kpi-icon amber"><i class="fas fa-chart-bar"></i></div>
-      <div class="kpi-lbl">Avg Campaign ROI</div>
-      <div class="kpi-val">4.2<sup>×</sup></div>
-      <div class="kpi-chg up">+0.6 vs last quarter</div>
+      <div class="kpi-icon amber"><i class="fas fa-eye"></i></div>
+      <div class="kpi-lbl">Impressions Delivered</div>
+      <div class="kpi-val" id="camp-kv-impr"><span class="text-muted fs13">—</span></div>
+      <div class="kpi-chg" id="camp-kc-impr"></div>
     </div>
     <div class="kpi">
-      <div class="kpi-icon blue"><i class="fas fa-eye"></i></div>
-      <div class="kpi-lbl">Total Impressions</div>
-      <div class="kpi-val">482<sup>M</sup></div>
-      <div class="kpi-chg up">+22% MoM</div>
+      <div class="kpi-icon blue"><i class="fas fa-layer-group"></i></div>
+      <div class="kpi-lbl">Total Line Items</div>
+      <div class="kpi-val" id="camp-kv-li"><span class="text-muted fs13">—</span></div>
+      <div class="kpi-chg" id="camp-kc-li"></div>
     </div>
   </div>
 
-  <!-- ── CHART + TYPE BREAKDOWN ───────────────────────────────── -->
+  <!-- ── CHART ROW ─────────────────────────────────────────────────────────── -->
   <div class="g62">
+    <!-- Campaign Status Breakdown chart -->
     <div class="card">
       <div class="card-hd">
-        <div class="card-title">Campaign Revenue Trend</div>
-        <span class="card-action">Export →</span>
+        <div class="card-title"><i class="fas fa-chart-pie" style="color:#4285f4;margin-right:7px"></i>Campaign Status Breakdown</div>
+        <span class="b b-gray fs10" id="camp-source-badge">GAM · Orders</span>
       </div>
-      <div class="ch" style="height:170px"><canvas id="campRevChart"></canvas></div>
+      <div style="height:170px"><canvas id="campStatusChart"></canvas></div>
+      <div id="campStatusBars" style="display:flex;flex-direction:column;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)"></div>
     </div>
 
-    <div class="card">
-      <div class="card-hd"><div class="card-title">Revenue by Campaign Type</div></div>
-      ${[
-        ['Brand Awareness', 'RM 12.4M','pf-pink',  32],
-        ['Direct Response', 'RM 9.8M', 'pf-blue',  25],
-        ['Seasonal / Promo','RM 8.6M', 'pf-amber', 22],
-        ['Retargeting',     'RM 4.4M', 'pf-green', 11],
-        ['Content Seeding', 'RM 3.4M', 'pf-purple',  9],
-      ].map(([l,v,f,p]) => `
-      <div style="margin-bottom:12px">
-        <div class="flex justify-between" style="margin-bottom:5px">
-          <span class="fs12 text-sec">${l}</span>
-          <span class="fs12 fw7">${v} <span class="text-muted">(${p}%)</span></span>
+    <!-- Budget by Status + Network Info -->
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="card">
+        <div class="card-hd"><div class="card-title"><i class="fas fa-sack-dollar" style="color:#00d68f;margin-right:7px"></i>Budget Allocation</div></div>
+        <div id="campBudgetRows" style="display:flex;flex-direction:column;gap:8px;min-height:60px">
+          <div class="text-muted fs12" style="padding:14px 0;text-align:center"><i class="fas fa-spinner fa-spin"></i></div>
         </div>
-        <div class="prog-wrap"><div class="prog-fill ${f}" style="width:${p*3}%"></div></div>
-      </div>`).join('')}
+        <div style="height:110px;margin-top:10px"><canvas id="campBudgetChart"></canvas></div>
+      </div>
+      <div class="card card-sm">
+        <div class="card-hd"><div class="card-title"><i class="fas fa-network-wired" style="color:#00d68f;margin-right:7px"></i>Network</div><span class="b b-gray fs10" id="campNetBadge">—</span></div>
+        <div id="campNetInfo" style="display:flex;flex-direction:column;gap:5px">
+          <div class="text-muted fs12" style="text-align:center;padding:8px"><i class="fas fa-spinner fa-spin"></i></div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- ── CAMPAIGNS TABLE ──────────────────────────────────────── -->
+  <!-- ── CAMPAIGNS TABLE ───────────────────────────────────────────────────── -->
   <div class="card">
     <div class="card-hd">
-      <div class="card-title">Active Campaigns — Q1 2025</div>
-      <div style="display:flex;gap:8px">
-        <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 10px"><i class="fas fa-sliders"></i>Filter</button>
-        <span class="card-action">All 24 →</span>
+      <div class="card-title"><i class="fas fa-list-check" style="color:#4285f4;margin-right:7px"></i>Campaigns (GAM Orders)</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input id="campSearch" type="text" placeholder="Search…"
+          style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:4px 10px;color:var(--text-primary);font-size:11px;width:140px;outline:none"
+          oninput="filterCampaigns(this.value)">
+        <select id="campStatusFilter"
+          style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:4px 8px;color:var(--text-primary);font-size:11px;outline:none"
+          onchange="filterCampaigns(document.getElementById('campSearch').value)">
+          <option value="">All Statuses</option>
+          <option value="ACTIVE">Active</option>
+          <option value="DELIVERING">Delivering</option>
+          <option value="COMPLETED">Completed</option>
+          <option value="PAUSED">Paused</option>
+          <option value="CANCELED">Canceled</option>
+          <option value="DRAFT">Draft</option>
+        </select>
+        <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 10px" onclick="exportCampaignCSV()">
+          <i class="fas fa-download"></i>CSV
+        </button>
       </div>
     </div>
-    <table class="tbl">
-      <thead>
-        <tr><th>Campaign</th><th>Client</th><th>Type</th><th>Revenue</th><th>Impressions</th><th>CTR</th><th>ROI</th><th>Status</th></tr>
-      </thead>
-      <tbody>
-        ${[
-          ['Raya 2025 Digital',    'Celcom',  'Seasonal','RM 4.2M','82M', '4.8%','5.2×','b-green'],
-          ['Maxis Always On',      'Maxis',   'Brand',   'RM 3.8M','64M', '3.9%','4.4×','b-green'],
-          ['Petronas Vision 25',   'Petronas','Brand',   'RM 3.1M','48M', '3.2%','3.8×','b-green'],
-          ['CIMB Q1 DR',           'CIMB',    'Direct',  'RM 2.6M','31M', '5.1%','4.1×','b-amber'],
-          ['TNB Green Campaign',   'TNB',     'Awareness','RM 2.1M','28M','2.8%','2.9×','b-amber'],
-          ['Digi Raya Push',       'Digi',    'Seasonal','RM 1.9M','22M', '4.2%','3.2×','b-amber'],
-          ['RHB Retarget Q1',      'RHB',     'Retarget','RM 1.4M','14M', '6.2%','5.8×','b-green'],
-          ['Watsons Beauty Week',  'Watsons', 'Promo',   'RM 1.1M','18M', '3.4%','2.1×','b-red'],
-        ].map(([c,cl,t,r,im,ct,roi,b]) => `
-        <tr>
-          <td class="fw6">${c}</td>
-          <td class="dim">${cl}</td>
-          <td><span class="b b-gray" style="font-size:10px">${t}</span></td>
-          <td class="text-pink fw7">${r}</td>
-          <td class="dim">${im}</td>
-          <td class="fw6">${ct}</td>
-          <td class="fw7 ${b === 'b-green' ? 'text-green' : b === 'b-red' ? 'text-red' : 'text-amber'}">${roi}</td>
-          <td><span class="b ${b}">${b === 'b-green' ? 'On Track' : b === 'b-red' ? 'Underperform' : 'Watch'}</span></td>
-        </tr>`).join('')}
-      </tbody>
-    </table>
+    <div style="overflow-x:auto">
+      <table class="tbl" id="campTable">
+        <thead>
+          <tr>
+            <th onclick="sortCampaignsBy('displayName')" style="cursor:pointer">Campaign (Order) <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
+            <th onclick="sortCampaignsBy('status')" style="cursor:pointer">Status <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
+            <th onclick="sortCampaignsBy('totalBudget')" style="cursor:pointer">Budget <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
+            <th>Impressions</th>
+            <th>Clicks</th>
+            <th>CTR</th>
+            <th onclick="sortCampaignsBy('startTime')" style="cursor:pointer">Start <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
+            <th onclick="sortCampaignsBy('endTime')" style="cursor:pointer">End <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
+            <th>Line Items</th>
+          </tr>
+        </thead>
+        <tbody id="campTbody">
+          <tr><td colspan="9" class="text-muted" style="text-align:center;padding:28px"><i class="fas fa-spinner fa-spin"></i> Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+      <span class="fs11 text-muted" id="campCount">—</span>
+      <div style="display:flex;gap:6px">
+        <button class="btn-ghost" style="height:26px;font-size:11px;padding:0 10px" id="campPrevBtn" onclick="campPage(-1)" disabled>← Prev</button>
+        <span class="fs11 text-muted" id="campPageLabel" style="padding:0 6px;line-height:26px">Page 1</span>
+        <button class="btn-ghost" style="height:26px;font-size:11px;padding:0 10px" id="campNextBtn" onclick="campPage(1)">Next →</button>
+      </div>
+    </div>
   </div>
 
-</div>`;
+</div>
+
+<script>
+// ── Campaign state ────────────────────────────────────────────────────────────
+let _campOrders    = [];
+let _campLineItems = [];
+let _campNetwork   = null;
+let _campFiltered  = [];
+let _campPageNum   = 1;
+const CAMP_PAGE    = 20;
+let _campSortKey   = 'status';
+let _campSortAsc   = true;
+let _campStatusChart = null;
+let _campBudgetChart = null;
+
+// ── Utilities (shared with GAM Analytics if on same page, else redeclared) ───
+function campFmtImpr(n) {
+  n = parseInt(n)||0;
+  if (n >= 1e9) return (n/1e9).toFixed(1)+'B';
+  if (n >= 1e6) return (n/1e6).toFixed(1)+'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1)+'K';
+  return String(n);
+}
+function campFmtDate(s) {
+  if (!s) return '—';
+  try { return new Date(s).toLocaleDateString('en-MY',{day:'2-digit',month:'short',year:'numeric'}); } catch { return s.slice(0,10); }
+}
+function campFmtBudget(b) {
+  if (!b) return '—';
+  const u = parseFloat(b.units||'0'); const c = b.currencyCode||'';
+  if (u>=1e6) return c+' '+(u/1e6).toFixed(2)+'M';
+  if (u>=1e3) return c+' '+(u/1e3).toFixed(1)+'K';
+  return c+' '+u.toFixed(0);
+}
+const CAMP_STATUS_COLOR = { ACTIVE:'#00d68f', DELIVERING:'#00d68f', COMPLETED:'#60a5fa', PAUSED:'#f59e0b', CANCELED:'#f43f5e', DRAFT:'#8080a8', UNKNOWN:'#48486a' };
+const CAMP_STATUS_BADGE = { ACTIVE:'b-green', DELIVERING:'b-green', COMPLETED:'b-blue', PAUSED:'b-amber', CANCELED:'b-red', DRAFT:'b-gray', UNKNOWN:'b-gray' };
+function campStatusBadge(s) { return '<span class="b '+(CAMP_STATUS_BADGE[s]||'b-gray')+'" style="font-size:9px">'+(s||'UNKNOWN')+'</span>'; }
+
+// ── Loader ────────────────────────────────────────────────────────────────────
+async function loadCampaignData() {
+  const icon = document.getElementById('campBannerIcon');
+  const text = document.getElementById('campBannerText');
+  icon.className = 'fas fa-spinner fa-spin'; icon.style.color = '#4285f4';
+  text.textContent = 'Loading campaign data from Google Ad Manager…'; text.style.color = '#60a5fa';
+
+  try {
+    const [sumRes, ordRes, liRes] = await Promise.all([
+      fetch('/api/gam/summary').then(r=>r.json()),
+      fetch('/api/gam/orders?pageSize=200').then(r=>r.json()),
+      fetch('/api/gam/lineitems?pageSize=200').then(r=>r.json()),
+    ]);
+
+    if (!sumRes.ok) {
+      icon.className = 'fas fa-triangle-exclamation'; icon.style.color = '#f59e0b';
+      text.textContent = 'GAM not connected: '+(sumRes.error||'Go to API Connections → Config to set up.'); text.style.color = '#f59e0b';
+      document.getElementById('campTbody').innerHTML = '<tr><td colspan="9" class="text-muted" style="text-align:center;padding:28px"><i class="fas fa-plug" style="color:#f59e0b"></i> GAM not configured — go to API Connections to set up.</td></tr>';
+      return;
+    }
+
+    _campOrders    = ordRes.orders    || [];
+    _campLineItems = liRes.lineItems  || [];
+    _campNetwork   = sumRes;
+
+    icon.className = 'fas fa-circle-check'; icon.style.color = '#00d68f';
+    text.textContent = 'Connected to '+(sumRes.networkName||sumRes.networkCode)+' · '+_campOrders.length+' campaigns (orders) · '+_campLineItems.length+' line items · Live';
+    text.style.color = '#00d68f';
+    document.getElementById('camp-source-badge').textContent = (sumRes.networkName||sumRes.networkCode)+' · GAM Orders';
+
+    renderCampKPIs(sumRes);
+    renderCampStatusBars(sumRes.orders?.byStatus || {});
+    renderCampBudget();
+    renderCampNetwork(sumRes);
+    renderCampaignsTable();
+  } catch(e) {
+    icon.className = 'fas fa-circle-xmark'; icon.style.color = '#f43f5e';
+    text.textContent = 'Failed to load: '+e.message; text.style.color = '#f43f5e';
+  }
+}
+
+// ── KPIs ──────────────────────────────────────────────────────────────────────
+function renderCampKPIs(s) {
+  const active = (s.orders?.byStatus?.ACTIVE||0)+(s.orders?.byStatus?.DELIVERING||0);
+  const total  = s.orders?.total || 0;
+  const impr   = s.lineItems?.totalImpressions || 0;
+  const li     = s.lineItems?.total || 0;
+
+  // Budget total
+  let budgetTotal = 0; const cur = _campOrders.length ? (_campOrders.find(o=>o.totalBudget?.units)?.totalBudget?.currencyCode||'') : '';
+  _campOrders.forEach(o => { budgetTotal += parseFloat(o.totalBudget?.units||'0'); });
+  const fmtBudget = budgetTotal >= 1e6 ? cur+' '+(budgetTotal/1e6).toFixed(2)+'M' : budgetTotal >= 1e3 ? cur+' '+(budgetTotal/1e3).toFixed(1)+'K' : cur+' '+budgetTotal.toFixed(0);
+
+  document.getElementById('camp-kv-active').textContent = active;
+  document.getElementById('camp-kc-active').innerHTML   = '<span class="text-muted">of '+total+' total orders</span>';
+  document.getElementById('camp-kv-budget').innerHTML   = budgetTotal > 0 ? fmtBudget.replace(/^(\w+ )(.+)$/,'$1<sup style="font-size:12px;font-weight:600">$2</sup>') : '<span class="text-muted fs13">—</span>';
+  document.getElementById('camp-kc-budget').innerHTML   = '<span class="text-muted">across orders with budget</span>';
+  document.getElementById('camp-kv-impr').innerHTML     = campFmtImpr(impr)+'<sup style="font-size:12px;font-weight:600"> total</sup>';
+  document.getElementById('camp-kc-impr').innerHTML     = '<span class="text-muted">'+campFmtImpr(s.lineItems?.totalClicks||0)+' clicks</span>';
+  document.getElementById('camp-kv-li').textContent     = li;
+  const activeLI = (s.lineItems?.byStatus?.ACTIVE||0)+(s.lineItems?.byStatus?.DELIVERING||0);
+  document.getElementById('camp-kc-li').innerHTML       = '<span class="up">'+activeLI+' active</span>';
+}
+
+// ── Status Bars ───────────────────────────────────────────────────────────────
+function renderCampStatusBars(byStatus) {
+  const el = document.getElementById('campStatusBars');
+  const total = Object.values(byStatus).reduce((a,b)=>a+b,0)||1;
+  const sorted = Object.entries(byStatus).sort((a,b)=>b[1]-a[1]);
+  if (!sorted.length) { el.innerHTML = '<div class="text-muted fs12" style="text-align:center;padding:10px">No data</div>'; return; }
+  el.innerHTML = sorted.map(([st, cnt]) => {
+    const pct = Math.round(cnt/total*100);
+    const col = CAMP_STATUS_COLOR[st]||'#48486a';
+    return '<div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span class="fs12">'+st+'</span><span class="fs12 fw7">'+cnt+' <span class="text-muted">('+pct+'%)</span></span></div><div class="prog-wrap"><div class="prog-fill" style="width:'+pct+'%;background:'+col+';border-radius:4px;height:6px;transition:width 0.6s"></div></div></div>';
+  }).join('');
+
+  // Doughnut chart
+  const ctx = document.getElementById('campStatusChart');
+  if (!ctx) return;
+  if (_campStatusChart) { _campStatusChart.destroy(); _campStatusChart = null; }
+  const labels = Object.keys(byStatus); const values = Object.values(byStatus);
+  if (!labels.length) return;
+  _campStatusChart = new Chart(ctx, {
+    type:'doughnut',
+    data:{ labels, datasets:[{ data:values, backgroundColor:labels.map(l=>CAMP_STATUS_COLOR[l]||'#48486a'), borderWidth:0, hoverOffset:4 }] },
+    options:{ responsive:true, maintainAspectRatio:false, cutout:'70%',
+      plugins:{ legend:{ position:'right', labels:{ color:'#8080a8', font:{size:10}, boxWidth:9, padding:8 } },
+        tooltip:{ callbacks:{ label:ctx=>' '+ctx.label+': '+ctx.parsed } } } }
+  });
+}
+
+// ── Budget by Status ──────────────────────────────────────────────────────────
+function renderCampBudget() {
+  const el = document.getElementById('campBudgetRows');
+  const ordersWithBudget = _campOrders.filter(o=>o.totalBudget?.units);
+  if (!ordersWithBudget.length) {
+    el.innerHTML = '<div class="text-muted fs12" style="text-align:center;padding:12px">No budget data on orders</div>';
+    return;
+  }
+  const byStatus = {}; let grand = 0;
+  for (const o of ordersWithBudget) {
+    const s = o.status||'UNKNOWN'; const v = parseFloat(o.totalBudget.units||'0');
+    byStatus[s] = (byStatus[s]||0)+v; grand += v;
+  }
+  const cur = ordersWithBudget[0]?.totalBudget?.currencyCode||'';
+  const fmtV = v => v>=1e6?cur+' '+(v/1e6).toFixed(2)+'M':v>=1e3?cur+' '+(v/1e3).toFixed(1)+'K':cur+' '+v.toFixed(0);
+  const sorted = Object.entries(byStatus).sort((a,b)=>b[1]-a[1]);
+  el.innerHTML = sorted.map(([st,val]) => {
+    const pct = Math.round(val/grand*100); const col = CAMP_STATUS_COLOR[st]||'#48486a';
+    return '<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span class="fs12">'+st+'</span><span class="fs12 fw7" style="color:'+col+'">'+fmtV(val)+' <span class="text-muted">('+pct+'%)</span></span></div><div class="prog-wrap"><div class="prog-fill" style="width:'+pct+'%;background:'+col+';border-radius:4px;height:5px;transition:width 0.6s"></div></div></div>';
+  }).join('')+'<div class="fs11 text-muted" style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px">Total: <strong style="color:var(--text-primary)">'+fmtV(grand)+'</strong></div>';
+
+  // Budget bar chart
+  const ctx = document.getElementById('campBudgetChart');
+  if (!ctx) return;
+  if (_campBudgetChart) { _campBudgetChart.destroy(); _campBudgetChart = null; }
+  const labels = Object.keys(byStatus); const values = Object.values(byStatus);
+  _campBudgetChart = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[{ data:values, backgroundColor:labels.map(l=>CAMP_STATUS_COLOR[l]||'#48486a'), borderRadius:5, borderWidth:0 }] },
+    options:{ responsive:true, maintainAspectRatio:false, indexAxis:'y',
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:ctx=>' '+cur+' '+ctx.parsed.x.toLocaleString() } } },
+      scales:{ x:{ grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#48486a',font:{size:9}} }, y:{ grid:{display:false}, ticks:{color:'#8080a8',font:{size:9}} } } }
+  });
+}
+
+// ── Network info panel ────────────────────────────────────────────────────────
+function renderCampNetwork(s) {
+  const badge = document.getElementById('campNetBadge');
+  badge.textContent = 'Live'; badge.className = 'b b-green fs10';
+  document.getElementById('campNetInfo').innerHTML = [
+    ['Network', s.networkName||s.networkCode||'—'],
+    ['Currency', s.currency||'—'],
+    ['Time Zone', s.timeZone||'—'],
+  ].map(([k,v])=>'<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)"><span class="fs11 text-muted">'+k+'</span><span class="fs11 fw6">'+v+'</span></div>').join('');
+}
+
+// ── Campaigns Table ───────────────────────────────────────────────────────────
+function filterCampaigns(query) {
+  const sf = document.getElementById('campStatusFilter').value;
+  const q  = (query||'').toLowerCase();
+  _campFiltered = _campOrders.filter(o => {
+    const mQ = !q || (o.displayName||'').toLowerCase().includes(q) || (o.advertiserId||'').toLowerCase().includes(q);
+    const mS = !sf || o.status === sf;
+    return mQ && mS;
+  });
+  _campFiltered.sort((a,b) => {
+    let va = a[_campSortKey]||'', vb = b[_campSortKey]||'';
+    if (_campSortKey==='totalBudget') { va=parseFloat(a.totalBudget?.units||'0'); vb=parseFloat(b.totalBudget?.units||'0'); }
+    if (_campSortKey==='status') { // active/delivering first
+      const rank = s => (s==='ACTIVE'||s==='DELIVERING')?0:(s==='PAUSED'?1:(s==='COMPLETED'?2:3));
+      if (_campSortAsc) return rank(a.status)-rank(b.status); else return rank(b.status)-rank(a.status);
+    }
+    if (va<vb) return _campSortAsc?-1:1; if (va>vb) return _campSortAsc?1:-1; return 0;
+  });
+  _campPageNum = 1;
+  renderCampaignsPage();
+}
+function sortCampaignsBy(key) {
+  if (_campSortKey===key) _campSortAsc=!_campSortAsc; else { _campSortKey=key; _campSortAsc=true; }
+  filterCampaigns(document.getElementById('campSearch')?.value||'');
+}
+function renderCampaignsTable() {
+  _campFiltered = [..._campOrders];
+  // Default sort: active/delivering first
+  _campSortKey = 'status'; _campSortAsc = true;
+  filterCampaigns('');
+}
+
+// Build order→lineItems map for this screen
+function campBuildLIMap() {
+  const map = {};
+  for (const li of _campLineItems) {
+    const oid = li.orderId || (li.name?li.name.split('/lineItems/')[0]:null);
+    if (!oid) continue;
+    if (!map[oid]) map[oid]=[];
+    map[oid].push(li);
+  }
+  return map;
+}
+
+function renderCampaignsPage() {
+  const tbody = document.getElementById('campTbody');
+  const start = (_campPageNum-1)*CAMP_PAGE;
+  const page  = _campFiltered.slice(start, start+CAMP_PAGE);
+  const total = _campFiltered.length;
+  const pages = Math.ceil(total/CAMP_PAGE);
+
+  document.getElementById('campCount').textContent = total+' campaigns'+(total!==_campOrders.length?' (filtered from '+_campOrders.length+')':'');
+  document.getElementById('campPageLabel').textContent = 'Page '+_campPageNum+' / '+(pages||1);
+  document.getElementById('campPrevBtn').disabled = _campPageNum<=1;
+  document.getElementById('campNextBtn').disabled = _campPageNum>=pages;
+
+  if (!page.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="text-muted" style="text-align:center;padding:24px">No campaigns match.</td></tr>';
+    return;
+  }
+  const liMap = campBuildLIMap();
+  tbody.innerHTML = page.map(o => {
+    const oid = o.name||o.id||o.displayName;
+    const oNum = oid?.split('/').pop();
+    let lis = liMap[oid]||liMap[oNum]||[];
+    if (!lis.length && oNum) lis = _campLineItems.filter(li=>(li.orderId||'').split('/').pop()===oNum);
+    const totalImpr   = lis.reduce((s,li)=>s+parseInt(li.impressionsDelivered||'0'),0);
+    const totalClicks = lis.reduce((s,li)=>s+parseInt(li.clicksDelivered||'0'),0);
+    const ctr         = totalImpr>0?(totalClicks/totalImpr*100).toFixed(2)+'%':'—';
+    const activeLI    = lis.filter(li=>li.status==='ACTIVE'||li.status==='DELIVERING').length;
+    return '<tr>'+
+      '<td style="max-width:220px"><div class="fw6" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+(o.displayName||'')+'">'+( o.displayName||o.name||'—')+'</div>'+
+        (o.advertiserId?'<div class="fs10 text-muted">Adv: '+o.advertiserId.split('/').pop()+'</div>':'')+'</td>'+
+      '<td>'+campStatusBadge(o.status)+'</td>'+
+      '<td class="fw7" style="color:#60a5fa">'+campFmtBudget(o.totalBudget)+'</td>'+
+      '<td class="fw6" style="color:#f59e0b">'+campFmtImpr(totalImpr)+'</td>'+
+      '<td class="dim">'+campFmtImpr(totalClicks)+'</td>'+
+      '<td class="fw6">'+ctr+'</td>'+
+      '<td class="dim fs11">'+campFmtDate(o.startTime)+'</td>'+
+      '<td class="dim fs11">'+campFmtDate(o.endTime)+'</td>'+
+      '<td class="fs11"><span class="li-count-badge" style="display:inline-flex;align-items:center;background:rgba(167,139,250,0.15);color:#a78bfa;font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px">'+lis.length+'</span>'+
+        (activeLI>0?'<span style="color:#00d68f;font-size:9px;margin-left:4px">'+activeLI+' active</span>':'')+'</td>'+
+    '</tr>';
+  }).join('');
+}
+function campPage(dir) {
+  const pages = Math.ceil(_campFiltered.length/CAMP_PAGE);
+  _campPageNum = Math.max(1,Math.min(pages,_campPageNum+dir));
+  renderCampaignsPage();
+}
+function exportCampaignCSV() {
+  const data = _campFiltered.length?_campFiltered:_campOrders;
+  if (!data.length) return;
+  const liMap = campBuildLIMap();
+  const headers = ['Campaign','Status','Budget','Currency','Impressions','Clicks','CTR','Start','End','Line Items'];
+  const rows = data.map(o => {
+    const oid=o.name||o.id||o.displayName; const oNum=oid?.split('/').pop();
+    let lis=liMap[oid]||liMap[oNum]||[];
+    if (!lis.length&&oNum) lis=_campLineItems.filter(li=>(li.orderId||'').split('/').pop()===oNum);
+    const impr=lis.reduce((s,li)=>s+parseInt(li.impressionsDelivered||'0'),0);
+    const clk=lis.reduce((s,li)=>s+parseInt(li.clicksDelivered||'0'),0);
+    const ctr=impr>0?(clk/impr*100).toFixed(2)+'%':'';
+    return ['"'+(o.displayName||o.name||'').replace(/"/g,'""')+'"',o.status||'',o.totalBudget?.units||'',o.totalBudget?.currencyCode||'',impr,clk,ctr,o.startTime?.slice(0,10)||'',o.endTime?.slice(0,10)||'',lis.length].join(',');
+  });
+  const csv=[headers.join(','),...rows].join('\\n');
+  const a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv); a.download='campaigns.csv'; a.click();
+}
+
+// ── Auto-load ─────────────────────────────────────────────────────────────────
+if (document.readyState==='loading') document.addEventListener('DOMContentLoaded',loadCampaignData);
+else setTimeout(loadCampaignData,80);
+</script>
+`;
 }
 
 
@@ -238,186 +551,399 @@ export function adsScreen(): string {
   return `
 <div class="content fade-in">
 
-  <!-- ── KPIs ─────────────────────────────────────────────────── -->
+  <!-- ── Connection Banner ─────────────────────────────────────────────────── -->
+  <div id="adsBanner" style="display:flex;align-items:center;gap:10px;background:rgba(66,133,244,0.08);border:1px solid rgba(66,133,244,0.2);border-radius:12px;padding:11px 16px;margin-bottom:4px">
+    <i class="fas fa-spinner fa-spin" id="adsBannerIcon" style="color:#4285f4;font-size:13px"></i>
+    <span id="adsBannerText" style="font-size:12px;color:#60a5fa">Loading ad performance data from Google Ad Manager…</span>
+    <button class="btn-ghost" style="margin-left:auto;height:26px;font-size:11px;padding:0 10px" onclick="loadAdsData()">
+      <i class="fas fa-rotate"></i>Refresh
+    </button>
+  </div>
+
+  <!-- ── KPI STRIP ─────────────────────────────────────────────────────────── -->
   <div class="kpi-grid-4">
     <div class="kpi accent">
       <div class="kpi-icon pink"><i class="fas fa-rectangle-ad"></i></div>
-      <div class="kpi-lbl">Total Ad Spend</div>
-      <div class="kpi-val">RM 2.8<sup>M</sup></div>
-      <div class="kpi-chg up">Mar MTD · 3 platforms</div>
+      <div class="kpi-lbl">Active Line Items</div>
+      <div class="kpi-val" id="ads-kv-active"><span class="text-muted fs13">—</span></div>
+      <div class="kpi-chg" id="ads-kc-active"></div>
     </div>
     <div class="kpi">
-      <div class="kpi-icon green"><i class="fas fa-chart-line"></i></div>
-      <div class="kpi-lbl">Blended ROAS</div>
-      <div class="kpi-val">3.4<sup>×</sup></div>
-      <div class="kpi-chg up">+0.4 vs last month</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-icon blue"><i class="fas fa-eye"></i></div>
+      <div class="kpi-icon green"><i class="fas fa-eye"></i></div>
       <div class="kpi-lbl">Total Impressions</div>
-      <div class="kpi-val">39.1<sup>M</sup></div>
-      <div class="kpi-chg up">+11% MoM</div>
+      <div class="kpi-val" id="ads-kv-impr"><span class="text-muted fs13">—</span></div>
+      <div class="kpi-chg" id="ads-kc-impr"></div>
     </div>
     <div class="kpi">
-      <div class="kpi-icon amber"><i class="fas fa-arrow-pointer"></i></div>
-      <div class="kpi-lbl">Blended CTR</div>
-      <div class="kpi-val">4.2<sup>%</sup></div>
-      <div class="kpi-chg down">−0.2pp vs last month</div>
+      <div class="kpi-icon blue"><i class="fas fa-arrow-pointer"></i></div>
+      <div class="kpi-lbl">Total Clicks</div>
+      <div class="kpi-val" id="ads-kv-clicks"><span class="text-muted fs13">—</span></div>
+      <div class="kpi-chg" id="ads-kc-clicks"></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-icon amber"><i class="fas fa-percent"></i></div>
+      <div class="kpi-lbl">Overall CTR</div>
+      <div class="kpi-val" id="ads-kv-ctr"><span class="text-muted fs13">—</span></div>
+      <div class="kpi-chg" id="ads-kc-ctr"></div>
     </div>
   </div>
 
-  <!-- ── PLATFORM TABS ─────────────────────────────────────────── -->
-  <div class="tabs" id="adsTabs">
-    <div class="tab active" onclick="switchAdTab('all',this)">All Platforms</div>
-    <div class="tab" onclick="switchAdTab('gam',this)">
-      <i class="fab fa-google" style="margin-right:5px;color:#4285f4"></i>Google Ads
-    </div>
-    <div class="tab" onclick="switchAdTab('meta',this)">
-      <i class="fab fa-meta" style="margin-right:5px;color:#1877f2"></i>Meta
-    </div>
-    <div class="tab" onclick="switchAdTab('tiktok',this)">
-      <i class="fab fa-tiktok" style="margin-right:5px;color:#ff0050"></i>TikTok
-    </div>
-  </div>
-
-  <!-- ── 3 PLATFORM CARDS ─────────────────────────────────────── -->
-  <div class="g3">
-
-    <!-- Google Ads -->
-    <div class="card" style="border-left:3px solid #4285f4">
-      <div class="platform-card-hd">
-        <div class="platform-icon" style="background:rgba(66,133,244,0.15);color:#4285f4">
-          <i class="fab fa-google"></i>
-        </div>
-        <div style="flex:1;min-width:0">
-          <div class="fw7 fs13">Google Ads Manager</div>
-          <div class="fs11 text-muted">Search · Display · YouTube</div>
-        </div>
-        <span class="b b-green" style="font-size:9px">Live</span>
-      </div>
-      ${[
-        ['Spend','RM 1.2M'],['Impressions','8.4M'],
-        ['Clicks','352K'],  ['CTR','4.2%'],
-        ['Conversions','12.4K'],['ROAS','3.8×'],
-      ].map(([l,v]) => `
-      <div class="stat-row">
-        <span class="stat-lbl">${l}</span><span class="fw7">${v}</span>
-      </div>`).join('')}
-      <div class="alert alert-red" style="margin-top:11px;padding:8px 11px;font-size:11px">
-        <i class="fas fa-triangle-exclamation"></i>
-        CTR dropped 18% on Campaign #4421 — review needed
-      </div>
-    </div>
-
-    <!-- Meta Ads -->
-    <div class="card" style="border-left:3px solid #1877f2">
-      <div class="platform-card-hd">
-        <div class="platform-icon" style="background:rgba(24,119,242,0.15);color:#1877f2">
-          <i class="fab fa-meta"></i>
-        </div>
-        <div style="flex:1;min-width:0">
-          <div class="fw7 fs13">Meta Ads</div>
-          <div class="fs11 text-muted">Facebook · Instagram · Audience Net.</div>
-        </div>
-        <span class="b b-green" style="font-size:9px">Live</span>
-      </div>
-      ${[
-        ['Spend','RM 980K'],  ['Impressions','12.1M'],
-        ['Clicks','375K'],    ['CTR','3.1%'],
-        ['Conversions','9.8K'],['ROAS','2.9×'],
-      ].map(([l,v]) => `
-      <div class="stat-row">
-        <span class="stat-lbl">${l}</span><span class="fw7">${v}</span>
-      </div>`).join('')}
-      <div class="alert alert-amber" style="margin-top:11px;padding:8px 11px;font-size:11px">
-        <i class="fas fa-eye"></i>ROAS 2.9× — below 3.0× threshold; review budget allocation
-      </div>
-    </div>
-
-    <!-- TikTok Ads -->
-    <div class="card" style="border-left:3px solid #ff0050">
-      <div class="platform-card-hd">
-        <div class="platform-icon" style="background:rgba(255,0,80,0.12);color:#ff0050">
-          <i class="fab fa-tiktok"></i>
-        </div>
-        <div style="flex:1;min-width:0">
-          <div class="fw7 fs13">TikTok Ads</div>
-          <div class="fs11 text-muted">In-Feed · TopView · Spark Ads</div>
-        </div>
-        <span class="b b-green" style="font-size:9px">Live</span>
-      </div>
-      ${[
-        ['Spend','RM 620K'],  ['Impressions','18.6M'],
-        ['Clicks','1.0M'],    ['CTR','5.4%'],
-        ['Conversions','8.2K'],['ROAS','3.1×'],
-      ].map(([l,v]) => `
-      <div class="stat-row">
-        <span class="stat-lbl">${l}</span><span class="fw7">${v}</span>
-      </div>`).join('')}
-      <div class="alert alert-green" style="margin-top:11px;padding:8px 11px;font-size:11px">
-        <i class="fas fa-star"></i>Highest CTR platform this month — scale budget here
-      </div>
-    </div>
-
-  </div>
-
-  <!-- ── CAMPAIGNS TABLE + SPEND MIX ─────────────────────────── -->
-  <div class="g2" style="margin-bottom:0">
+  <!-- ── CHART ROW ─────────────────────────────────────────────────────────── -->
+  <div class="g62">
+    <!-- Line Item Type breakdown -->
     <div class="card">
       <div class="card-hd">
-        <div class="card-title">Top Campaigns — All Platforms</div>
-        <span class="card-action">View All →</span>
+        <div class="card-title"><i class="fas fa-layer-group" style="color:#a78bfa;margin-right:7px"></i>Ad Performance by Type</div>
+        <span class="b b-gray fs10" id="ads-source-badge">GAM · Line Items</span>
       </div>
+      <div style="height:160px"><canvas id="adsTypeChart"></canvas></div>
+      <div id="adsTypeBars" style="display:flex;flex-direction:column;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)"></div>
+    </div>
+
+    <!-- Status bars + top performers -->
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="card">
+        <div class="card-hd"><div class="card-title"><i class="fas fa-signal" style="color:#00d68f;margin-right:7px"></i>Line Item Status</div></div>
+        <div id="adsStatusBars" style="display:flex;flex-direction:column;gap:8px;min-height:60px">
+          <div class="text-muted fs12" style="text-align:center;padding:14px"><i class="fas fa-spinner fa-spin"></i></div>
+        </div>
+      </div>
+      <div class="card card-sm">
+        <div class="card-hd"><div class="card-title"><i class="fas fa-trophy" style="color:#f59e0b;margin-right:7px"></i>Top Performers</div><span class="b b-gray fs10">by impressions</span></div>
+        <div id="adsTopPerformers" style="display:flex;flex-direction:column;gap:5px">
+          <div class="text-muted fs12" style="text-align:center;padding:10px"><i class="fas fa-spinner fa-spin"></i></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── AD PERFORMANCE TABLE ───────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <div class="card-title"><i class="fas fa-table-list" style="color:#4285f4;margin-right:7px"></i>Line Items — Ad Performance</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input id="adsSearch" type="text" placeholder="Search line items…"
+          style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:4px 10px;color:var(--text-primary);font-size:11px;width:150px;outline:none"
+          oninput="filterAds(this.value)">
+        <select id="adsStatusFilter"
+          style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:4px 8px;color:var(--text-primary);font-size:11px;outline:none"
+          onchange="filterAds(document.getElementById('adsSearch').value)">
+          <option value="ACTIVE_DELIVERING">Active &amp; Delivering</option>
+          <option value="">All Statuses</option>
+          <option value="ACTIVE">Active</option>
+          <option value="DELIVERING">Delivering</option>
+          <option value="COMPLETED">Completed</option>
+          <option value="PAUSED">Paused</option>
+        </select>
+        <select id="adsTypeFilter"
+          style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:4px 8px;color:var(--text-primary);font-size:11px;outline:none"
+          onchange="filterAds(document.getElementById('adsSearch').value)">
+          <option value="">All Types</option>
+        </select>
+        <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 10px" onclick="exportAdsCSV()">
+          <i class="fas fa-download"></i>CSV
+        </button>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
       <table class="tbl">
         <thead>
-          <tr><th>Campaign</th><th>Platform</th><th>Spend</th><th>CTR</th><th>ROAS</th><th>Status</th></tr>
-        </thead>
-        <tbody>
-          ${[
-            ['Raya 2025 Hero',    'Google', '#4285f4','b-blue',  'RM 420K','5.1%','4.6×','b-green'],
-            ['Maxis Always On',   'Meta',   '#1877f2','b-purple','RM 380K','3.8%','3.9×','b-green'],
-            ['Petronas TVC Push', 'TikTok', '#ff0050','b-red',   'RM 280K','6.2%','4.1×','b-green'],
-            ['CIMB Raya DR',      'Google', '#4285f4','b-blue',  'RM 240K','4.4%','3.4×','b-amber'],
-            ['TNB Green Spark',   'TikTok', '#ff0050','b-red',   'RM 190K','4.8%','3.2×','b-amber'],
-            ['Watsons Beauty',    'Meta',   '#1877f2','b-purple','RM 160K','2.9%','2.1×','b-red'],
-          ].map(([c,p,pc,pb,s,ct,r,b]) => `
           <tr>
-            <td class="fw6">${c}</td>
-            <td>
-              <span class="b ${pb}" style="font-size:9.5px">
-                <i class="fab ${p === 'Google' ? 'fa-google' : p === 'Meta' ? 'fa-meta' : 'fa-tiktok'}"
-                   style="color:${pc}"></i> ${p}
-              </span>
-            </td>
-            <td class="text-pink fw7">${s}</td>
-            <td class="fw6">${ct}</td>
-            <td class="fw7 ${b === 'b-green' ? 'text-green' : b === 'b-red' ? 'text-red' : 'text-amber'}">${r}</td>
-            <td><span class="b ${b}">${b === 'b-green' ? 'Strong' : b === 'b-red' ? 'Weak' : 'Watch'}</span></td>
-          </tr>`).join('')}
+            <th onclick="sortAdsBy('displayName')" style="cursor:pointer">Line Item <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
+            <th onclick="sortAdsBy('status')" style="cursor:pointer">Status <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
+            <th onclick="sortAdsBy('lineItemType')" style="cursor:pointer">Type <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
+            <th onclick="sortAdsBy('impressionsDelivered')" style="cursor:pointer">Impressions <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
+            <th onclick="sortAdsBy('clicksDelivered')" style="cursor:pointer">Clicks <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
+            <th>CTR</th>
+            <th onclick="sortAdsBy('startTime')" style="cursor:pointer">Start <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
+            <th onclick="sortAdsBy('endTime')" style="cursor:pointer">End <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
+            <th>Order</th>
+          </tr>
+        </thead>
+        <tbody id="adsTbody">
+          <tr><td colspan="9" class="text-muted" style="text-align:center;padding:28px"><i class="fas fa-spinner fa-spin"></i> Loading…</td></tr>
         </tbody>
       </table>
     </div>
-
-    <div class="card">
-      <div class="card-hd"><div class="card-title">Spend Distribution</div></div>
-      <div class="ch" style="height:156px"><canvas id="adsSpendChart"></canvas></div>
-      <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
-        ${[
-          ['Google Ads','43%','RM 1.2M','#4285f4'],
-          ['Meta Ads',  '35%','RM 980K', '#1877f2'],
-          ['TikTok Ads','22%','RM 620K', '#ff0050'],
-        ].map(([p,pct,s,c]) => `
-        <div class="flex items-center gap8" style="padding:7px 0;border-bottom:1px solid var(--border)">
-          <div style="width:10px;height:10px;border-radius:50%;background:${c};flex-shrink:0"></div>
-          <span class="fs12 text-sec" style="flex:1">${p}</span>
-          <span class="fw7 fs13">${pct}</span>
-          <span class="fs11 text-muted">${s}</span>
-        </div>`).join('')}
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+      <span class="fs11 text-muted" id="adsCount">—</span>
+      <div style="display:flex;gap:6px">
+        <button class="btn-ghost" style="height:26px;font-size:11px;padding:0 10px" id="adsPrevBtn" onclick="adsPage(-1)" disabled>← Prev</button>
+        <span class="fs11 text-muted" id="adsPageLabel" style="padding:0 6px;line-height:26px">Page 1</span>
+        <button class="btn-ghost" style="height:26px;font-size:11px;padding:0 10px" id="adsNextBtn" onclick="adsPage(1)">Next →</button>
       </div>
     </div>
   </div>
 
-</div>`;
+</div>
+
+<script>
+// ── Ads state ─────────────────────────────────────────────────────────────────
+let _adsLineItems = [];
+let _adsOrders    = [];
+let _adsFiltered  = [];
+let _adsPageNum   = 1;
+const ADS_PAGE    = 25;
+let _adsSortKey   = 'impressionsDelivered';
+let _adsSortAsc   = false;
+let _adsTypeChart  = null;
+
+const ADS_STATUS_COLOR = { ACTIVE:'#00d68f', DELIVERING:'#00d68f', COMPLETED:'#60a5fa', PAUSED:'#f59e0b', CANCELED:'#f43f5e', DRAFT:'#8080a8', UNKNOWN:'#48486a' };
+const ADS_STATUS_BADGE = { ACTIVE:'b-green', DELIVERING:'b-green', COMPLETED:'b-blue', PAUSED:'b-amber', CANCELED:'b-red', DRAFT:'b-gray', UNKNOWN:'b-gray' };
+function adsFmtImpr(n) {
+  n=parseInt(n)||0;
+  if(n>=1e9) return (n/1e9).toFixed(1)+'B';
+  if(n>=1e6) return (n/1e6).toFixed(1)+'M';
+  if(n>=1e3) return (n/1e3).toFixed(1)+'K';
+  return String(n);
+}
+function adsFmtDate(s) {
+  if(!s) return '—';
+  try { return new Date(s).toLocaleDateString('en-MY',{day:'2-digit',month:'short',year:'numeric'}); } catch { return s.slice(0,10); }
+}
+function adsStatusBadge(s) { return '<span class="b '+(ADS_STATUS_BADGE[s]||'b-gray')+'" style="font-size:9px">'+(s||'UNKNOWN')+'</span>'; }
+
+// ── Loader ────────────────────────────────────────────────────────────────────
+async function loadAdsData() {
+  const icon = document.getElementById('adsBannerIcon');
+  const text = document.getElementById('adsBannerText');
+  icon.className = 'fas fa-spinner fa-spin'; icon.style.color = '#4285f4';
+  text.textContent = 'Loading ad performance data from Google Ad Manager…'; text.style.color = '#60a5fa';
+
+  try {
+    const [sumRes, liRes, ordRes] = await Promise.all([
+      fetch('/api/gam/summary').then(r=>r.json()),
+      fetch('/api/gam/lineitems?pageSize=200').then(r=>r.json()),
+      fetch('/api/gam/orders?pageSize=200').then(r=>r.json()),
+    ]);
+
+    if (!sumRes.ok) {
+      icon.className = 'fas fa-triangle-exclamation'; icon.style.color = '#f59e0b';
+      text.textContent = 'GAM not connected: '+(sumRes.error||'Go to API Connections → Config to set up.'); text.style.color = '#f59e0b';
+      document.getElementById('adsTbody').innerHTML = '<tr><td colspan="9" class="text-muted" style="text-align:center;padding:28px"><i class="fas fa-plug" style="color:#f59e0b"></i> GAM not configured.</td></tr>';
+      return;
+    }
+
+    _adsLineItems = liRes.lineItems  || [];
+    _adsOrders    = ordRes.orders    || [];
+
+    icon.className = 'fas fa-circle-check'; icon.style.color = '#00d68f';
+    text.textContent = 'Connected · '+_adsLineItems.length+' line items loaded from '+(sumRes.networkName||sumRes.networkCode)+' · Live';
+    text.style.color = '#00d68f';
+    document.getElementById('ads-source-badge').textContent = (sumRes.networkName||sumRes.networkCode)+' · GAM Line Items';
+
+    // Populate type filter
+    const types = [...new Set(_adsLineItems.map(li=>li.lineItemType).filter(Boolean))].sort();
+    const sel = document.getElementById('adsTypeFilter');
+    types.forEach(t => { const opt=document.createElement('option'); opt.value=t; opt.textContent=t; sel.appendChild(opt); });
+
+    renderAdsKPIs(sumRes);
+    renderAdsTypeBars();
+    renderAdsStatusBars(sumRes.lineItems?.byStatus||{});
+    renderAdsTopPerformers();
+    renderAdsTable();
+  } catch(e) {
+    icon.className = 'fas fa-circle-xmark'; icon.style.color = '#f43f5e';
+    text.textContent = 'Failed to load: '+e.message; text.style.color = '#f43f5e';
+  }
+}
+
+// ── KPIs ──────────────────────────────────────────────────────────────────────
+function renderAdsKPIs(s) {
+  const active = (s.lineItems?.byStatus?.ACTIVE||0)+(s.lineItems?.byStatus?.DELIVERING||0);
+  const total  = s.lineItems?.total||0;
+  const impr   = s.lineItems?.totalImpressions||0;
+  const clk    = s.lineItems?.totalClicks||0;
+  const ctr    = impr>0?(clk/impr*100).toFixed(2)+'%':'—';
+
+  document.getElementById('ads-kv-active').textContent  = active;
+  document.getElementById('ads-kc-active').innerHTML    = '<span class="text-muted">of '+total+' total line items</span>';
+  document.getElementById('ads-kv-impr').innerHTML      = adsFmtImpr(impr)+'<sup style="font-size:12px;font-weight:600"> total</sup>';
+  document.getElementById('ads-kc-impr').innerHTML      = '<span class="text-muted">delivered</span>';
+  document.getElementById('ads-kv-clicks').innerHTML    = adsFmtImpr(clk)+'<sup style="font-size:12px;font-weight:600"> total</sup>';
+  document.getElementById('ads-kc-clicks').innerHTML    = '<span class="text-muted">across all line items</span>';
+  document.getElementById('ads-kv-ctr').innerHTML       = (ctr!=='—'?ctr:'<span class="text-muted fs13">—</span>');
+  document.getElementById('ads-kc-ctr').innerHTML       = impr>0?'<span class="text-muted">blended CTR</span>':'';
+}
+
+// ── Type bars + doughnut chart ────────────────────────────────────────────────
+function renderAdsTypeBars() {
+  const el = document.getElementById('adsTypeBars');
+  const byType = {};
+  let totalImpr = 0;
+  for (const li of _adsLineItems) {
+    const t = li.lineItemType||'UNKNOWN';
+    const impr = parseInt(li.impressionsDelivered||'0');
+    byType[t] = (byType[t]||0) + impr;
+    totalImpr += impr;
+  }
+  const sorted = Object.entries(byType).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const typeColors = ['#4285f4','#a78bfa','#00d68f','#f59e0b','#f43f5e','#60a5fa','#e2007a','#34d399'];
+  const colorMap = {};
+  sorted.forEach(([t],i)=>{ colorMap[t]=typeColors[i%typeColors.length]; });
+
+  if (!sorted.length || totalImpr===0) {
+    el.innerHTML = '<div class="text-muted fs12" style="text-align:center;padding:10px">No impression data</div>';
+  } else {
+    el.innerHTML = sorted.map(([t,v]) => {
+      const pct = Math.round(v/totalImpr*100); const col = colorMap[t];
+      return '<div><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="fs11">'+t+'</span><span class="fs11 fw7">'+adsFmtImpr(v)+' <span class="text-muted">('+pct+'%)</span></span></div><div class="prog-wrap"><div class="prog-fill" style="width:'+pct+'%;background:'+col+';border-radius:3px;height:5px;transition:width 0.6s"></div></div></div>';
+    }).join('');
+  }
+
+  // Doughnut chart
+  const ctx = document.getElementById('adsTypeChart');
+  if (!ctx) return;
+  if (_adsTypeChart) { _adsTypeChart.destroy(); _adsTypeChart = null; }
+  const labels = sorted.map(([t])=>t); const values = sorted.map(([,v])=>v);
+  if (!labels.length) return;
+  _adsTypeChart = new Chart(ctx, {
+    type:'doughnut',
+    data:{ labels, datasets:[{ data:values, backgroundColor:labels.map((_,i)=>typeColors[i%typeColors.length]), borderWidth:0, hoverOffset:4 }] },
+    options:{ responsive:true, maintainAspectRatio:false, cutout:'68%',
+      plugins:{ legend:{ position:'right', labels:{ color:'#8080a8', font:{size:10}, boxWidth:9, padding:7 } },
+        tooltip:{ callbacks:{ label:ctx=>' '+ctx.label+': '+adsFmtImpr(ctx.parsed) } } } }
+  });
+}
+
+// ── Status Bars ───────────────────────────────────────────────────────────────
+function renderAdsStatusBars(byStatus) {
+  const el = document.getElementById('adsStatusBars');
+  const total = Object.values(byStatus).reduce((a,b)=>a+b,0)||1;
+  const sorted = Object.entries(byStatus).sort((a,b)=>b[1]-a[1]);
+  if (!sorted.length) { el.innerHTML = '<div class="text-muted fs12" style="text-align:center;padding:10px">No data</div>'; return; }
+  el.innerHTML = sorted.map(([st,cnt]) => {
+    const pct = Math.round(cnt/total*100); const col = ADS_STATUS_COLOR[st]||'#48486a';
+    return '<div style="display:flex;align-items:center;gap:8px"><span class="fs11 text-muted" style="width:90px;flex-shrink:0">'+st+'</span><div class="prog-wrap" style="flex:1"><div class="prog-fill" style="width:'+pct+'%;background:'+col+';border-radius:3px;height:5px"></div></div><span class="fs11 fw7" style="width:30px;text-align:right">'+cnt+'</span></div>';
+  }).join('');
+}
+
+// ── Top Performers ────────────────────────────────────────────────────────────
+function renderAdsTopPerformers() {
+  const el = document.getElementById('adsTopPerformers');
+  const top = [..._adsLineItems]
+    .filter(li=>parseInt(li.impressionsDelivered||'0')>0)
+    .sort((a,b)=>parseInt(b.impressionsDelivered||'0')-parseInt(a.impressionsDelivered||'0'))
+    .slice(0,5);
+  if (!top.length) { el.innerHTML = '<div class="text-muted fs12" style="text-align:center;padding:10px">No delivery data</div>'; return; }
+  el.innerHTML = top.map((li,i) => {
+    const impr = parseInt(li.impressionsDelivered||'0');
+    const clk  = parseInt(li.clicksDelivered||'0');
+    const ctr  = impr>0?(clk/impr*100).toFixed(2)+'%':'—';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">'+
+      '<span style="width:16px;height:16px;border-radius:50%;background:rgba(66,133,244,0.15);display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#4285f4;flex-shrink:0">'+(i+1)+'</span>'+
+      '<div style="flex:1;min-width:0"><div class="fs11 fw6" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+(li.displayName||'')+'">'+( li.displayName||li.name||'—')+'</div>'+
+        '<div class="fs10 text-muted">'+adsFmtImpr(impr)+' impr · '+ctr+' CTR</div></div>'+
+      adsStatusBadge(li.status)+'</div>';
+  }).join('');
+}
+
+// ── Ads Table ─────────────────────────────────────────────────────────────────
+function filterAds(query) {
+  const sf  = document.getElementById('adsStatusFilter').value;
+  const tf  = document.getElementById('adsTypeFilter').value;
+  const q   = (query||'').toLowerCase();
+  _adsFiltered = _adsLineItems.filter(li => {
+    const mQ = !q || (li.displayName||'').toLowerCase().includes(q);
+    let mS;
+    if (sf==='ACTIVE_DELIVERING') { mS = li.status==='ACTIVE'||li.status==='DELIVERING'; }
+    else { mS = !sf || li.status===sf; }
+    const mT = !tf || li.lineItemType===tf;
+    return mQ && mS && mT;
+  });
+  _adsFiltered.sort((a,b) => {
+    let va = a[_adsSortKey]||0, vb = b[_adsSortKey]||0;
+    if (_adsSortKey==='impressionsDelivered'||_adsSortKey==='clicksDelivered') { va=parseInt(va)||0; vb=parseInt(vb)||0; }
+    if (va<vb) return _adsSortAsc?-1:1; if (va>vb) return _adsSortAsc?1:-1; return 0;
+  });
+  _adsPageNum = 1;
+  renderAdsPage();
+}
+function sortAdsBy(key) {
+  if (_adsSortKey===key) _adsSortAsc=!_adsSortAsc; else { _adsSortKey=key; _adsSortAsc=(key!=='impressionsDelivered'&&key!=='clicksDelivered'); }
+  filterAds(document.getElementById('adsSearch')?.value||'');
+}
+function renderAdsTable() {
+  _adsFiltered = [..._adsLineItems];
+  const sel = document.getElementById('adsStatusFilter');
+  if (sel) sel.value = 'ACTIVE_DELIVERING';
+  filterAds('');
+}
+
+// Build order name lookup: orderId/name -> displayName
+function buildOrderNameMap() {
+  const map = {};
+  for (const o of _adsOrders) {
+    const name = o.name||''; const num = name.split('/').pop();
+    map[name] = o.displayName||o.name||'—';
+    if (num) map[num] = o.displayName||o.name||'—';
+  }
+  return map;
+}
+
+function renderAdsPage() {
+  const tbody = document.getElementById('adsTbody');
+  const start = (_adsPageNum-1)*ADS_PAGE;
+  const page  = _adsFiltered.slice(start, start+ADS_PAGE);
+  const total = _adsFiltered.length;
+  const pages = Math.ceil(total/ADS_PAGE);
+
+  document.getElementById('adsCount').textContent = total+' line items'+(total!==_adsLineItems.length?' (filtered from '+_adsLineItems.length+')':'');
+  document.getElementById('adsPageLabel').textContent = 'Page '+_adsPageNum+' / '+(pages||1);
+  document.getElementById('adsPrevBtn').disabled = _adsPageNum<=1;
+  document.getElementById('adsNextBtn').disabled = _adsPageNum>=pages;
+
+  if (!page.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="text-muted" style="text-align:center;padding:24px">No line items match.</td></tr>';
+    return;
+  }
+  const orderMap = buildOrderNameMap();
+  tbody.innerHTML = page.map(li => {
+    const impr = parseInt(li.impressionsDelivered||'0');
+    const clk  = parseInt(li.clicksDelivered||'0');
+    const ctr  = impr>0?(clk/impr*100).toFixed(2)+'%':'—';
+    const oid  = (li.orderId||'').split('/').pop();
+    const oName = orderMap[li.orderId||'']||orderMap[oid]||oid||'—';
+    return '<tr>'+
+      '<td style="max-width:200px"><div class="fw6" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+(li.displayName||'')+'">'+( li.displayName||li.name||'—')+'</div></td>'+
+      '<td>'+adsStatusBadge(li.status)+'</td>'+
+      '<td class="dim fs11">'+(li.lineItemType||'—')+'</td>'+
+      '<td class="fw6" style="color:#f59e0b">'+adsFmtImpr(impr)+'</td>'+
+      '<td class="dim">'+adsFmtImpr(clk)+'</td>'+
+      '<td class="fw6">'+(ctr)+'</td>'+
+      '<td class="dim fs11">'+adsFmtDate(li.startTime)+'</td>'+
+      '<td class="dim fs11">'+adsFmtDate(li.endTime)+'</td>'+
+      '<td class="fs11 text-muted" style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+oName+'">'+oName+'</td>'+
+    '</tr>';
+  }).join('');
+}
+function adsPage(dir) {
+  const pages = Math.ceil(_adsFiltered.length/ADS_PAGE);
+  _adsPageNum = Math.max(1,Math.min(pages,_adsPageNum+dir));
+  renderAdsPage();
+}
+function exportAdsCSV() {
+  const data = _adsFiltered.length?_adsFiltered:_adsLineItems;
+  if (!data.length) return;
+  const orderMap = buildOrderNameMap();
+  const headers = ['Line Item','Status','Type','Impressions','Clicks','CTR','Start','End','Order'];
+  const rows = data.map(li => {
+    const impr=parseInt(li.impressionsDelivered||'0');
+    const clk=parseInt(li.clicksDelivered||'0');
+    const ctr=impr>0?(clk/impr*100).toFixed(2)+'%':'';
+    const oid=(li.orderId||'').split('/').pop();
+    const oName=orderMap[li.orderId||'']||orderMap[oid]||oid||'';
+    return ['"'+(li.displayName||li.name||'').replace(/"/g,'""')+'"',li.status||'',li.lineItemType||'',impr,clk,ctr,li.startTime?.slice(0,10)||'',li.endTime?.slice(0,10)||'','"'+oName.replace(/"/g,'""')+'"'].join(',');
+  });
+  const csv=[headers.join(','),...rows].join('\\n');
+  const a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv); a.download='ads-performance.csv'; a.click();
+}
+
+// ── Auto-load ─────────────────────────────────────────────────────────────────
+if (document.readyState==='loading') document.addEventListener('DOMContentLoaded',loadAdsData);
+else setTimeout(loadAdsData,80);
+</script>
+`;
 }
 
 
@@ -523,6 +1049,7 @@ export function gamAnalyticsScreen(): string {
         <select id="orderStatusFilter"
           style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:5px 8px;color:var(--text-primary);font-size:11px;outline:none"
           onchange="filterOrders(document.getElementById('orderSearch').value)">
+          <option value="ACTIVE_DELIVERING">Active &amp; Delivering</option>
           <option value="">All Statuses</option>
           <option value="ACTIVE">Active</option>
           <option value="DELIVERING">Delivering</option>
@@ -581,39 +1108,10 @@ export function gamAnalyticsScreen(): string {
     </div>
   </div>
 
-  <!-- ── ROW 4: LINE ITEMS + AD UNITS ───────────────────────────────────── -->
+  <!-- ── ROW 4: AD UNITS + REVENUE ANALYSIS ──────────────────────────────── -->
   <div class="g62">
 
-    <!-- Line Items Table -->
-    <div class="card">
-      <div class="card-hd">
-        <div class="card-title"><i class="fas fa-layer-group" style="color:#a78bfa;margin-right:7px"></i>Line Items</div>
-        <div style="display:flex;gap:7px">
-          <select id="liStatusFilter"
-            style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:4px 8px;color:var(--text-primary);font-size:11px;outline:none"
-            onchange="filterLineItems()">
-            <option value="">All</option>
-            <option value="ACTIVE">Active</option>
-            <option value="DELIVERING">Delivering</option>
-            <option value="COMPLETED">Completed</option>
-            <option value="PAUSED">Paused</option>
-          </select>
-        </div>
-      </div>
-      <div style="overflow-x:auto">
-        <table class="tbl">
-          <thead>
-            <tr><th>Name</th><th>Type</th><th>Status</th><th>Impressions</th><th>Clicks</th><th>Start</th></tr>
-          </thead>
-          <tbody id="liTbody">
-            <tr><td colspan="6" class="text-muted" style="text-align:center;padding:20px"><i class="fas fa-spinner fa-spin"></i></td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div id="liCount" class="fs11 text-muted" style="margin-top:8px"></div>
-    </div>
-
-    <!-- Ad Units + Revenue Analysis -->
+    <!-- Ad Units -->
     <div style="display:flex;flex-direction:column;gap:14px">
 
       <!-- Ad Units -->
@@ -742,7 +1240,7 @@ async function loadGAMAnalytics() {
       bannerText.textContent = 'GAM not connected: ' + (sumRes.error || 'Unknown error. Go to API Connections → Config to set up.');
       bannerText.style.color = '#f59e0b';
       // Clear loading spinners
-      ['ordersTbody','liTbody','adUnitsList','reportsList','orderStatusBars','liStatusBars','networkInfoBody','revenueAnalysis'].forEach(id => {
+      ['ordersTbody','adUnitsList','reportsList','orderStatusBars','liStatusBars','networkInfoBody','revenueAnalysis'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.innerHTML = '<div class="text-muted fs12" style="padding:12px 0;text-align:center"><i class="fas fa-plug" style="color:#f59e0b"></i> GAM not configured</div>';
       });
@@ -766,7 +1264,6 @@ async function loadGAMAnalytics() {
     renderLIStatusBars(sumRes.lineItems?.byStatus || {});
     renderNetworkInfo(sumRes);
     renderOrdersTable();
-    renderLineItems();
     renderAdUnits();
     renderRevenueAnalysis();
     renderReports();
@@ -873,7 +1370,12 @@ function filterOrders(query) {
   const q = (query||'').toLowerCase();
   _ordersFiltered = _gamOrders.filter(o => {
     const matchQ  = !q || (o.displayName||'').toLowerCase().includes(q) || (o.advertiserId||'').toLowerCase().includes(q);
-    const matchSt = !sf || o.status === sf;
+    let matchSt;
+    if (sf === 'ACTIVE_DELIVERING') {
+      matchSt = o.status === 'ACTIVE' || o.status === 'DELIVERING';
+    } else {
+      matchSt = !sf || o.status === sf;
+    }
     return matchQ && matchSt;
   });
   // sort
@@ -894,6 +1396,9 @@ function sortOrdersBy(key) {
 }
 function renderOrdersTable() {
   _ordersFiltered = [..._gamOrders];
+  // Default: show Active & Delivering orders first
+  const sel = document.getElementById('orderStatusFilter');
+  if (sel && sel.value === '') sel.value = 'ACTIVE_DELIVERING';
   filterOrders('');
 }
 
@@ -1032,28 +1537,6 @@ function ordersPage(dir) {
   _ordersPageNum = Math.max(1, Math.min(pages, _ordersPageNum + dir));
   renderOrdersPage();
 }
-
-// ── Line Items ───────────────────────────────────────────────────────────────
-function filterLineItems() {
-  const sf = document.getElementById('liStatusFilter').value;
-  const items = sf ? _gamLineItems.filter(l=>l.status===sf) : _gamLineItems;
-  const tbody = document.getElementById('liTbody');
-  document.getElementById('liCount').textContent = items.length + ' line items' + (sf ? ' (' + sf + ')' : '');
-  if (!items.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="text-muted" style="text-align:center;padding:16px">No line items</td></tr>';
-    return;
-  }
-  tbody.innerHTML = items.slice(0,50).map(li => \`
-  <tr>
-    <td class="fw6" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="\${li.displayName||''}">\${li.displayName||li.name||'—'}</td>
-    <td class="dim fs11">\${li.lineItemType||'—'}</td>
-    <td>\${statusBadge(li.status)}</td>
-    <td class="fw6" style="color:#f59e0b">\${fmtImpr(parseInt(li.impressionsDelivered||'0'))}</td>
-    <td class="dim">\${fmtImpr(parseInt(li.clicksDelivered||'0'))}</td>
-    <td class="dim fs11">\${fmtDate(li.startTime)}</td>
-  </tr>\`).join('');
-}
-function renderLineItems() { filterLineItems(); }
 
 // ── Ad Units ─────────────────────────────────────────────────────────────────
 function renderAdUnits() {
