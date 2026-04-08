@@ -1309,25 +1309,53 @@ const STATUS_COLOR={ACTIVE:'#00d68f',DELIVERING:'#00c07f',COMPLETED:'#60a5fa',PA
 const STATUS_BADGE={ACTIVE:'b-green',DELIVERING:'b-green',COMPLETED:'b-blue',PAUSED:'b-amber',CANCELED:'b-red',DRAFT:'b-gray',PENDING_APPROVAL:'b-purple',UNKNOWN:'b-gray'};
 function statusBadge(s){const cls=STATUS_BADGE[s]||'b-gray';const lbl=(s||'UNKNOWN').replace(/_/g,'\u00a0');return \`<span class="b \${cls}" style="font-size:9px;white-space:nowrap">\${lbl}</span>\`;}
 
-// ── Main Loader ────────────────────────────────────────────────────────────
-async function loadGAMAnalytics(){
+// ── Main Loader (Progressive: cached first, then fresh) ──────────────────────
+async function loadGAMAnalytics(force=false){
   const icon=document.getElementById('gamBannerIcon');
   const txt=document.getElementById('gamBannerText');
   const ri=document.getElementById('gamRefreshIcon');
   const banner=document.getElementById('gamBanner');
   icon.className='fas fa-spinner fa-spin';icon.style.color='#4285f4';
-  txt.textContent='Loading live data from Google Ad Manager…';txt.style.color='#60a5fa';
+  txt.textContent='Loading data…';txt.style.color='#60a5fa';
   banner.style.background='rgba(66,133,244,0.08)';banner.style.borderColor='rgba(66,133,244,0.2)';
   if(ri) ri.className='fas fa-spinner fa-spin';
   const tb=document.getElementById('ordersTbody');
   if(tb) tb.innerHTML='<tr><td colspan="10" class="text-muted" style="text-align:center;padding:32px"><i class="fas fa-spinner fa-spin" style="font-size:18px"></i><br><span style="font-size:11px;display:block;margin-top:8px">Fetching orders…</span></td></tr>';
 
   try{
+    // Step 1: Try to load cached data for instant display (unless forced refresh)
+    if(!force && !window._gamDataLoaded){
+      const[cSumRes,cOrdRes,cLiRes]=await Promise.all([
+        fetch('/api/gam/summary?cached=true').then(r=>r.json()).catch(()=>({ok:false})),
+        fetch('/api/gam/orders?pageSize=500&cached=true').then(r=>r.json()).catch(()=>({ok:false})),
+        fetch('/api/gam/lineitems?pageSize=500&cached=true').then(r=>r.json()).catch(()=>({ok:false})),
+      ]);
+      
+      if(cSumRes.ok && cSumRes.cached){
+        // Render cached data immediately
+        _gamOrders=(cOrdRes.ok?cOrdRes.orders:[])||[];
+        _gamLineItems=(cLiRes.ok?cLiRes.lineItems:[])||[];
+        _gamOrders=_gamOrders.filter(o=>o.status!=='UNKNOWN'&&o.status!=='DRAFT');
+        _gamLineItems=_gamLineItems.filter(li=>li.status!=='UNKNOWN'&&li.status!=='DRAFT');
+        _gamNetwork=cSumRes;
+        _orderMetaCache={};_buildOrderMetaCache();
+        
+        icon.className='fas fa-database';icon.style.color='#a78bfa';
+        const age=Math.round((cSumRes.cacheAge||0)/1000);
+        txt.textContent='Cached data ('+age+'s old) · Refreshing live data…';txt.style.color='#a78bfa';
+        
+        renderGAMKPIs();renderGAMCharts();applyOrderFilters();renderNetworkInfo();
+        if(ri)ri.className='fas fa-spinner fa-spin';
+      }
+    }
+    
+    // Step 2: Fetch fresh data from GAM API
     const[sumRes,ordRes,liRes]=await Promise.all([
       fetch('/api/gam/summary').then(r=>r.json()),
       fetch('/api/gam/orders?pageSize=500').then(r=>r.json()),
       fetch('/api/gam/lineitems?pageSize=500').then(r=>r.json()),
     ]);
+    
     if(!sumRes.ok){
       const em=sumRes.error||'Unknown error. Set up GAM in API Connections.';
       icon.className='fas fa-triangle-exclamation';icon.style.color='#f59e0b';
@@ -1337,13 +1365,15 @@ async function loadGAMAnalytics(){
       ['ordersTbody','gamTopLI','orderStatusBars','liStatusBars','networkInfoBody','gamTopOrdersBars'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=noConf;});
       if(ri)ri.className='fas fa-rotate';return;
     }
+    
+    // Update with fresh data
     _gamOrders=(ordRes.ok?ordRes.orders:[])||[];
     _gamLineItems=(liRes.ok?liRes.lineItems:[])||[];
-    // Filter UNKNOWN/DRAFT
     _gamOrders=_gamOrders.filter(o=>o.status!=='UNKNOWN'&&o.status!=='DRAFT');
     _gamLineItems=_gamLineItems.filter(li=>li.status!=='UNKNOWN'&&li.status!=='DRAFT');
     _gamNetwork=sumRes;
     _orderMetaCache={};_buildOrderMetaCache();
+    
     const now=new Date().toLocaleTimeString('en-MY',{hour:'2-digit',minute:'2-digit'});
     icon.className='fas fa-circle-check';icon.style.color='#00d68f';
     txt.textContent='Connected to '+(sumRes.networkName||sumRes.networkCode)+' · '+_gamOrders.length+' orders · '+_gamLineItems.length+' line items · Fetching delivery metrics…';

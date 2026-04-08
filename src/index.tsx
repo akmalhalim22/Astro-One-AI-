@@ -535,27 +535,63 @@ app.get('/api/gam/network', requireAuth, async (c) => {
   }
 })
 
-// List orders
+// List orders (with caching)
 app.get('/api/gam/orders', requireAuth, async (c) => {
   try {
     const gam = await getGAMConfig(c.env.SESSIONS)
     if (!gam) return c.json({ ok: false, error: 'GAM not configured.' })
+    
+    // Check cache
     const pageSize = parseInt(c.req.query('pageSize') || '50')
+    const cacheKey = 'cache:gam:orders:' + gam.networkCode + ':' + pageSize
+    const useCached = c.req.query('cached') === 'true'
+    
+    if (useCached) {
+      const cached = await c.env.SESSIONS.get(cacheKey)
+      if (cached) {
+        const data = JSON.parse(cached)
+        return c.json({ ...data, cached: true })
+      }
+    }
+    
     const orders = await listGAMOrders(gam.saJson, gam.networkCode, pageSize)
-    return c.json({ ok: true, orders, count: orders.length })
+    const result = { ok: true, orders, count: orders.length }
+    
+    // Cache for 5 minutes
+    await c.env.SESSIONS.put(cacheKey, JSON.stringify(result), { expirationTtl: 300 })
+    
+    return c.json({ ...result, cached: false })
   } catch (e: any) {
     return c.json({ ok: false, error: e.message })
   }
 })
 
-// List line items
+// List line items (with caching)
 app.get('/api/gam/lineitems', requireAuth, async (c) => {
   try {
     const gam = await getGAMConfig(c.env.SESSIONS)
     if (!gam) return c.json({ ok: false, error: 'GAM not configured.' })
+    
+    // Check cache
     const pageSize = parseInt(c.req.query('pageSize') || '50')
+    const cacheKey = 'cache:gam:lineitems:' + gam.networkCode + ':' + pageSize
+    const useCached = c.req.query('cached') === 'true'
+    
+    if (useCached) {
+      const cached = await c.env.SESSIONS.get(cacheKey)
+      if (cached) {
+        const data = JSON.parse(cached)
+        return c.json({ ...data, cached: true })
+      }
+    }
+    
     const lineItems = await listGAMLineItems(gam.saJson, gam.networkCode, pageSize)
-    return c.json({ ok: true, lineItems, count: lineItems.length })
+    const result = { ok: true, lineItems, count: lineItems.length }
+    
+    // Cache for 5 minutes
+    await c.env.SESSIONS.put(cacheKey, JSON.stringify(result), { expirationTtl: 300 })
+    
+    return c.json({ ...result, cached: false })
   } catch (e: any) {
     return c.json({ ok: false, error: e.message })
   }
@@ -598,11 +634,23 @@ app.get('/api/gam/reports/:reportId/run', requireAuth, async (c) => {
   }
 })
 
-// Dashboard summary — pulls orders + line items and aggregates
+// Dashboard summary — pulls orders + line items and aggregates (with caching)
 app.get('/api/gam/summary', requireAuth, async (c) => {
   try {
     const gam = await getGAMConfig(c.env.SESSIONS)
     if (!gam) return c.json({ ok: false, error: 'GAM not configured.', demo: true })
+
+    // Check for cached data (5-minute TTL)
+    const cacheKey = 'cache:gam:summary:' + gam.networkCode
+    const useCached = c.req.query('cached') === 'true'
+    
+    if (useCached) {
+      const cached = await c.env.SESSIONS.get(cacheKey)
+      if (cached) {
+        const data = JSON.parse(cached)
+        return c.json({ ...data, cached: true, cacheAge: Date.now() - data._cachedAt })
+      }
+    }
 
     const [network, orders, lineItems, adUnits] = await Promise.all([
       getGAMNetwork(gam.saJson, gam.networkCode).catch(() => null),
@@ -633,7 +681,7 @@ app.get('/api/gam/summary', requireAuth, async (c) => {
 
     const activeAdUnits = adUnits.filter(u => u.status === 'ACTIVE' || !u.status).length
 
-    return c.json({
+    const result = {
       ok: true,
       networkCode: gam.networkCode,
       networkName: network?.displayName || gam.networkCode,
@@ -642,7 +690,13 @@ app.get('/api/gam/summary', requireAuth, async (c) => {
       orders: { total: orders.length, byStatus: ordersByStatus },
       lineItems: { total: lineItems.length, byStatus: liByStatus, totalImpressions, totalClicks },
       adUnits: { total: adUnits.length, active: activeAdUnits },
-    })
+      _cachedAt: Date.now()
+    }
+
+    // Cache the result for 5 minutes (300 seconds)
+    await c.env.SESSIONS.put(cacheKey, JSON.stringify(result), { expirationTtl: 300 })
+
+    return c.json({ ...result, cached: false })
   } catch (e: any) {
     return c.json({ ok: false, error: e.message })
   }

@@ -12,8 +12,8 @@ export function topbar(screen: string): string {
     clients:   { title: 'Client Intelligence', sub: 'Pre-Sales · 348 active accounts' },
     salesperf: { title: 'Sales Performance', sub: 'Pre-Sales · March 2025 · 18 reps tracked' },
     revenue:   { title: 'Revenue Performance', sub: 'Post-Sales · FY2025 YTD · Google Sheets' },
-    campaign:  { title: 'Campaign Performance', sub: 'Post-Sales · Direct Sales · Q1 2025' },
-    ads:       { title: 'Ads Performance', sub: 'Post-Sales · Google Ads · Meta · TikTok' },
+    campaign:  { title: 'Campaign Management · Direct Sales', sub: 'Post-Sales · Direct Sales via Google Sheets · Q1 2025' },
+    ads:       { title: 'Campaign Management · Cross-Platform Ads', sub: 'Post-Sales · GAM · TikTok · Facebook · Live API' },
     gamanalytics: { title: '<i class="fab fa-google" style="color:#4285f4;margin-right:6px"></i>GAM Analytics', sub: 'Google Ad Manager · Live · Orders · Line Items · Ad Units · Reports' },
     portals:   { title: 'Portals Traffic Performance', sub: 'GA4 · Sessions · Engagement · Revenue/User' },
     social:    { title: 'Sprout Social Performance', sub: 'Reach · Impressions · Engagement · Growth' },
@@ -82,7 +82,7 @@ export function topbar(screen: string): string {
       <button class="btn-primary" onclick="navigate('ai')"><i class="fas fa-sparkles"></i>Ask AI</button>`,
 
     gamanalytics: `
-      <button class="btn-ghost" onclick="loadGAMAnalytics()"><i class="fas fa-rotate"></i>Refresh Live</button>
+      <button class="btn-ghost" onclick="loadGAMAnalytics(true)"><i class="fas fa-rotate" id="gamRefreshIcon"></i>Refresh Live</button>
       <button class="btn-ghost" onclick="exportOrdersCSV()"><i class="fas fa-download"></i>Export CSV</button>
       <button class="btn-primary" onclick="navigate('ai')"><i class="fas fa-sparkles"></i>Ask AI</button>`,
 
