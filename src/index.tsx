@@ -19,7 +19,8 @@ import {
   SESSION_TTL, LOGIN_COOKIE
 } from './auth'
 import { readSheet, listSheetTabs, appendSheet, fmtRM, sumCol, groupSum,
-  getGAMNetwork, listGAMOrders, listGAMLineItems, listGAMAdUnits, listGAMReports, runGAMReport } from './sheets'
+  getGAMNetwork, listGAMOrders, listGAMLineItems, listGAMAdUnits, listGAMReports, runGAMReport,
+  getGAMDeliveryMetrics } from './sheets'
 
 // ── Cloudflare bindings ───────────────────────────────────────────────────
 type Bindings = {
@@ -533,19 +534,21 @@ app.get('/api/gam/summary', requireAuth, async (c) => {
       listGAMAdUnits(gam.saJson, gam.networkCode, 200).catch(() => []),
     ])
 
-    // Aggregate order stats
+    // Aggregate order stats (exclude DRAFT and UNKNOWN)
     const ordersByStatus: Record<string, number> = {}
     for (const o of orders) {
       const s = o.status || 'UNKNOWN'
+      if (s === 'DRAFT' || s === 'UNKNOWN') continue
       ordersByStatus[s] = (ordersByStatus[s] || 0) + 1
     }
 
-    // Aggregate line item stats
+    // Aggregate line item stats (exclude DRAFT and UNKNOWN)
     const liByStatus: Record<string, number> = {}
     let totalImpressions = 0
     let totalClicks = 0
     for (const li of lineItems) {
       const s = li.status || 'UNKNOWN'
+      if (s === 'DRAFT' || s === 'UNKNOWN') continue
       liByStatus[s] = (liByStatus[s] || 0) + 1
       totalImpressions += parseInt(li.impressionsDelivered || '0')
       totalClicks += parseInt(li.clicksDelivered || '0')
@@ -563,6 +566,19 @@ app.get('/api/gam/summary', requireAuth, async (c) => {
       lineItems: { total: lineItems.length, byStatus: liByStatus, totalImpressions, totalClicks },
       adUnits: { total: adUnits.length, active: activeAdUnits },
     })
+  } catch (e: any) {
+    return c.json({ ok: false, error: e.message })
+  }
+})
+
+// Delivery metrics report — creates+runs ad-hoc report for impressions/clicks
+// Returns: { ok, lineItemMetrics: {liId: {impressions, clicks}}, orderMetrics: {orderId: {impressions, clicks}} }
+app.get('/api/gam/metrics', requireAuth, async (c) => {
+  try {
+    const gam = await getGAMConfig(c.env.SESSIONS)
+    if (!gam) return c.json({ ok: false, error: 'GAM not configured.' })
+    const { lineItemMetrics, orderMetrics } = await getGAMDeliveryMetrics(gam.saJson, gam.networkCode)
+    return c.json({ ok: true, lineItemMetrics, orderMetrics })
   } catch (e: any) {
     return c.json({ ok: false, error: e.message })
   }

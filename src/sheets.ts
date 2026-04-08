@@ -274,7 +274,87 @@ export async function listGAMReports(
   return data.reports || []
 }
 
-// ── Run a report and poll for results ─────────────────────────────────────
+// ── Internal helper: poll an operation and fetch result rows ────────────────
+async function _pollAndFetchRows(
+  token: string,
+  networkCode: string,
+  reportId: string,
+  operationName: string,
+  initialDone: boolean,
+  initialOpData: Record<string, unknown>
+): Promise<{ rows: Record<string, string | number>[]; totalRows: number }> {
+  let done = initialDone
+  let opData: Record<string, unknown> = initialOpData
+  let opName = operationName
+
+  // Poll until done (max 18 attempts = ~90 seconds with 5s intervals)
+  for (let i = 0; i < 18 && !done; i++) {
+    await new Promise(r => setTimeout(r, 5000))
+    const pollRes = await fetch(`https://admanager.googleapis.com/v1/${opName}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!pollRes.ok) break
+    opData = await pollRes.json()
+    done = (opData.done as boolean) || false
+  }
+
+  if (!done || !opData.response) {
+    throw new Error('Report did not complete in time.')
+  }
+
+  // Extract result resource name: "networks/NETWORK/reports/REPORT_ID/results/RESULT_ID"
+  const reportResult = (opData.response as any)?.reportResult as string | undefined
+  if (!reportResult) throw new Error('No report result returned.')
+
+  // Fetch rows (paginate with pageSize=5000)
+  const allRows: Record<string, string | number>[] = []
+  let pageToken: string | undefined
+  let totalRows = 0
+
+  do {
+    const url = new URL(`https://admanager.googleapis.com/v1/${reportResult}:fetchRows`)
+    url.searchParams.set('pageSize', '5000')
+    if (pageToken) url.searchParams.set('pageToken', pageToken)
+
+    const rowsRes = await fetch(url.toString(), { headers: { Authorization: `Bearer ${token}` } })
+    if (!rowsRes.ok) {
+      const txt = await rowsRes.text()
+      throw new Error(`GAM fetch rows error (${rowsRes.status}): ${txt}`)
+    }
+
+    // New API response format: rows have dimensionValues and metricValueGroups
+    const rowsData: {
+      rows?: {
+        dimensionValues?: ({ stringValue?: string; intValue?: string } | null)[];
+        metricValueGroups?: { primaryValues?: ({ intValue?: string; doubleValue?: string } | null)[] }[];
+      }[];
+      totalRowCount?: number;
+      nextPageToken?: string;
+    } = await rowsRes.json()
+
+    totalRows = rowsData.totalRowCount || totalRows
+    pageToken = rowsData.nextPageToken
+
+    for (const row of rowsData.rows || []) {
+      const dims = row.dimensionValues || []
+      const metrics = row.metricValueGroups?.[0]?.primaryValues || []
+      allRows.push({
+        // Dimension 0: ORDER_ID (int)
+        orderId: dims[0]?.intValue || dims[0]?.stringValue || '',
+        // Dimension 1: LINE_ITEM_ID (int)
+        lineItemId: dims[1]?.intValue || dims[1]?.stringValue || '',
+        // Metric 0: AD_SERVER_IMPRESSIONS
+        impressions: parseInt(metrics[0]?.intValue || '0') || 0,
+        // Metric 1: AD_SERVER_CLICKS
+        clicks: parseInt(metrics[1]?.intValue || '0') || 0,
+      })
+    }
+  } while (pageToken)
+
+  return { rows: allRows, totalRows }
+}
+
+// ── Run a report and poll for results (for saved reports) ─────────────────
 export async function runGAMReport(
   saJson: string,
   networkCode: string,
@@ -298,7 +378,7 @@ export async function runGAMReport(
   // 2. Poll until done (max 12 attempts = ~60 seconds)
   let opName = operation.name
   let done = operation.done || false
-  let opData = operation
+  let opData: Record<string, unknown> = operation as unknown as Record<string, unknown>
 
   for (let i = 0; i < 12 && !done; i++) {
     await new Promise(r => setTimeout(r, 5000))
@@ -307,14 +387,14 @@ export async function runGAMReport(
     })
     if (!pollRes.ok) break
     opData = await pollRes.json()
-    done = opData.done || false
+    done = (opData.done as boolean) || false
   }
 
   if (!done || !opData.response) {
     throw new Error('Report did not complete in time. Try again in a moment.')
   }
 
-  // 3. Fetch report result rows
+  // 3. Fetch report result rows (legacy format for saved reports)
   const resultToken = (opData.response as any)?.reportResult
   if (!resultToken) throw new Error('No report result returned.')
 
@@ -334,5 +414,92 @@ export async function runGAMReport(
     return obj
   })
   return { rows, columnNames }
+}
+
+// ── Run an ad-hoc delivery metrics report (all-time impressions + clicks) ──
+// Returns a map: lineItemId → { impressions, clicks }
+// and orderMetrics: orderId → { impressions, clicks }
+export async function getGAMDeliveryMetrics(
+  saJson: string,
+  networkCode: string
+): Promise<{
+  lineItemMetrics: Record<string, { impressions: number; clicks: number }>;
+  orderMetrics: Record<string, { impressions: number; clicks: number }>;
+}> {
+  const token = await getGAMAccessToken(saJson)
+
+  // 1. Create an ad-hoc report: ORDER_ID + LINE_ITEM_ID × IMPRESSIONS + CLICKS, ALL_TIME
+  const createUrl = `${GAM_BASE}/networks/${networkCode}/reports`
+  const reportBody = {
+    report: {
+      displayName: 'BI Builder Delivery Metrics (auto)',
+      visibility: 'HIDDEN',
+      reportDefinition: {
+        dimensions: ['ORDER_ID', 'LINE_ITEM_ID'],
+        metrics: ['AD_SERVER_IMPRESSIONS', 'AD_SERVER_CLICKS'],
+        dateRange: { relative: 'ALL_TIME' },
+        reportType: 'HISTORICAL',
+      },
+    },
+  }
+
+  const createRes = await fetch(createUrl, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(reportBody),
+  })
+  if (!createRes.ok) {
+    const txt = await createRes.text()
+    throw new Error(`GAM create metrics report error (${createRes.status}): ${txt}`)
+  }
+  const created: { name: string; reportId?: string } = await createRes.json()
+  const reportName = created.name // e.g. networks/12345/reports/6789
+
+  // 2. Run the report
+  const runUrl = `${GAM_BASE}/${reportName}:run`
+  const runRes = await fetch(runUrl, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: '{}',
+  })
+  if (!runRes.ok) {
+    const txt = await runRes.text()
+    throw new Error(`GAM run metrics report error (${runRes.status}): ${txt}`)
+  }
+  const operation: { name: string; done?: boolean; response?: Record<string, unknown> } = await runRes.json()
+
+  // 3. Poll + fetch rows
+  const { rows } = await _pollAndFetchRows(
+    token,
+    networkCode,
+    '',
+    operation.name,
+    operation.done || false,
+    operation as unknown as Record<string, unknown>
+  )
+
+  // 4. Build lookup maps
+  const lineItemMetrics: Record<string, { impressions: number; clicks: number }> = {}
+  const orderMetrics: Record<string, { impressions: number; clicks: number }> = {}
+
+  for (const row of rows) {
+    const liId = String(row.lineItemId || '')
+    const oId  = String(row.orderId || '')
+    const impr = Number(row.impressions) || 0
+    const clk  = Number(row.clicks) || 0
+
+    if (liId) {
+      if (!lineItemMetrics[liId]) lineItemMetrics[liId] = { impressions: 0, clicks: 0 }
+      lineItemMetrics[liId].impressions += impr
+      lineItemMetrics[liId].clicks += clk
+    }
+    if (oId) {
+      if (!orderMetrics[oId]) orderMetrics[oId] = { impressions: 0, clicks: 0 }
+      orderMetrics[oId].impressions += impr
+      orderMetrics[oId].clicks += clk
+    }
+  }
+
+  return { lineItemMetrics, orderMetrics }
 }
 

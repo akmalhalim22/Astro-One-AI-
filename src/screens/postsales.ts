@@ -333,8 +333,8 @@ async function loadCampaignData() {
       return;
     }
 
-    _campOrders    = ordRes.orders    || [];
-    _campLineItems = liRes.lineItems  || [];
+    _campOrders    = (ordRes.orders    || []).filter(o=>o.status!=='UNKNOWN'&&o.status!=='DRAFT');
+    _campLineItems = (liRes.lineItems  || []).filter(li=>li.status!=='UNKNOWN'&&li.status!=='DRAFT');
     _campNetwork   = sumRes;
 
     icon.className = 'fas fa-circle-check'; icon.style.color = '#00d68f';
@@ -379,8 +379,10 @@ function renderCampKPIs(s) {
 // ── Status Bars ───────────────────────────────────────────────────────────────
 function renderCampStatusBars(byStatus) {
   const el = document.getElementById('campStatusBars');
-  const total = Object.values(byStatus).reduce((a,b)=>a+b,0)||1;
-  const sorted = Object.entries(byStatus).sort((a,b)=>b[1]-a[1]);
+  // Filter out DRAFT and UNKNOWN
+  const filteredEntries = Object.entries(byStatus).filter(([s])=>s!=='DRAFT'&&s!=='UNKNOWN');
+  const total = filteredEntries.reduce((a,[,b])=>a+b,0)||1;
+  const sorted = [...filteredEntries].sort((a,b)=>b[1]-a[1]);
   if (!sorted.length) { el.innerHTML = '<div class="text-muted fs12" style="text-align:center;padding:10px">No data</div>'; return; }
   el.innerHTML = sorted.map(([st, cnt]) => {
     const pct = Math.round(cnt/total*100);
@@ -388,11 +390,11 @@ function renderCampStatusBars(byStatus) {
     return '<div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span class="fs12">'+st+'</span><span class="fs12 fw7">'+cnt+' <span class="text-muted">('+pct+'%)</span></span></div><div class="prog-wrap"><div class="prog-fill" style="width:'+pct+'%;background:'+col+';border-radius:4px;height:6px;transition:width 0.6s"></div></div></div>';
   }).join('');
 
-  // Doughnut chart
+  // Doughnut chart (also filter UNKNOWN)
   const ctx = document.getElementById('campStatusChart');
   if (!ctx) return;
   if (_campStatusChart) { _campStatusChart.destroy(); _campStatusChart = null; }
-  const labels = Object.keys(byStatus); const values = Object.values(byStatus);
+  const labels = sorted.map(([l])=>l); const values = sorted.map(([,v])=>v);
   if (!labels.length) return;
   _campStatusChart = new Chart(ctx, {
     type:'doughnut',
@@ -751,11 +753,12 @@ async function loadAdsData() {
       return;
     }
 
-    _adsLineItems = liRes.lineItems  || [];
+    // Filter out UNKNOWN status line items
+    _adsLineItems = (liRes.lineItems || []).filter(li=>li.status!=='UNKNOWN'&&li.status!=='DRAFT');
     _adsOrders    = ordRes.orders    || [];
 
     icon.className = 'fas fa-circle-check'; icon.style.color = '#00d68f';
-    text.textContent = 'Connected · '+_adsLineItems.length+' line items loaded from '+(sumRes.networkName||sumRes.networkCode)+' · Live';
+    text.textContent = 'Connected · '+_adsLineItems.length+' line items loaded from '+(sumRes.networkName||sumRes.networkCode)+' · Fetching delivery metrics…';
     text.style.color = '#00d68f';
     document.getElementById('ads-source-badge').textContent = (sumRes.networkName||sumRes.networkCode)+' · GAM Line Items';
 
@@ -769,6 +772,36 @@ async function loadAdsData() {
     renderAdsStatusBars(sumRes.lineItems?.byStatus||{});
     renderAdsTopPerformers();
     renderAdsTable();
+
+    // Fetch delivery metrics asynchronously
+    try{
+      const metricsRes=await fetch('/api/gam/metrics').then(r=>r.json());
+      if(metricsRes.ok&&metricsRes.lineItemMetrics){
+        for(const li of _adsLineItems){
+          const liNum=li.name?li.name.split('/').pop():'';
+          const m=metricsRes.lineItemMetrics[liNum]||metricsRes.lineItemMetrics[li.name]||null;
+          if(m){
+            li.impressionsDelivered=String(m.impressions||0);
+            li.clicksDelivered=String(m.clicks||0);
+          }
+        }
+        let totalImpr=0,totalClk=0;
+        for(const li of _adsLineItems){
+          totalImpr+=parseInt(li.impressionsDelivered||'0');
+          totalClk+=parseInt(li.clicksDelivered||'0');
+        }
+        const enrichedSumRes={...sumRes,lineItems:{...sumRes.lineItems,totalImpressions:totalImpr,totalClicks:totalClk}};
+        renderAdsKPIs(enrichedSumRes);
+        renderAdsTypeBars();
+        renderAdsTopPerformers();
+        renderAdsTable();
+        text.textContent='Connected · '+_adsLineItems.length+' line items · Metrics updated from '+(sumRes.networkName||sumRes.networkCode)+' · Live';
+      }else{
+        text.textContent='Connected · '+_adsLineItems.length+' line items (metrics unavailable: '+(metricsRes.error||'unknown')+')';
+      }
+    }catch(me){
+      text.textContent='Connected · '+_adsLineItems.length+' line items (metrics failed: '+me.message+')';
+    }
   } catch(e) {
     icon.className = 'fas fa-circle-xmark'; icon.style.color = '#f43f5e';
     text.textContent = 'Failed to load: '+e.message; text.style.color = '#f43f5e';
@@ -836,8 +869,10 @@ function renderAdsTypeBars() {
 // ── Status Bars ───────────────────────────────────────────────────────────────
 function renderAdsStatusBars(byStatus) {
   const el = document.getElementById('adsStatusBars');
-  const total = Object.values(byStatus).reduce((a,b)=>a+b,0)||1;
-  const sorted = Object.entries(byStatus).sort((a,b)=>b[1]-a[1]);
+  // Filter out DRAFT and UNKNOWN
+  const filtered = Object.entries(byStatus).filter(([s])=>s!=='DRAFT'&&s!=='UNKNOWN');
+  const total = filtered.reduce((a,[,b])=>a+b,0)||1;
+  const sorted = [...filtered].sort((a,b)=>b[1]-a[1]);
   if (!sorted.length) { el.innerHTML = '<div class="text-muted fs12" style="text-align:center;padding:10px">No data</div>'; return; }
   el.innerHTML = sorted.map(([st,cnt]) => {
     const pct = Math.round(cnt/total*100); const col = ADS_STATUS_COLOR[st]||'#48486a';
@@ -849,7 +884,7 @@ function renderAdsStatusBars(byStatus) {
 function renderAdsTopPerformers() {
   const el = document.getElementById('adsTopPerformers');
   const top = [..._adsLineItems]
-    .filter(li=>parseInt(li.impressionsDelivered||'0')>0)
+    .filter(li=>parseInt(li.impressionsDelivered||'0')>0&&li.status!=='UNKNOWN')
     .sort((a,b)=>parseInt(b.impressionsDelivered||'0')-parseInt(a.impressionsDelivered||'0'))
     .slice(0,5);
   if (!top.length) { el.innerHTML = '<div class="text-muted fs12" style="text-align:center;padding:10px">No delivery data</div>'; return; }
@@ -874,9 +909,10 @@ function filterAds(query) {
     const mQ = !q || (li.displayName||'').toLowerCase().includes(q);
     let mS;
     if (sf==='ACTIVE_DELIVERING') { mS = li.status==='ACTIVE'||li.status==='DELIVERING'; }
-    else { mS = !sf || li.status===sf; }
+    else { mS = !sf || (li.status===sf && li.status!=='UNKNOWN'); }
     const mT = !tf || li.lineItemType===tf;
-    return mQ && mS && mT;
+    // Always exclude UNKNOWN
+    return mQ && mS && mT && li.status!=='UNKNOWN';
   });
   _adsFiltered.sort((a,b) => {
     let va = a[_adsSortKey]||0, vb = b[_adsSortKey]||0;
@@ -1251,18 +1287,25 @@ async function loadGAMAnalytics(){
       if(ri) ri.className='fas fa-rotate';
       return;
     }
-    _gamOrders   =(ordRes.ok?ordRes.orders:[])||[];
-    _gamLineItems=(liRes.ok?liRes.lineItems:[])||[];
+
+    // Filter out UNKNOWN and DRAFT status line items and orders
+    const rawOrders=(ordRes.ok?ordRes.orders:[])||[];
+    const rawLineItems=(liRes.ok?liRes.lineItems:[])||[];
+    _gamOrders   = rawOrders.filter(o=>o.status!=='UNKNOWN'&&o.status!=='DRAFT');
+    _gamLineItems= rawLineItems.filter(li=>li.status!=='UNKNOWN'&&li.status!=='DRAFT');
+
     _gamNetwork  =sumRes;
     _orderMetaCache={};
     _buildOrderMetaCache();
     const now=new Date().toLocaleTimeString('en-MY',{hour:'2-digit',minute:'2-digit'});
     icon.className='fas fa-circle-check'; icon.style.color='#00d68f';
-    txt.textContent='Connected to '+(sumRes.networkName||sumRes.networkCode)+' · '+_gamOrders.length+' orders · '+_gamLineItems.length+' line items';
+    txt.textContent='Connected to '+(sumRes.networkName||sumRes.networkCode)+' · '+_gamOrders.length+' orders · '+_gamLineItems.length+' line items · Fetching delivery metrics…';
     txt.style.color='#00d68f';
     banner.style.background='rgba(0,214,143,0.06)'; banner.style.borderColor='rgba(0,214,143,0.18)';
     const lr=document.getElementById('gamLastRefresh'); if(lr) lr.textContent='Last refresh: '+now;
     if(ri) ri.className='fas fa-rotate';
+
+    // Render initial view immediately with structural data
     renderKPIs(sumRes);
     renderOrderStatusBars(sumRes.orders?.byStatus||{});
     renderLIStatusBars(sumRes.lineItems?.byStatus||{});
@@ -1270,6 +1313,45 @@ async function loadGAMAnalytics(){
     renderTopLI();
     renderOrdersTable();
     renderCharts(sumRes);
+
+    // Now fetch delivery metrics asynchronously (via Reports API — takes ~10-30s)
+    // This enriches the table with real impressions/clicks without blocking the UI
+    txt.textContent='Connected to '+(sumRes.networkName||sumRes.networkCode)+' · Fetching delivery metrics (this may take 15-30s)…';
+    try{
+      const metricsRes=await fetch('/api/gam/metrics').then(r=>r.json());
+      if(metricsRes.ok&&metricsRes.lineItemMetrics){
+        // Merge metrics into _gamLineItems by line item numeric ID
+        for(const li of _gamLineItems){
+          const liNum=li.name?li.name.split('/').pop():'';
+          const m=metricsRes.lineItemMetrics[liNum]||metricsRes.lineItemMetrics[li.name]||null;
+          if(m){
+            li.impressionsDelivered=String(m.impressions||0);
+            li.clicksDelivered=String(m.clicks||0);
+          }
+        }
+        // Rebuild meta cache with real data
+        _orderMetaCache={};
+        _buildOrderMetaCache();
+        // Update KPIs with real metrics totals
+        let totalImpr=0,totalClk=0;
+        for(const li of _gamLineItems){
+          totalImpr+=parseInt(li.impressionsDelivered||'0');
+          totalClk+=parseInt(li.clicksDelivered||'0');
+        }
+        const enrichedSumRes={...sumRes,lineItems:{...sumRes.lineItems,totalImpressions:totalImpr,totalClicks:totalClk}};
+        renderKPIs(enrichedSumRes);
+        renderTopLI();
+        renderOrdersPage(); // re-render table with metrics
+        txt.textContent='Connected to '+(sumRes.networkName||sumRes.networkCode)+' · '+_gamOrders.length+' orders · '+_gamLineItems.length+' line items · Metrics updated';
+      }else{
+        txt.textContent='Connected to '+(sumRes.networkName||sumRes.networkCode)+' · '+_gamOrders.length+' orders (metrics unavailable: '+(metricsRes.error||'unknown')+')';
+        icon.className='fas fa-circle-exclamation'; icon.style.color='#f59e0b';
+      }
+    }catch(me){
+      // Metrics fetch failed — still show structural data
+      txt.textContent='Connected to '+(sumRes.networkName||sumRes.networkCode)+' · '+_gamOrders.length+' orders (delivery metrics failed: '+me.message+')';
+      icon.className='fas fa-circle-exclamation'; icon.style.color='#f59e0b';
+    }
   }catch(e){
     icon.className='fas fa-circle-xmark'; icon.style.color='#f43f5e';
     txt.textContent='Failed to load GAM data: '+e.message; txt.style.color='#f43f5e';
@@ -1282,6 +1364,8 @@ async function loadGAMAnalytics(){
 function _buildOrderMetaCache(){
   const map={};
   for(const li of _gamLineItems){
+    // Skip UNKNOWN/DRAFT line items
+    if(li.status==='UNKNOWN'||li.status==='DRAFT') continue;
     const oid=li.orderId||(li.name?li.name.split('/lineItems/')[0]:'');
     if(!oid) continue;
     if(!map[oid]) map[oid]={impr:0,clicks:0,lis:[],activeCount:0};
@@ -1325,7 +1409,7 @@ function renderKPIs(s){
 function renderOrderStatusBars(by){
   const el=document.getElementById('orderStatusBars');
   const order=['ACTIVE','DELIVERING','PAUSED','COMPLETED','CANCELED','PENDING_APPROVAL','UNKNOWN'];
-  const all=Object.entries(by).filter(([s])=>s!=='DRAFT');
+  const all=Object.entries(by).filter(([s])=>s!=='DRAFT'&&s!=='UNKNOWN');
   const tot=all.reduce((a,[,v])=>a+v,0)||1;
   all.sort((a,b)=>{const ia=order.indexOf(a[0]),ib=order.indexOf(b[0]);if(ia!==-1&&ib!==-1)return ia-ib;if(ia!==-1)return -1;if(ib!==-1)return 1;return b[1]-a[1];});
   if(!all.length){el.innerHTML='<div class="text-muted fs12" style="text-align:center;padding:16px">No order data</div>';return;}
@@ -1348,7 +1432,7 @@ function renderOrderStatusBars(by){
 // ── LI Status Bars ─────────────────────────────────────────────────────────
 function renderLIStatusBars(by){
   const el=document.getElementById('liStatusBars');
-  const filt=Object.entries(by).filter(([s])=>s!=='DRAFT');
+  const filt=Object.entries(by).filter(([s])=>s!=='DRAFT'&&s!=='UNKNOWN');
   const tot=filt.reduce((a,[,v])=>a+v,0)||1;
   const srt=[...filt].sort((a,b)=>b[1]-a[1]).slice(0,7);
   if(!srt.length){el.innerHTML='<div class="text-muted fs12" style="text-align:center;padding:10px">No line item data</div>';return;}
@@ -1388,7 +1472,7 @@ function renderTopLI(){
   const el=document.getElementById('gamTopLI');
   if(!el) return;
   const act=_gamLineItems
-    .filter(li=>(li.status==='ACTIVE'||li.status==='DELIVERING')&&parseInt(li.impressionsDelivered||'0')>0)
+    .filter(li=>(li.status==='ACTIVE'||li.status==='DELIVERING')&&li.status!=='UNKNOWN'&&parseInt(li.impressionsDelivered||'0')>0)
     .sort((a,b)=>parseInt(b.impressionsDelivered||'0')-parseInt(a.impressionsDelivered||'0'))
     .slice(0,6);
   if(!act.length){el.innerHTML='<div class="text-muted fs12" style="text-align:center;padding:12px 0">No active deliveries</div>';return;}
@@ -1421,7 +1505,7 @@ function renderOrderStatusChart(by){
   const ctx=document.getElementById('orderStatusChart');
   if(!ctx) return;
   if(_orderStatusChart){_orderStatusChart.destroy();_orderStatusChart=null;}
-  const ent=Object.entries(by).filter(([s])=>s!=='DRAFT');
+  const ent=Object.entries(by).filter(([s])=>s!=='DRAFT'&&s!=='UNKNOWN');
   if(!ent.length) return;
   const labels=ent.map(([l])=>l.replace(/_/g,' '));
   const values=ent.map(([,v])=>v);
@@ -1454,7 +1538,7 @@ function filterOrders(query){
     let ms;
     if(sf==='ACTIVE_DELIVERING') ms=o.status==='ACTIVE'||o.status==='DELIVERING';
     else if(sf==='ALL_INCL_DRAFT') ms=true;
-    else if(sf==='') ms=o.status!=='DRAFT';
+    else if(sf==='') ms=o.status!=='DRAFT'&&o.status!=='UNKNOWN';
     else ms=o.status===sf;
     return mq&&ms;
   });
@@ -1578,7 +1662,7 @@ function renderOrdersPage(){
           <td>Start</td><td>End</td><td>Budget</td><td>Type</td>
           <td>Impressions</td><td>Clicks / CTR</td>
         </tr>\`);
-        const slis=[...lis].sort((a,b)=>{
+        const slis=[...lis].filter(li=>li.status!=='UNKNOWN').sort((a,b)=>{
           const aa=a.status==='ACTIVE'||a.status==='DELIVERING'?1:0;
           const ba=b.status==='ACTIVE'||b.status==='DELIVERING'?1:0;
           if(ba!==aa) return ba-aa;
