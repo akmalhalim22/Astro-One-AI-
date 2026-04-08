@@ -1546,3 +1546,410 @@ function updateBlendCols(side, source) {
 </script>
 `;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  API DATA SOURCES SCREEN  (replaces Manual Upload — direct API integrations)
+// ─────────────────────────────────────────────────────────────────────────────
+export function apiDataScreen(): string {
+  return `
+<div class="content fade-in">
+
+  <!-- ── Header banner ──────────────────────────────────────────────────── -->
+  <div class="card" style="background:linear-gradient(135deg,rgba(66,133,244,0.12),rgba(226,0,122,0.08));border:1px solid rgba(66,133,244,0.25);margin-bottom:0">
+    <div style="display:flex;align-items:center;gap:14px">
+      <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#4285f4,#e2007a);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <i class="fas fa-satellite-dish" style="color:#fff;font-size:18px"></i>
+      </div>
+      <div>
+        <div style="font-size:15px;font-weight:700;color:var(--text-primary)">API Data Sources</div>
+        <div class="fs12 text-muted" style="margin-top:2px">Live integrations with Google Ad Manager, Google Sheets and BigQuery — no manual uploads required</div>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:8px;flex-shrink:0">
+        <button class="btn-ghost" style="height:30px;font-size:11px;padding:0 12px" onclick="refreshAllStatus()">
+          <i class="fas fa-rotate" id="refreshAllIcon"></i>Refresh Status
+        </button>
+        <button class="btn-primary" style="height:30px;font-size:11px;padding:0 12px" onclick="navigate('apiconn')">
+          <i class="fas fa-plug"></i>Manage Connections
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Connection Status Row ─────────────────────────────────────────── -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+
+    <!-- GAM -->
+    <div class="card" id="gamStatusCard">
+      <div class="card-hd" style="margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:32px;height:32px;border-radius:9px;background:rgba(66,133,244,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i class="fas fa-rectangle-ad" style="color:#4285f4;font-size:14px"></i>
+          </div>
+          <div>
+            <div class="fw7 fs13">Google Ad Manager</div>
+            <div class="fs10 text-muted">admanager.readonly</div>
+          </div>
+        </div>
+        <span class="b b-gray fs10" id="gamConnBadge">Checking…</span>
+      </div>
+      <div id="gamConnDetails" style="display:flex;flex-direction:column;gap:5px;min-height:54px">
+        <div class="text-muted fs12" style="text-align:center;padding:8px"><i class="fas fa-spinner fa-spin"></i></div>
+      </div>
+      <div style="display:flex;gap:7px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+        <button class="btn-ghost" style="flex:1;height:28px;font-size:11px;justify-content:center" onclick="testSource('gam')">
+          <i class="fas fa-vial" id="gamTestIcon"></i>Test
+        </button>
+        <button class="btn-primary" style="flex:1;height:28px;font-size:11px;justify-content:center" onclick="navigate('gamanalytics')">
+          <i class="fas fa-chart-line"></i>View Data
+        </button>
+      </div>
+    </div>
+
+    <!-- Sheets -->
+    <div class="card" id="sheetsStatusCard">
+      <div class="card-hd" style="margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:32px;height:32px;border-radius:9px;background:rgba(0,214,143,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i class="fas fa-table-cells" style="color:#00d68f;font-size:14px"></i>
+          </div>
+          <div>
+            <div class="fw7 fs13">Google Sheets</div>
+            <div class="fs10 text-muted">spreadsheets.readonly</div>
+          </div>
+        </div>
+        <span class="b b-gray fs10" id="sheetsConnBadge">Checking…</span>
+      </div>
+      <div id="sheetsConnDetails" style="display:flex;flex-direction:column;gap:5px;min-height:54px">
+        <div class="text-muted fs12" style="text-align:center;padding:8px"><i class="fas fa-spinner fa-spin"></i></div>
+      </div>
+      <div style="display:flex;gap:7px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+        <button class="btn-ghost" style="flex:1;height:28px;font-size:11px;justify-content:center" onclick="testSource('sheets')">
+          <i class="fas fa-vial" id="sheetsTestIcon"></i>Test
+        </button>
+        <button class="btn-primary" style="flex:1;height:28px;font-size:11px;justify-content:center" onclick="navigate('revenue')">
+          <i class="fas fa-chart-bar"></i>View Data
+        </button>
+      </div>
+    </div>
+
+    <!-- BigQuery -->
+    <div class="card" id="bqStatusCard">
+      <div class="card-hd" style="margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:32px;height:32px;border-radius:9px;background:rgba(245,158,11,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i class="fas fa-database" style="color:#f59e0b;font-size:14px"></i>
+          </div>
+          <div>
+            <div class="fw7 fs13">BigQuery</div>
+            <div class="fs10 text-muted">bigquery.readonly</div>
+          </div>
+        </div>
+        <span class="b b-gray fs10" id="bqConnBadge">Checking…</span>
+      </div>
+      <div id="bqConnDetails" style="display:flex;flex-direction:column;gap:5px;min-height:54px">
+        <div class="text-muted fs12" style="text-align:center;padding:8px"><i class="fas fa-spinner fa-spin"></i></div>
+      </div>
+      <div style="display:flex;gap:7px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+        <button class="btn-ghost" style="flex:1;height:28px;font-size:11px;justify-content:center" onclick="testSource('bq')">
+          <i class="fas fa-vial" id="bqTestIcon"></i>Test
+        </button>
+        <button class="btn-primary" style="flex:1;height:28px;font-size:11px;justify-content:center" onclick="navigate('traffic')">
+          <i class="fas fa-chart-area"></i>View Data
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Live Data Preview ───────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <div class="card-title"><i class="fas fa-eye" style="color:#4285f4;margin-right:7px"></i>Live Data Preview</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="previewSource" style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:4px 10px;color:var(--text-primary);font-size:11px;outline:none" onchange="loadDataPreview()">
+          <option value="">— Select source —</option>
+          <option value="gam-orders">GAM → Orders</option>
+          <option value="gam-lineitems">GAM → Line Items</option>
+          <option value="gam-adunits">GAM → Ad Units</option>
+          <option value="sheets-revenue">Sheets → Revenue</option>
+          <option value="sheets-pipeline">Sheets → Pipeline</option>
+          <option value="sheets-traffic">Sheets → Traffic</option>
+        </select>
+        <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 10px" onclick="loadDataPreview()">
+          <i class="fas fa-sync" id="previewRefreshIcon"></i>Fetch
+        </button>
+        <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 10px" id="previewExportBtn" onclick="exportPreviewCSV()" style="display:none">
+          <i class="fas fa-download"></i>CSV
+        </button>
+      </div>
+    </div>
+    <div id="previewBanner" style="display:none;padding:10px 14px;border-radius:8px;background:rgba(66,133,244,0.08);border:1px solid rgba(66,133,244,0.2);margin-bottom:10px;font-size:12px;color:#4285f4"></div>
+    <div id="previewTableWrap" style="overflow-x:auto;max-height:320px;overflow-y:auto">
+      <div class="text-muted fs12" style="padding:30px;text-align:center">
+        <i class="fas fa-satellite-dish" style="font-size:24px;margin-bottom:8px;display:block;opacity:0.3"></i>
+        Select a data source above to preview live API data
+      </div>
+    </div>
+    <div id="previewMeta" class="fs11 text-muted" style="margin-top:8px"></div>
+  </div>
+
+  <!-- ── Data Flow Architecture ─────────────────────────────────────────── -->
+  <div class="g62">
+
+    <!-- Data Sources Detail -->
+    <div class="card">
+      <div class="card-hd"><div class="card-title"><i class="fas fa-diagram-project" style="color:#a78bfa;margin-right:7px"></i>Data Flow</div></div>
+      ${[
+        ['Google Ad Manager', 'fa-rectangle-ad', '#4285f4',
+         'Orders · Line Items · Ad Units · Reports',
+         '/gamanalytics', 'GAM Analytics'],
+        ['Google Sheets', 'fa-table-cells', '#00d68f',
+         'Revenue · Pipeline · Campaign · Traffic · Social',
+         '/revenue', 'Revenue View'],
+        ['BigQuery', 'fa-database', '#f59e0b',
+         'GA4 Events · Sessions · Custom SQL Queries',
+         '/traffic', 'Traffic View'],
+      ].map(([name, icon, color, data, href, btnLabel]) => `
+      <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)">
+        <div style="width:36px;height:36px;border-radius:10px;background:${color}1a;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">
+          <i class="fas ${icon}" style="color:${color};font-size:15px"></i>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div class="fw7 fs13">${name}</div>
+          <div class="fs11 text-muted" style="margin-top:3px">${data}</div>
+        </div>
+        <a href="${href}" style="text-decoration:none">
+          <button class="btn-ghost" style="height:26px;font-size:10px;padding:0 9px;flex-shrink:0">
+            <i class="fas fa-arrow-right"></i>${btnLabel}
+          </button>
+        </a>
+      </div>`).join('')}
+    </div>
+
+    <!-- Right column -->
+    <div style="display:flex;flex-direction:column;gap:14px">
+
+      <!-- Quick Actions -->
+      <div class="card">
+        <div class="card-hd"><div class="card-title"><i class="fas fa-bolt" style="color:#f59e0b;margin-right:7px"></i>Quick Actions</div></div>
+        ${[
+          ['fa-plug','#4285f4','Configure API Connections','Set up service accounts & credentials','navigate(\'apiconn\')'],
+          ['fa-book-open','#a78bfa','Setup Guide','Step-by-step integration instructions','navigate(\'setup\')'],
+          ['fa-code-merge','#00d68f','Data Blend','Combine and transform data sources','navigate(\'blend\')'],
+          ['fa-file-chart-pie','#e2007a','Report AI','Generate AI-powered reports','navigate(\'reportai\')'],
+        ].map(([icon, col, title, sub, action]) => `
+        <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="${action}">
+          <div style="width:30px;height:30px;border-radius:8px;background:${col}1a;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i class="fas ${icon}" style="color:${col};font-size:12px"></i>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div class="fw6 fs12">${title}</div>
+            <div class="fs10 text-muted">${sub}</div>
+          </div>
+          <i class="fas fa-chevron-right" style="color:var(--border);font-size:9px;flex-shrink:0"></i>
+        </div>`).join('')}
+      </div>
+
+      <!-- Last Refresh -->
+      <div class="card card-sm">
+        <div class="card-hd"><div class="card-title"><i class="fas fa-clock-rotate-left" style="color:#8080a8;margin-right:7px"></i>Connection Info</div></div>
+        <div style="display:flex;flex-direction:column;gap:6px" id="connInfoRows">
+          ${[
+            ['GAM','admanager.readonly','Service Account JWT'],
+            ['Sheets','spreadsheets.readonly','Service Account JWT'],
+            ['BigQuery','bigquery.readonly','Service Account JWT'],
+          ].map(([src,scope,method]) => `
+          <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)">
+            <span class="fs11 text-muted">${src}</span>
+            <span class="fs11 fw6" style="text-align:right">
+              <span class="b b-gray" style="font-size:9px">${method}</span>
+            </span>
+          </div>`).join('')}
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Connection status checks ─────────────────────────────────────────────────
+async function refreshAllStatus() {
+  const icon = document.getElementById('refreshAllIcon');
+  if (icon) icon.className = 'fas fa-spinner fa-spin';
+  await Promise.all([checkGAM(), checkSheets(), checkBQ()]);
+  if (icon) icon.className = 'fas fa-rotate';
+}
+
+async function testSource(id) {
+  const iconEl = document.getElementById(id + 'TestIcon');
+  if (iconEl) iconEl.className = 'fas fa-spinner fa-spin';
+  if      (id === 'gam')    await checkGAM();
+  else if (id === 'sheets') await checkSheets();
+  else if (id === 'bq')     await checkBQ();
+  if (iconEl) iconEl.className = 'fas fa-vial';
+}
+
+async function checkGAM() {
+  const badge   = document.getElementById('gamConnBadge');
+  const details = document.getElementById('gamConnDetails');
+  try {
+    const res = await fetch('/api/gam/test');
+    const d   = await res.json();
+    if (d.ok && d.network) {
+      badge.textContent = 'Connected';
+      badge.className   = 'b b-green fs10';
+      details.innerHTML = [
+        ['Network', d.network.displayName || d.network.networkCode],
+        ['Currency', d.network.currencyCode || '—'],
+        ['Time Zone', d.network.timeZone || '—'],
+      ].map(([k,v]) => \`<div style="display:flex;justify-content:space-between"><span class="fs11 text-muted">\${k}</span><span class="fs11 fw6">\${v}</span></div>\`).join('');
+    } else {
+      badge.textContent = 'Not Configured';
+      badge.className   = 'b b-amber fs10';
+      details.innerHTML = '<div class="fs11 text-muted" style="padding:6px 0">' + (d.error || 'Go to API Connections → GAM Config') + '</div>';
+    }
+  } catch(e) {
+    badge.textContent = 'Error';
+    badge.className   = 'b b-red fs10';
+    details.innerHTML = '<div class="fs11 text-muted" style="padding:6px 0">Network error: ' + e.message + '</div>';
+  }
+}
+
+async function checkSheets() {
+  const badge   = document.getElementById('sheetsConnBadge');
+  const details = document.getElementById('sheetsConnDetails');
+  try {
+    const res = await fetch('/api/sheets/test');
+    const d   = await res.json();
+    if (d.ok) {
+      badge.textContent = 'Connected';
+      badge.className   = 'b b-green fs10';
+      details.innerHTML = [
+        ['Sheet ID', (d.spreadsheetId || '—').slice(0,18)+'…'],
+        ['Tabs', (d.tabs || []).slice(0,3).join(', ') || '—'],
+      ].map(([k,v]) => \`<div style="display:flex;justify-content:space-between"><span class="fs11 text-muted">\${k}</span><span class="fs11 fw6" style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">\${v}</span></div>\`).join('');
+    } else {
+      badge.textContent = 'Not Configured';
+      badge.className   = 'b b-amber fs10';
+      details.innerHTML = '<div class="fs11 text-muted" style="padding:6px 0">' + (d.error || 'Go to API Connections → Sheets Config') + '</div>';
+    }
+  } catch(e) {
+    badge.textContent = 'Error';
+    badge.className   = 'b b-red fs10';
+    details.innerHTML = '<div class="fs11 text-muted" style="padding:6px 0">Network error: ' + e.message + '</div>';
+  }
+}
+
+async function checkBQ() {
+  const badge   = document.getElementById('bqConnBadge');
+  const details = document.getElementById('bqConnDetails');
+  try {
+    const res = await fetch('/api/bq/test');
+    const d   = await res.json();
+    if (d.ok) {
+      badge.textContent = 'Connected';
+      badge.className   = 'b b-green fs10';
+      details.innerHTML = [
+        ['Project', d.projectId || '—'],
+        ['Dataset', d.datasetId || '—'],
+      ].map(([k,v]) => \`<div style="display:flex;justify-content:space-between"><span class="fs11 text-muted">\${k}</span><span class="fs11 fw6">\${v}</span></div>\`).join('');
+    } else {
+      badge.textContent = 'Not Configured';
+      badge.className   = 'b b-amber fs10';
+      details.innerHTML = '<div class="fs11 text-muted" style="padding:6px 0">' + (d.error || 'Go to API Connections → BigQuery Config') + '</div>';
+    }
+  } catch(e) {
+    badge.textContent = 'Error';
+    badge.className   = 'b b-red fs10';
+    details.innerHTML = '<div class="fs11 text-muted" style="padding:6px 0">Network error: ' + e.message + '</div>';
+  }
+}
+
+// ── Live Data Preview ────────────────────────────────────────────────────────
+let _previewData = [];
+let _previewCols = [];
+
+async function loadDataPreview() {
+  const src    = document.getElementById('previewSource').value;
+  const wrap   = document.getElementById('previewTableWrap');
+  const meta   = document.getElementById('previewMeta');
+  const banner = document.getElementById('previewBanner');
+  const icon   = document.getElementById('previewRefreshIcon');
+  if (!src) { wrap.innerHTML = '<div class="text-muted fs12" style="padding:30px;text-align:center">Select a data source above</div>'; return; }
+  wrap.innerHTML = '<div class="text-muted fs12" style="padding:24px;text-align:center"><i class="fas fa-spinner fa-spin"></i> Fetching live data…</div>';
+  banner.style.display = 'none';
+  meta.textContent = '';
+  if (icon) icon.className = 'fas fa-spinner fa-spin';
+  try {
+    let rows = [], cols = [], sourceLabel = src;
+    if (src === 'gam-orders') {
+      const d = await fetch('/api/gam/orders?pageSize=50').then(r=>r.json());
+      rows = d.orders || [];
+      cols = ['displayName','status','totalBudget','startTime','endTime','advertiserId'];
+      sourceLabel = 'GAM Orders';
+    } else if (src === 'gam-lineitems') {
+      const d = await fetch('/api/gam/lineitems?pageSize=50').then(r=>r.json());
+      rows = d.lineItems || [];
+      cols = ['displayName','status','lineItemType','impressionsDelivered','clicksDelivered','startTime','endTime'];
+      sourceLabel = 'GAM Line Items';
+    } else if (src === 'gam-adunits') {
+      const d = await fetch('/api/gam/adunits').then(r=>r.json());
+      rows = d.adUnits || [];
+      cols = ['displayName','adUnitCode','status'];
+      sourceLabel = 'GAM Ad Units';
+    } else if (src.startsWith('sheets-')) {
+      const section = src.replace('sheets-','');
+      const d = await fetch('/api/data/' + section).then(r=>r.json());
+      rows = d.rows || [];
+      cols = rows.length > 0 ? Object.keys(rows[0]) : [];
+      sourceLabel = 'Sheets: ' + section;
+    }
+    _previewData = rows;
+    _previewCols = cols;
+    if (!rows.length) {
+      wrap.innerHTML = '<div class="text-muted fs12" style="padding:24px;text-align:center"><i class="fas fa-inbox" style="font-size:20px;display:block;margin-bottom:8px;opacity:0.3"></i>No data returned. Check connection settings.</div>';
+      meta.textContent = '';
+    } else {
+      banner.textContent = 'Live from ' + sourceLabel + ' · ' + rows.length + ' records returned';
+      banner.style.display = 'block';
+      const headerRow = '<thead><tr>' + cols.map(c => '<th style="font-size:10px;white-space:nowrap">' + c + '</th>').join('') + '</tr></thead>';
+      const bodyRows = rows.slice(0,30).map(row =>
+        '<tr>' + cols.map(c => {
+          let v = row[c];
+          if (v && typeof v === 'object') v = v.units ? v.currencyCode + ' ' + v.units : JSON.stringify(v);
+          return '<td class="fs11" style="white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis" title="' + (v||'') + '">' + (v !== undefined && v !== null ? v : '—') + '</td>';
+        }).join('') + '</tr>'
+      ).join('');
+      wrap.innerHTML = '<table class="tbl" style="font-size:11px">' + headerRow + '<tbody>' + bodyRows + '</tbody></table>';
+      meta.textContent = rows.length + ' records · showing first 30' + (rows.length > 30 ? ' · export CSV to get all' : '');
+      document.getElementById('previewExportBtn').style.display = 'inline-flex';
+    }
+  } catch(e) {
+    wrap.innerHTML = '<div class="text-muted fs12" style="padding:24px;text-align:center">Error: ' + e.message + '</div>';
+  }
+  if (icon) icon.className = 'fas fa-sync';
+}
+
+function exportPreviewCSV() {
+  if (!_previewData.length) return;
+  const cols = _previewCols;
+  const rows = _previewData.map(row => cols.map(c => {
+    let v = row[c];
+    if (v && typeof v === 'object') v = v.units ? v.currencyCode + ' ' + v.units : JSON.stringify(v);
+    return '"' + String(v||'').replace(/"/g,'""') + '"';
+  }).join(','));
+  const csv = [cols.join(','), ...rows].join('\\n');
+  const a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv); a.download = 'data-preview.csv'; a.click();
+}
+
+// ── Auto-check connections on load ───────────────────────────────────────────
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', refreshAllStatus);
+} else {
+  setTimeout(refreshAllStatus, 80);
+}
+</script>
+`;
+}

@@ -9,7 +9,7 @@ import { digestScreen } from './screens/digest'
 import { pipelineScreen, clientsScreen, salesPerfScreen } from './screens/presales'
 import { revenueScreen, campaignScreen, adsScreen, gamAnalyticsScreen } from './screens/postsales'
 import { portalsScreen, socialScreen } from './screens/traffic'
-import { uploadScreen, apiConnScreen, setupScreen, blendScreen } from './screens/data'
+import { uploadScreen, apiConnScreen, setupScreen, blendScreen, apiDataScreen } from './screens/data'
 import { reportAiScreen } from './screens/reportai'
 import { canvasScreen } from './screens/canvas'
 import { settingsScreen } from './screens/settings'
@@ -656,8 +656,8 @@ const routes: Record<string, { screen: string; content: () => string }> = {
   '/traffic':   { screen: 'traffic',  content: portalsScreen },
   '/portals':   { screen: 'portals',  content: portalsScreen },
   '/social':    { screen: 'social',   content: socialScreen },
-  '/data':      { screen: 'data',     content: uploadScreen },
-  '/upload':    { screen: 'upload',   content: uploadScreen },
+  '/data':      { screen: 'data',     content: apiDataScreen },
+  '/upload':    { screen: 'upload',   content: apiDataScreen },
   '/apiconn':   { screen: 'apiconn',  content: apiConnScreen },
   '/setup':     { screen: 'setup',    content: setupScreen },
   '/blend':     { screen: 'blend',    content: blendScreen },
@@ -689,7 +689,7 @@ function buildNav(active: string, userRole = 'viewer'): string {
       { id: 'social',  label: 'Sprout Social',   icon: 'fa-seedling' },
     ]},
     { id: 'data', label: 'Data Management', icon: 'fa-database', sub: [
-      { id: 'upload',  label: 'Manual Upload',   icon: 'fa-upload' },
+      { id: 'upload',  label: 'API Data Sources', icon: 'fa-satellite-dish' },
       { id: 'apiconn', label: 'API Connections', icon: 'fa-plug' },
       { id: 'setup',   label: 'Setup Guide',     icon: 'fa-book-open' },
       { id: 'blend',   label: 'Data Blend',      icon: 'fa-code-merge' },

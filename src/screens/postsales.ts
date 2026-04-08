@@ -509,13 +509,16 @@ export function gamAnalyticsScreen(): string {
     </div>
   </div>
 
-  <!-- ── ROW 3: ORDERS TABLE ─────────────────────────────────────────────── -->
+  <!-- ── ROW 3: ORDERS + LINE ITEMS (expandable hierarchy) ─────────────────── -->
   <div class="card" id="ordersTableCard">
     <div class="card-hd">
-      <div class="card-title"><i class="fas fa-list-check" style="color:#4285f4;margin-right:7px"></i>Orders</div>
-      <div style="display:flex;gap:8px;align-items:center">
+      <div class="card-title"><i class="fas fa-list-check" style="color:#4285f4;margin-right:7px"></i>Orders &amp; Line Items</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span class="fs11 text-muted" style="white-space:nowrap;display:flex;align-items:center;gap:4px">
+          <i class="fas fa-chevron-right" style="font-size:9px"></i>Click row to expand line items
+        </span>
         <input id="orderSearch" type="text" placeholder="Search orders…"
-          style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:5px 10px;color:var(--text-primary);font-size:11px;width:160px;outline:none"
+          style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:5px 10px;color:var(--text-primary);font-size:11px;width:150px;outline:none"
           oninput="filterOrders(this.value)">
         <select id="orderStatusFilter"
           style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:5px 8px;color:var(--text-primary);font-size:11px;outline:none"
@@ -528,25 +531,43 @@ export function gamAnalyticsScreen(): string {
           <option value="PAUSED">Paused</option>
           <option value="DRAFT">Draft</option>
         </select>
+        <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 10px" onclick="toggleExpandAll()" id="expandAllBtn">
+          <i class="fas fa-expand-alt"></i>Expand All
+        </button>
         <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 10px" onclick="exportOrdersCSV()">
           <i class="fas fa-download"></i>CSV
         </button>
       </div>
     </div>
+
+    <style>
+      .order-row { cursor:pointer; transition:background 0.12s; }
+      .order-row:hover td { background:rgba(66,133,244,0.07) !important; }
+      .li-child-row td { font-size:11px; background:rgba(66,133,244,0.03); }
+      .li-child-row td:nth-child(2) { padding-left:38px; }
+      .expand-icon { display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:4px;background:rgba(66,133,244,0.12);color:#4285f4;font-size:9px;transition:transform 0.2s;flex-shrink:0; }
+      .expand-icon.open { transform:rotate(90deg);background:rgba(66,133,244,0.22); }
+      .li-count-badge { display:inline-flex;align-items:center;background:rgba(167,139,250,0.15);color:#a78bfa;font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:6px; }
+      .li-subhdr td { background:rgba(66,133,244,0.10) !important; }
+      @keyframes liSlide { from{opacity:0;transform:translateY(-3px)} to{opacity:1;transform:translateY(0)} }
+      .li-child-row { animation:liSlide 0.15s ease; }
+    </style>
+
     <div id="ordersTableWrap" style="overflow-x:auto">
       <table class="tbl" id="ordersTable">
         <thead>
           <tr>
+            <th style="width:36px"></th>
             <th onclick="sortOrdersBy('displayName')" style="cursor:pointer">Order Name <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
             <th onclick="sortOrdersBy('status')" style="cursor:pointer">Status <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
             <th onclick="sortOrdersBy('totalBudget')" style="cursor:pointer">Budget <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
             <th onclick="sortOrdersBy('startTime')" style="cursor:pointer">Start <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
             <th onclick="sortOrdersBy('endTime')" style="cursor:pointer">End <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
-            <th>Advertiser</th>
+            <th>Delivery / Adv.</th>
           </tr>
         </thead>
         <tbody id="ordersTbody">
-          <tr><td colspan="6" class="text-muted" style="text-align:center;padding:24px"><i class="fas fa-spinner fa-spin"></i> Loading orders…</td></tr>
+          <tr><td colspan="7" class="text-muted" style="text-align:center;padding:24px"><i class="fas fa-spinner fa-spin"></i> Loading orders…</td></tr>
         </tbody>
       </table>
     </div>
@@ -658,6 +679,8 @@ let _ordersSortKey  = 'displayName';
 let _ordersSortAsc  = true;
 let _orderStatusChart = null;
 let _budgetChart      = null;
+let _expandedOrders = new Set();
+let _allExpanded    = false;
 
 // ── Utility ─────────────────────────────────────────────────────────────────
 function fmtImpr(n) {
@@ -831,7 +854,20 @@ function renderNetworkInfo(s) {
   </div>\`).join('');
 }
 
-// ── Orders Table ─────────────────────────────────────────────────────────────
+// ── Orders Table (expandable hierarchy) ──────────────────────────────────────
+
+// Build a map: orderResourceName -> [lineItems]
+function buildOrderLineItemMap() {
+  const map = {};
+  for (const li of _gamLineItems) {
+    const oid = li.orderId || (li.name ? li.name.split('/lineItems/')[0] : null);
+    if (!oid) continue;
+    if (!map[oid]) map[oid] = [];
+    map[oid].push(li);
+  }
+  return map;
+}
+
 function filterOrders(query) {
   const sf = document.getElementById('orderStatusFilter').value;
   const q = (query||'').toLowerCase();
@@ -860,6 +896,29 @@ function renderOrdersTable() {
   _ordersFiltered = [..._gamOrders];
   filterOrders('');
 }
+
+function toggleOrder(orderId) {
+  if (_expandedOrders.has(orderId)) {
+    _expandedOrders.delete(orderId);
+  } else {
+    _expandedOrders.add(orderId);
+  }
+  renderOrdersPage();
+}
+
+function toggleExpandAll() {
+  _allExpanded = !_allExpanded;
+  const btn = document.getElementById('expandAllBtn');
+  if (_allExpanded) {
+    _expandedOrders = new Set(_ordersFiltered.map(o => o.name || o.id || o.displayName));
+    if (btn) btn.innerHTML = '<i class="fas fa-compress-alt"></i>Collapse All';
+  } else {
+    _expandedOrders.clear();
+    if (btn) btn.innerHTML = '<i class="fas fa-expand-alt"></i>Expand All';
+  }
+  renderOrdersPage();
+}
+
 function renderOrdersPage() {
   const tbody  = document.getElementById('ordersTbody');
   const start  = (_ordersPageNum - 1) * PAGE_SIZE;
@@ -873,18 +932,100 @@ function renderOrdersPage() {
   document.getElementById('ordersNextBtn').disabled = _ordersPageNum >= pages;
 
   if (!page.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="text-muted" style="text-align:center;padding:20px">No orders match the current filter.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="text-muted" style="text-align:center;padding:20px">No orders match the current filter.</td></tr>';
     return;
   }
-  tbody.innerHTML = page.map(o => \`
-  <tr>
-    <td class="fw6" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="\${o.displayName||''}">\${o.displayName||o.name||'—'}</td>
-    <td>\${statusBadge(o.status)}</td>
-    <td class="fw7" style="color:#60a5fa">\${fmtBudget(o.totalBudget)}</td>
-    <td class="dim">\${fmtDate(o.startTime)}</td>
-    <td class="dim">\${fmtDate(o.endTime)}</td>
-    <td class="dim fs11">\${o.advertiserId ? o.advertiserId.split('/').pop() : '—'}</td>
-  </tr>\`).join('');
+
+  const liMap = buildOrderLineItemMap();
+  const rows = [];
+
+  for (const o of page) {
+    // Use resource name as stable key (e.g. networks/123/orders/456), fallback to displayName
+    const oid      = o.name || o.id || o.displayName;
+    const isOpen   = _expandedOrders.has(oid);
+    // Try to match line items: by orderId field, or by order resource name prefix
+    const orderNumericId = oid?.split('/').pop();
+    let lis = liMap[oid] || liMap[orderNumericId] || [];
+    // Fallback: match by orderId field that ends with our numeric id
+    if (!lis.length && orderNumericId) {
+      lis = _gamLineItems.filter(li => {
+        const liOid = (li.orderId||'').split('/').pop();
+        return liOid === orderNumericId;
+      });
+    }
+    const liCount  = lis.length;
+
+    // ── Order (parent) row ──────────────────────────────────────────────────
+    // Summary metrics: total impressions + clicks across child line items
+    const totalImpr   = lis.reduce((s, li) => s + parseInt(li.impressionsDelivered||'0'), 0);
+    const totalClicks = lis.reduce((s, li) => s + parseInt(li.clicksDelivered||'0'), 0);
+    const ctr         = totalImpr > 0 ? (totalClicks / totalImpr * 100).toFixed(2) + '%' : '—';
+    const activeCount = lis.filter(li => li.status === 'ACTIVE' || li.status === 'DELIVERING').length;
+
+    rows.push(\`
+    <tr class="order-row" onclick="toggleOrder(\${JSON.stringify(oid)})">
+      <td style="text-align:center;vertical-align:middle">
+        <span class="expand-icon\${isOpen?' open':''}"><i class="fas fa-chevron-right" style="font-size:9px"></i></span>
+      </td>
+      <td style="max-width:240px">
+        <div class="fw6" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="\${o.displayName||''}">\${o.displayName||o.name||'—'}</div>
+        <div class="fs10 text-muted" style="margin-top:2px">\${o.advertiserId ? 'Adv: '+o.advertiserId.split('/').pop() : ''}\${liCount>0?'<span class=\\"li-count-badge\\">'+liCount+' line items</span>':''}</div>
+      </td>
+      <td>\${statusBadge(o.status)}</td>
+      <td class="fw7" style="color:#60a5fa">\${fmtBudget(o.totalBudget)}</td>
+      <td class="dim">\${fmtDate(o.startTime)}</td>
+      <td class="dim">\${fmtDate(o.endTime)}</td>
+      <td class="dim fs11">
+        \${totalImpr > 0 ? \`<span title="Impressions" style="color:#f59e0b">\${fmtImpr(totalImpr)}</span> <span class="text-muted">/ \${fmtImpr(totalClicks)} clk</span>\` : '<span class="text-muted">No delivery</span>'}
+        \${activeCount > 0 ? \`<br><span style="color:#00d68f;font-size:9px">\${activeCount} active</span>\` : ''}
+      </td>
+    </tr>\`);
+
+    // ── Line Item (child) rows — only when expanded ──────────────────────────
+    if (isOpen && liCount > 0) {
+      // Sub-header row
+      rows.push(\`
+      <tr class="li-subhdr">
+        <td></td>
+        <td style="padding-left:38px;font-size:10px;font-weight:700;color:#a78bfa;text-transform:uppercase;letter-spacing:0.05em">Line Item</td>
+        <td style="font-size:10px;font-weight:700;color:#a78bfa">Status</td>
+        <td style="font-size:10px;font-weight:700;color:#a78bfa">Type</td>
+        <td style="font-size:10px;font-weight:700;color:#a78bfa">Impressions</td>
+        <td style="font-size:10px;font-weight:700;color:#a78bfa">Clicks / CTR</td>
+        <td style="font-size:10px;font-weight:700;color:#a78bfa">Dates</td>
+      </tr>\`);
+
+      for (const li of lis) {
+        const liImpr   = parseInt(li.impressionsDelivered||'0');
+        const liClicks = parseInt(li.clicksDelivered||'0');
+        const liCTR    = liImpr > 0 ? (liClicks/liImpr*100).toFixed(2)+'%' : '—';
+        rows.push(\`
+        <tr class="li-child-row">
+          <td style="text-align:center">
+            <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:rgba(167,139,250,0.18);font-size:8px;line-height:14px;text-align:center;color:#a78bfa"><i class="fas fa-minus"></i></span>
+          </td>
+          <td style="padding-left:38px;max-width:200px">
+            <div class="fw6" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px" title="\${li.displayName||''}">\${li.displayName||li.name||'—'}</div>
+          </td>
+          <td>\${statusBadge(li.status)}</td>
+          <td class="dim fs10">\${li.lineItemType||'—'}</td>
+          <td class="fw6 fs11" style="color:#f59e0b">\${fmtImpr(liImpr)}</td>
+          <td class="fs11">\${fmtImpr(liClicks)} <span class="text-muted">(\${liCTR})</span></td>
+          <td class="dim fs10">\${fmtDate(li.startTime)}\${li.endTime?' → '+fmtDate(li.endTime):''}</td>
+        </tr>\`);
+      }
+    } else if (isOpen && liCount === 0) {
+      rows.push(\`
+      <tr class="li-child-row">
+        <td></td>
+        <td colspan="6" class="text-muted fs11" style="padding-left:38px;padding-top:8px;padding-bottom:8px">
+          <i class="fas fa-info-circle" style="margin-right:4px"></i>No line items found for this order
+        </td>
+      </tr>\`);
+    }
+  }
+
+  tbody.innerHTML = rows.join('');
 }
 function ordersPage(dir) {
   const pages = Math.ceil(_ordersFiltered.length / PAGE_SIZE);
