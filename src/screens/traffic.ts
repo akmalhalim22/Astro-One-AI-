@@ -2,6 +2,15 @@ export function portalsScreen(): string {
   return `
 <div class="content fade-in">
 
+  <!-- ── DATA SOURCE INDICATOR ──────────────────────────────────── -->
+  <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(226,0,122,0.06);border:1px solid rgba(226,0,122,0.15);border-radius:9px;margin-bottom:14px;flex-wrap:wrap">
+    <i class="fas fa-chart-bar" style="color:#e2007a;font-size:10px"></i>
+    <span style="font-size:11px;color:var(--text-muted);font-weight:600">DATA SOURCE</span>
+    <span style="font-size:11px;color:var(--text-primary)">Google Analytics 4 <span class="text-muted">·</span> Web Traffic &amp; Engagement</span>
+    <span class="b b-gray" style="font-size:10px;margin-left:4px">GA4 Export</span>
+    <span style="margin-left:auto;font-size:10.5px;color:var(--text-muted)"><i class="fas fa-circle-info" style="margin-right:4px"></i>Displaying sample data — connect GA4 in <a href="/apiconn" style="color:#e2007a;text-decoration:none">API Connections</a></span>
+  </div>
+
   <!-- ── KPIs ROW 1 ───────────────────────────────────────────── -->
   <div class="kpi-grid-4">
     <div class="kpi accent">
@@ -168,6 +177,15 @@ export function portalsScreen(): string {
 export function socialScreen(): string {
   return `
 <div class="content fade-in">
+
+  <!-- ── DATA SOURCE INDICATOR ──────────────────────────────────── -->
+  <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(46,164,79,0.07);border:1px solid rgba(46,164,79,0.18);border-radius:9px;margin-bottom:14px;flex-wrap:wrap">
+    <i class="fas fa-seedling" style="color:#2ea44f;font-size:10px"></i>
+    <span style="font-size:11px;color:var(--text-muted);font-weight:600">DATA SOURCE</span>
+    <span style="font-size:11px;color:var(--text-primary)">Sprout Social <span class="text-muted">·</span> Social Media Analytics</span>
+    <span class="b b-gray" style="font-size:10px;margin-left:4px">Sprout Export</span>
+    <span style="margin-left:auto;font-size:10.5px;color:var(--text-muted)"><i class="fas fa-circle-info" style="margin-right:4px"></i>Displaying sample data — connect Sprout in <a href="/apiconn" style="color:#2ea44f;text-decoration:none">API Connections</a></span>
+  </div>
 
   <!-- ── KPIs ─────────────────────────────────────────────────── -->
   <div class="kpi-grid-4">

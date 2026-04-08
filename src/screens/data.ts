@@ -542,10 +542,11 @@ export function apiConnScreen(): string {
 // ── Source config definitions ───────────────────────────────────────────────
 const SOURCE_CONFIGS = {
   sheets: {
-    title: 'Google Sheets Configuration',
-    note: 'Google Sheets is configured in Settings. Click below to open Settings.',
-    redirect: '/settings',
-    fields: []
+    title: 'Google Sheets Setup',
+    fields: [
+      { label: 'Spreadsheet ID', id: 'sheets_spreadsheet_id', placeholder: 'e.g. 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms', hint: 'Found in your Sheet URL: docs.google.com/spreadsheets/d/SHEET_ID/edit' },
+      { label: 'Service Account JSON', id: 'sheets_sa_json', type: 'textarea', placeholder: '{"type":"service_account","project_id":"...","private_key":"-----BEGIN PRIVATE KEY-----\\n...","client_email":"...@....iam.gserviceaccount.com",...}', hint: 'Download JSON key from Google Cloud → IAM → Service Accounts. Share your Sheet with the service account email (Editor).' },
+    ]
   },
   ga4: {
     title: 'Google Analytics 4 Setup',
@@ -764,14 +765,6 @@ function openConfig(id, name) {
   const cfg = SOURCE_CONFIGS[id];
   if (!cfg) return;
 
-  // Google Sheets goes to Settings
-  if (id === 'sheets') {
-    if (confirm('Google Sheets is configured via Settings. Open Settings now?')) {
-      window.location.href = '/settings';
-    }
-    return;
-  }
-
   document.getElementById('configModalTitle').textContent = cfg.title;
   const body = document.getElementById('configModalBody');
 
@@ -809,6 +802,26 @@ async function saveConfig() {
     if (el) data[f.id] = el.value.trim();
   }
   try {
+    // Google Sheets uses dedicated credentials + sheet-config endpoints
+    if (id === 'sheets') {
+      const saJson = data['sheets_sa_json'];
+      const sheetId = data['sheets_spreadsheet_id'];
+      if (!saJson || !sheetId) { showToast('Please fill in both the Spreadsheet ID and Service Account JSON.', 'error'); return; }
+      try { JSON.parse(saJson); } catch(e) { showToast('Invalid Service Account JSON — please check the format.', 'error'); return; }
+      // Save credentials
+      const credRes = await fetch('/api/settings/credentials', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({serviceAccountJson:saJson}) });
+      const credD = await credRes.json();
+      if (!credD.ok) { showToast('Credentials save failed: '+(credD.error||'Unknown error'), 'error'); return; }
+      // Save sheet config with spreadsheet ID
+      const cfgRes = await fetch('/api/settings/sheet-config', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({spreadsheetId:sheetId}) });
+      closeModal('configModal');
+      document.getElementById('status-sheets').textContent = 'CONFIGURED';
+      document.getElementById('status-sheets').className = 'b b-green';
+      const fieldEl = document.getElementById('field-sheets-sheet-id');
+      if (fieldEl) fieldEl.textContent = sheetId.slice(0,18)+'…';
+      showToast('Google Sheets credentials saved! Click Test to verify the connection.', 'success');
+      return;
+    }
     const res = await fetch('/api/conn/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

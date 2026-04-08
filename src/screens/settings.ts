@@ -5,132 +5,22 @@ export function settingsScreen(): string {
   <div class="section-hd mb20">
     <div>
       <div class="section-title"><i class="fas fa-shield-halved" style="color:var(--magenta);margin-right:8px"></i>Platform Settings</div>
-      <div class="fs12 text-muted mt4">Configure Google Sheets connection, manage users, and control platform access.</div>
+      <div class="fs12 text-muted mt4">Manage users, control platform access and security settings.</div>
     </div>
     <button class="btn-primary" onclick="saveAllSettings()"><i class="fas fa-floppy-disk"></i>Save All Changes</button>
   </div>
 
   <div class="tabs" id="settingsTabs">
-    <div class="tab active" onclick="switchSettingsTab('sheets',this)"><i class="fas fa-table" style="margin-right:5px"></i>Google Sheets</div>
-    <div class="tab" onclick="switchSettingsTab('users',this)"><i class="fas fa-users" style="margin-right:5px"></i>Users & Access</div>
+    <div class="tab active" onclick="switchSettingsTab('users',this)"><i class="fas fa-users" style="margin-right:5px"></i>Users & Access</div>
     <div class="tab" onclick="switchSettingsTab('security',this)"><i class="fas fa-lock" style="margin-right:5px"></i>Security</div>
     <div class="tab" onclick="switchSettingsTab('platform',this)"><i class="fas fa-sliders" style="margin-right:5px"></i>Platform</div>
   </div>
 
-  <!-- ── GOOGLE SHEETS TAB ─────────────────────────────────────── -->
-  <div id="st-sheets">
-    <div class="g2" style="margin-top:16px">
-
-      <div style="display:flex;flex-direction:column;gap:14px">
-        <div class="card">
-          <div class="card-hd">
-            <div class="card-title"><i class="fas fa-key" style="color:var(--warning);margin-right:7px"></i>Service Account Credentials</div>
-            <span class="b" id="saStatus" style="background:var(--success-dim);color:var(--success);border:1px solid rgba(0,214,143,.2);border-radius:6px;padding:3px 9px;font-size:10px;font-weight:700">NOT SET</span>
-          </div>
-          <div class="fs12 text-muted mb14">
-            Paste your Google Service Account JSON key. This is stored as an encrypted Cloudflare secret and <strong style="color:var(--text-primary)">never exposed</strong> to the browser.
-          </div>
-          <div class="field mb12">
-            <label class="field-label">Service Account JSON</label>
-            <textarea id="saJson" rows="8" placeholder='{"type":"service_account","project_id":"...","private_key":"-----BEGIN PRIVATE KEY-----\\n...","client_email":"...@....iam.gserviceaccount.com",...}'
-              style="width:100%;background:var(--bg-input);border:1px solid var(--border);color:var(--text-primary);border-radius:9px;padding:11px 13px;font-family:monospace;font-size:11px;resize:vertical;outline:none;line-height:1.5;transition:border-color .2s"
-              onfocus="this.style.borderColor='var(--magenta)'" onblur="this.style.borderColor='var(--border)'"></textarea>
-          </div>
-          <div style="display:flex;gap:8px">
-            <button class="btn-primary" onclick="saveSACredentials()"><i class="fas fa-cloud-arrow-up"></i>Save to Cloudflare Secrets</button>
-            <button class="btn-ghost" onclick="testSACredentials()"><i class="fas fa-rotate"></i>Test Connection</button>
-            <button class="btn-ghost" onclick="clearSA()"><i class="fas fa-trash"></i>Clear</button>
-          </div>
-          <div id="saTestResult" style="display:none;margin-top:12px;padding:10px 14px;border-radius:8px;font-size:12px"></div>
-        </div>
-
-        <div class="card">
-          <div class="card-hd"><div class="card-title"><i class="fas fa-table" style="color:var(--info);margin-right:7px"></i>Spreadsheet Configuration</div></div>
-          <div class="fs12 text-muted mb14">Set your Google Sheets Spreadsheet ID and map each tab to a dashboard section.</div>
-
-          <div class="field mb12">
-            <label class="field-label">Spreadsheet ID</label>
-            <input type="text" id="sheetId" placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms"
-              style="width:100%;background:var(--bg-input);border:1px solid var(--border);color:var(--text-primary);border-radius:8px;padding:9px 12px;font-family:monospace;font-size:12px;outline:none;transition:border-color .2s"
-              onfocus="this.style.borderColor='var(--magenta)'" onblur="this.style.borderColor='var(--border)'"/>
-            <div class="fs11 text-muted mt4">Found in your Sheet URL: docs.google.com/spreadsheets/d/<strong style="color:var(--info)">SHEET_ID</strong>/edit</div>
-          </div>
-
-          <div class="card-hd" style="padding:12px 0 10px;border-top:1px solid var(--border);margin-top:4px">
-            <div class="card-title" style="font-size:12px">Tab Name Mapping</div>
-            <button class="btn-ghost" style="height:26px;font-size:10.5px;padding:0 10px" onclick="detectTabs()"><i class="fas fa-magnifying-glass"></i>Auto-Detect Tabs</button>
-          </div>
-          <div id="tabMapping" style="display:flex;flex-direction:column;gap:8px">
-            ${[
-              ['Pipeline','Pre-Sales Pipeline data','pipeline_tab','Pipeline'],
-              ['Revenue','Revenue performance data','revenue_tab','Revenue'],
-              ['Campaign','Campaign performance data','campaign_tab','Campaign'],
-              ['Ads','Ad spend & performance data','ads_tab','Ads'],
-              ['Traffic','Portal traffic data (GA4 export)','traffic_tab','Traffic'],
-              ['Social','Social media metrics (Sprout)','social_tab','Social'],
-              ['Clients','Client account data','clients_tab','Clients'],
-            ].map(([label, desc, id, def]) => `
-            <div style="display:flex;align-items:center;gap:12px;padding:8px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px">
-              <div style="flex:1;min-width:0">
-                <div class="fw6 fs12">${label}</div>
-                <div class="fs11 text-muted">${desc}</div>
-              </div>
-              <input type="text" id="${id}" value="${def}" placeholder="Sheet tab name"
-                style="width:130px;background:var(--bg-input);border:1px solid var(--border);color:var(--text-primary);border-radius:6px;padding:5px 9px;font-family:monospace;font-size:11px;outline:none;text-align:center"/>
-            </div>`).join('')}
-          </div>
-
-          <button class="btn-primary" style="margin-top:14px;width:100%;justify-content:center" onclick="saveSheetConfig()">
-            <i class="fas fa-floppy-disk"></i>Save Sheet Configuration
-          </button>
-        </div>
-      </div>
-
-      <div style="display:flex;flex-direction:column;gap:14px">
-        <div class="card">
-          <div class="card-hd"><div class="card-title"><i class="fas fa-circle-check" style="color:var(--success);margin-right:7px"></i>Connection Status</div></div>
-          <div id="connStatus" style="display:flex;flex-direction:column;gap:8px">
-            ${[
-              ['Google Sheets API','Checking...','fa-table','var(--info)'],
-              ['Service Account','Not configured','fa-key','var(--warning)'],
-              ['Spreadsheet Access','Not tested','fa-file-spreadsheet','var(--text-muted)'],
-            ].map(([name, status, ic, col]) => `
-            <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px">
-              <i class="fas ${ic}" style="color:${col};width:16px;text-align:center"></i>
-              <div style="flex:1"><div class="fw6 fs12">${name}</div></div>
-              <span class="fs11 text-muted">${status}</span>
-            </div>`).join('')}
-          </div>
-          <button class="btn-ghost" style="width:100%;justify-content:center;margin-top:12px;height:34px" onclick="runFullTest()">
-            <i class="fas fa-rotate"></i>Run Full Connectivity Test
-          </button>
-        </div>
-
-        <div class="card">
-          <div class="card-hd"><div class="card-title"><i class="fas fa-book-open" style="color:var(--purple);margin-right:7px"></i>Quick Setup Guide</div></div>
-          <div style="display:flex;flex-direction:column;gap:12px">
-            ${[
-              ['1','Create Google Sheet','Name it "Astro One Data Hub". Add tabs: Pipeline, Revenue, Campaign, Ads, Traffic, Social, Clients','fa-plus','var(--magenta)'],
-              ['2','Enable Sheets API','Google Cloud Console → APIs → Google Sheets API → Enable','fa-toggle-on','var(--info)'],
-              ['3','Create Service Account','IAM → Service Accounts → Create → Download JSON key','fa-id-card','var(--success)'],
-              ['4','Share Sheet','Share your spreadsheet with the service account email (Editor access)','fa-share','var(--warning)'],
-              ['5','Paste & Save','Paste the JSON key above and save. Done!','fa-floppy-disk','var(--teal)'],
-            ].map(([n, title, body, ic, col]) => `
-            <div style="display:flex;gap:12px">
-              <div style="width:26px;height:26px;border-radius:50%;background:${col}22;color:${col};border:1px solid ${col}33;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0">${n}</div>
-              <div>
-                <div class="fw6 fs12 mb2">${title}</div>
-                <div class="fs11 text-muted">${body}</div>
-              </div>
-            </div>`).join('')}
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- ── GOOGLE SHEETS MOVED ─────────────────────────────────────── -->
+  <!-- Google Sheets connection is now configured in API Connections (Data Management → API Connections → Config on Google Sheets card) -->
 
   <!-- ── USERS TAB ──────────────────────────────────────────────── -->
-  <div id="st-users" style="display:none;margin-top:16px">
+  <div id="st-users" style="margin-top:16px">
 
     <!-- Invite Code Card (full width, above the 2-col grid) -->
     <div class="card" style="margin-bottom:14px">
@@ -357,12 +247,15 @@ window.addEventListener('DOMContentLoaded', function() {
 function switchSettingsTab(tab, el) {
   document.querySelectorAll('#settingsTabs .tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
-  ['sheets','users','security','platform'].forEach(id => {
+  ['users','security','platform'].forEach(id => {
     const p = document.getElementById('st-' + id);
     if (p) p.style.display = id === tab ? 'block' : 'none';
   });
   if (tab === 'users') { loadUsers(); loadInviteCode(); }
 }
+
+// On load, show users tab by default
+document.addEventListener('DOMContentLoaded', function() { loadUsers(); loadInviteCode(); });
 
 function loadUsers() {
   fetch('/api/settings/users').then(r=>r.json()).then(d=>{

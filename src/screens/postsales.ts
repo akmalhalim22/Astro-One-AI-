@@ -2,6 +2,15 @@ export function revenueScreen(): string {
   return `
 <div class="content fade-in">
 
+  <!-- ── DATA SOURCE INDICATOR ──────────────────────────────────── -->
+  <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(96,165,250,0.07);border:1px solid rgba(96,165,250,0.15);border-radius:9px;margin-bottom:14px;flex-wrap:wrap">
+    <i class="fas fa-database" style="color:#60a5fa;font-size:10px"></i>
+    <span style="font-size:11px;color:var(--text-muted);font-weight:600">DATA SOURCE</span>
+    <span style="font-size:11px;color:var(--text-primary)">Google Sheets <span class="text-muted">·</span> Revenue tab</span>
+    <span class="b b-gray" style="font-size:10px;margin-left:4px">Sheets</span>
+    <span style="margin-left:auto;font-size:10.5px;color:var(--text-muted)"><i class="fas fa-circle-info" style="margin-right:4px"></i>Static data — connect Google Sheets in <a href="/apiconn" style="color:#60a5fa;text-decoration:none">API Connections</a> to sync live</span>
+  </div>
+
   <!-- ── KPIs ─────────────────────────────────────────────────── -->
   <div class="kpi-grid-4">
     <div class="kpi accent">
@@ -134,6 +143,15 @@ export function revenueScreen(): string {
 export function campaignScreen(): string {
   return `
 <div class="content fade-in">
+
+  <!-- ── DATA SOURCE INDICATOR ──────────────────────────────────── -->
+  <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(66,133,244,0.07);border:1px solid rgba(66,133,244,0.15);border-radius:9px;margin-bottom:10px;flex-wrap:wrap">
+    <i class="fas fa-rectangle-ad" style="color:#4285f4;font-size:10px"></i>
+    <span style="font-size:11px;color:var(--text-muted);font-weight:600">DATA SOURCE</span>
+    <span style="font-size:11px;color:var(--text-primary)">Google Ad Manager <span class="text-muted">·</span> Orders (as Campaigns)</span>
+    <span class="b b-blue" style="font-size:10px;margin-left:4px">GAM API · Live</span>
+    <span style="margin-left:auto;font-size:10.5px;color:var(--text-muted)"><i class="fas fa-satellite-dish" style="margin-right:4px"></i>Fetches live from GAM on page load</span>
+  </div>
 
   <!-- ── Connection Banner ────────────────────────────────────────────────── -->
   <div id="campBanner" style="display:flex;align-items:center;gap:10px;background:rgba(66,133,244,0.08);border:1px solid rgba(66,133,244,0.2);border-radius:12px;padding:11px 16px;margin-bottom:4px">
@@ -551,6 +569,15 @@ export function adsScreen(): string {
   return `
 <div class="content fade-in">
 
+  <!-- ── DATA SOURCE INDICATOR ───────────────────────────────────────────── -->
+  <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(66,133,244,0.07);border:1px solid rgba(66,133,244,0.15);border-radius:9px;margin-bottom:10px;flex-wrap:wrap">
+    <i class="fas fa-rectangle-ad" style="color:#4285f4;font-size:10px"></i>
+    <span style="font-size:11px;color:var(--text-muted);font-weight:600">DATA SOURCE</span>
+    <span style="font-size:11px;color:var(--text-primary)">Google Ad Manager <span class="text-muted">·</span> Line Items (as Ad Performance)</span>
+    <span class="b b-blue" style="font-size:10px;margin-left:4px">GAM API · Live</span>
+    <span style="margin-left:auto;font-size:10.5px;color:var(--text-muted)"><i class="fas fa-satellite-dish" style="margin-right:4px"></i>Fetches live from GAM on page load</span>
+  </div>
+
   <!-- ── Connection Banner ─────────────────────────────────────────────────── -->
   <div id="adsBanner" style="display:flex;align-items:center;gap:10px;background:rgba(66,133,244,0.08);border:1px solid rgba(66,133,244,0.2);border-radius:12px;padding:11px 16px;margin-bottom:4px">
     <i class="fas fa-spinner fa-spin" id="adsBannerIcon" style="color:#4285f4;font-size:13px"></i>
@@ -954,6 +981,16 @@ export function gamAnalyticsScreen(): string {
   return `
 <div class="content fade-in">
 
+  <!-- ── DATA SOURCE INDICATOR ───────────────────────────────────────────── -->
+  <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(66,133,244,0.07);border:1px solid rgba(66,133,244,0.15);border-radius:9px;margin-bottom:14px;flex-wrap:wrap">
+    <i class="fas fa-rectangle-ad" style="color:#4285f4;font-size:10px"></i>
+    <span style="font-size:11px;color:var(--text-muted);font-weight:600">DATA SOURCE</span>
+    <span style="font-size:11px;color:var(--text-primary)">Google Ad Manager <span class="text-muted">·</span> Orders &amp; Line Items</span>
+    <span class="b b-blue" style="font-size:10px;margin-left:4px">GAM API · Live</span>
+    <span class="b b-gray" style="font-size:10px">Network: <span id="gam-ds-network" style="color:#60a5fa">Loading…</span></span>
+    <span style="margin-left:auto;font-size:10.5px;color:var(--text-muted)"><i class="fas fa-satellite-dish" style="margin-right:4px"></i>Real-time · Refreshes on page load</span>
+  </div>
+
   <!-- ── STATUS BANNER (hidden once loaded) ─────────────────────────────── -->
   <div id="gamBanner" style="display:flex;align-items:center;gap:10px;background:rgba(66,133,244,0.08);border:1px solid rgba(66,133,244,0.2);border-radius:12px;padding:12px 16px;margin-bottom:16px">
     <i class="fas fa-spinner fa-spin" id="gamBannerIcon" style="color:#4285f4"></i>
@@ -991,44 +1028,53 @@ export function gamAnalyticsScreen(): string {
     </div>
   </div>
 
-  <!-- ── ROW 2: ORDER STATUS + LINE ITEM STATUS ──────────────────────────── -->
+  <!-- ── ROW 2: STATUS OVERVIEW + DELIVERY HEALTH ──────────────────────── -->
   <div class="g62">
 
     <!-- Order Status Breakdown -->
     <div class="card">
       <div class="card-hd">
-        <div class="card-title"><i class="fas fa-file-invoice" style="color:#4285f4;margin-right:7px"></i>Order Status Breakdown</div>
-        <div style="display:flex;gap:8px">
-          <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 10px" onclick="loadGAMOrders()">
-            <i class="fas fa-table-list"></i>Full List
-          </button>
-        </div>
+        <div class="card-title"><i class="fas fa-circle-dot" style="color:#4285f4;margin-right:7px"></i>Order Status Overview</div>
+        <span class="b b-gray fs10" id="networkStatusBadge">—</span>
       </div>
-      <div id="orderStatusBars" style="display:flex;flex-direction:column;gap:10px;min-height:120px">
+      <div id="orderStatusBars" style="display:flex;flex-direction:column;gap:10px;min-height:100px">
         <div class="text-muted fs12" style="padding:20px 0;text-align:center"><i class="fas fa-spinner fa-spin"></i> Loading…</div>
       </div>
-      <div style="height:160px;margin-top:14px"><canvas id="orderStatusChart"></canvas></div>
+      <div style="height:150px;margin-top:14px"><canvas id="orderStatusChart"></canvas></div>
     </div>
 
-    <!-- Line Item Status + Network Info -->
+    <!-- Line Item Health + Network Info -->
     <div style="display:flex;flex-direction:column;gap:14px">
 
+      <!-- Line Item Status summary -->
       <div class="card">
         <div class="card-hd">
-          <div class="card-title"><i class="fas fa-layer-group" style="color:#a78bfa;margin-right:7px"></i>Line Item Status</div>
+          <div class="card-title"><i class="fas fa-layer-group" style="color:#a78bfa;margin-right:7px"></i>Line Item Health</div>
+          <span class="b b-gray fs10">Excl. Drafts</span>
         </div>
-        <div id="liStatusBars" style="display:flex;flex-direction:column;gap:9px;min-height:80px">
+        <div id="liStatusBars" style="display:flex;flex-direction:column;gap:9px;min-height:60px">
           <div class="text-muted fs12" style="padding:10px 0;text-align:center"><i class="fas fa-spinner fa-spin"></i> Loading…</div>
         </div>
       </div>
 
-      <div class="card" id="networkInfoCard">
+      <!-- Top Active Line Items by Impressions -->
+      <div class="card card-sm">
         <div class="card-hd">
-          <div class="card-title"><i class="fas fa-network-wired" style="color:#00d68f;margin-right:7px"></i>Network Info</div>
-          <span class="b b-gray" id="networkStatusBadge">—</span>
+          <div class="card-title"><i class="fas fa-trophy" style="color:#f59e0b;margin-right:7px"></i>Top Delivering Line Items</div>
+          <span class="b b-gray fs10">by impr.</span>
         </div>
-        <div id="networkInfoBody" style="display:flex;flex-direction:column;gap:6px">
-          <div class="text-muted fs12" style="padding:10px 0;text-align:center"><i class="fas fa-spinner fa-spin"></i> Loading…</div>
+        <div id="gamTopLI" style="display:flex;flex-direction:column;gap:5px;min-height:50px">
+          <div class="text-muted fs12" style="padding:10px 0;text-align:center"><i class="fas fa-spinner fa-spin"></i></div>
+        </div>
+      </div>
+
+      <!-- Network Info -->
+      <div class="card card-sm" id="networkInfoCard">
+        <div class="card-hd">
+          <div class="card-title"><i class="fas fa-network-wired" style="color:#00d68f;margin-right:7px"></i>Network</div>
+        </div>
+        <div id="networkInfoBody" style="display:flex;flex-direction:column;gap:5px">
+          <div class="text-muted fs12" style="padding:8px 0;text-align:center"><i class="fas fa-spinner fa-spin"></i></div>
         </div>
       </div>
 
@@ -1050,13 +1096,11 @@ export function gamAnalyticsScreen(): string {
           style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:5px 8px;color:var(--text-primary);font-size:11px;outline:none"
           onchange="filterOrders(document.getElementById('orderSearch').value)">
           <option value="ACTIVE_DELIVERING">Active &amp; Delivering</option>
-          <option value="">All Statuses</option>
-          <option value="ACTIVE">Active</option>
-          <option value="DELIVERING">Delivering</option>
           <option value="COMPLETED">Completed</option>
-          <option value="CANCELED">Canceled</option>
           <option value="PAUSED">Paused</option>
-          <option value="DRAFT">Draft</option>
+          <option value="CANCELED">Canceled</option>
+          <option value="">All (excl. Draft)</option>
+          <option value="ALL_INCL_DRAFT">All Including Draft</option>
         </select>
         <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 10px" onclick="toggleExpandAll()" id="expandAllBtn">
           <i class="fas fa-expand-alt"></i>Expand All
@@ -1108,58 +1152,7 @@ export function gamAnalyticsScreen(): string {
     </div>
   </div>
 
-  <!-- ── ROW 4: AD UNITS + REVENUE ANALYSIS ──────────────────────────────── -->
-  <div class="g62">
-
-    <!-- Ad Units -->
-    <div style="display:flex;flex-direction:column;gap:14px">
-
-      <!-- Ad Units -->
-      <div class="card">
-        <div class="card-hd">
-          <div class="card-title"><i class="fas fa-th-large" style="color:#f59e0b;margin-right:7px"></i>Ad Units</div>
-          <span id="adUnitCount" class="b b-gray fs11">—</span>
-        </div>
-        <div id="adUnitsList" style="display:flex;flex-direction:column;gap:7px;max-height:180px;overflow-y:auto">
-          <div class="text-muted fs12" style="padding:10px 0;text-align:center"><i class="fas fa-spinner fa-spin"></i> Loading…</div>
-        </div>
-      </div>
-
-      <!-- Revenue Analysis from budget data -->
-      <div class="card">
-        <div class="card-hd">
-          <div class="card-title"><i class="fas fa-sack-dollar" style="color:#00d68f;margin-right:7px"></i>Budget / Revenue Analysis</div>
-        </div>
-        <div id="revenueAnalysis" style="min-height:80px">
-          <div class="text-muted fs12" style="padding:10px 0;text-align:center"><i class="fas fa-spinner fa-spin"></i> Loading…</div>
-        </div>
-        <div style="height:130px;margin-top:10px"><canvas id="budgetChart"></canvas></div>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- ── ROW 5: SAVED REPORTS ───────────────────────────────────────────── -->
-  <div class="card">
-    <div class="card-hd">
-      <div class="card-title"><i class="fas fa-file-chart-pie" style="color:#e2007a;margin-right:7px"></i>Saved Reports</div>
-      <span class="fs11 text-muted">Click Run to fetch results from GAM</span>
-    </div>
-    <div id="reportsList" style="display:flex;flex-direction:column;gap:8px;min-height:60px">
-      <div class="text-muted fs12" style="padding:16px 0;text-align:center"><i class="fas fa-spinner fa-spin"></i> Loading reports…</div>
-    </div>
-    <!-- Report result panel -->
-    <div id="reportResultPanel" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
-      <div class="card-hd" style="margin-bottom:10px">
-        <div class="card-title" id="reportResultTitle">Report Results</div>
-        <button class="btn-ghost" style="height:26px;font-size:11px;padding:0 9px" onclick="document.getElementById('reportResultPanel').style.display='none'">
-          <i class="fas fa-xmark"></i>Close
-        </button>
-      </div>
-      <div style="overflow-x:auto"><table class="tbl" id="reportResultTable"><tbody></tbody></table></div>
-      <div id="reportResultMeta" class="fs11 text-muted" style="margin-top:8px"></div>
-    </div>
-  </div>
+  <!-- ── END OF CONTENT ───────────────────────────────────────────────────── -->
 
 </div>
 
@@ -1167,8 +1160,6 @@ export function gamAnalyticsScreen(): string {
 // ── State ───────────────────────────────────────────────────────────────────
 let _gamOrders    = [];
 let _gamLineItems = [];
-let _gamAdUnits   = [];
-let _gamReports   = [];
 let _gamNetwork   = null;
 let _ordersFiltered = [];
 let _ordersPageNum  = 1;
@@ -1176,7 +1167,6 @@ const PAGE_SIZE     = 15;
 let _ordersSortKey  = 'displayName';
 let _ordersSortAsc  = true;
 let _orderStatusChart = null;
-let _budgetChart      = null;
 let _expandedOrders = new Set();
 let _allExpanded    = false;
 
@@ -1225,13 +1215,11 @@ async function loadGAMAnalytics() {
   banner.style.display = 'flex';
 
   try {
-    // Parallel fetch: summary + orders + line items + ad units + reports
-    const [sumRes, ordRes, liRes, auRes, rpRes] = await Promise.all([
+    // Parallel fetch: summary + orders + line items
+    const [sumRes, ordRes, liRes] = await Promise.all([
       fetch('/api/gam/summary').then(r=>r.json()),
       fetch('/api/gam/orders?pageSize=100').then(r=>r.json()),
       fetch('/api/gam/lineitems?pageSize=100').then(r=>r.json()),
-      fetch('/api/gam/adunits').then(r=>r.json()),
-      fetch('/api/gam/reports').then(r=>r.json()),
     ]);
 
     if (!sumRes.ok) {
@@ -1240,7 +1228,7 @@ async function loadGAMAnalytics() {
       bannerText.textContent = 'GAM not connected: ' + (sumRes.error || 'Unknown error. Go to API Connections → Config to set up.');
       bannerText.style.color = '#f59e0b';
       // Clear loading spinners
-      ['ordersTbody','adUnitsList','reportsList','orderStatusBars','liStatusBars','networkInfoBody','revenueAnalysis'].forEach(id => {
+      ['ordersTbody','gamTopLI','orderStatusBars','liStatusBars','networkInfoBody'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.innerHTML = '<div class="text-muted fs12" style="padding:12px 0;text-align:center"><i class="fas fa-plug" style="color:#f59e0b"></i> GAM not configured</div>';
       });
@@ -1249,8 +1237,6 @@ async function loadGAMAnalytics() {
 
     _gamOrders    = ordRes.orders    || [];
     _gamLineItems = liRes.lineItems  || [];
-    _gamAdUnits   = auRes.adUnits    || [];
-    _gamReports   = rpRes.reports    || [];
     _gamNetwork   = sumRes;
 
     // Update banner to success
@@ -1263,10 +1249,8 @@ async function loadGAMAnalytics() {
     renderOrderStatusBars(sumRes.orders?.byStatus || {});
     renderLIStatusBars(sumRes.lineItems?.byStatus || {});
     renderNetworkInfo(sumRes);
+    renderTopLI();
     renderOrdersTable();
-    renderAdUnits();
-    renderRevenueAnalysis();
-    renderReports();
     renderCharts(sumRes);
 
   } catch(e) {
@@ -1318,8 +1302,10 @@ function renderOrderStatusBars(byStatus) {
 // ── Line Item Status Bars ───────────────────────────────────────────────────
 function renderLIStatusBars(byStatus) {
   const el = document.getElementById('liStatusBars');
-  const total = Object.values(byStatus).reduce((a,b)=>a+b,0) || 1;
-  const sorted = Object.entries(byStatus).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  // Exclude DRAFT from health display
+  const filtered = Object.entries(byStatus).filter(([st]) => st !== 'DRAFT');
+  const total = filtered.reduce((a,[,v])=>a+v,0) || 1;
+  const sorted = filtered.sort((a,b)=>b[1]-a[1]).slice(0,6);
   if (!sorted.length) { el.innerHTML = '<div class="text-muted fs12" style="text-align:center;padding:10px">No line item data</div>'; return; }
   el.innerHTML = sorted.map(([st, cnt]) => {
     const pct = Math.round(cnt/total*100);
@@ -1338,6 +1324,9 @@ function renderNetworkInfo(s) {
   const badge = document.getElementById('networkStatusBadge');
   badge.textContent = 'Live';
   badge.className = 'b b-green';
+  // Update data-source indicator
+  const dsNet = document.getElementById('gam-ds-network');
+  if (dsNet) dsNet.textContent = s.networkName || s.networkCode || '—';
   document.getElementById('networkInfoBody').innerHTML = [
     ['Network', s.networkName || s.networkCode],
     ['Network Code', s.networkCode || '—'],
@@ -1373,8 +1362,12 @@ function filterOrders(query) {
     let matchSt;
     if (sf === 'ACTIVE_DELIVERING') {
       matchSt = o.status === 'ACTIVE' || o.status === 'DELIVERING';
+    } else if (sf === 'ALL_INCL_DRAFT') {
+      matchSt = true; // include everything including DRAFT
+    } else if (sf === '') {
+      matchSt = o.status !== 'DRAFT'; // default: exclude DRAFT
     } else {
-      matchSt = !sf || o.status === sf;
+      matchSt = o.status === sf;
     }
     return matchQ && matchSt;
   });
@@ -1538,122 +1531,36 @@ function ordersPage(dir) {
   renderOrdersPage();
 }
 
-// ── Ad Units ─────────────────────────────────────────────────────────────────
-function renderAdUnits() {
-  const el = document.getElementById('adUnitsList');
-  const cnt = document.getElementById('adUnitCount');
-  cnt.textContent = _gamAdUnits.length + ' total';
-  if (!_gamAdUnits.length) {
-    el.innerHTML = '<div class="text-muted fs12" style="text-align:center;padding:12px">No ad units found</div>';
+
+// ── Top Delivering Line Items (replaces Ad Units / Revenue / Reports) ─────────
+function renderTopLI() {
+  const el = document.getElementById('gamTopLI');
+  if (!el) return;
+  const active = _gamLineItems
+    .filter(li => (li.status === 'ACTIVE' || li.status === 'DELIVERING') && parseInt(li.impressionsDelivered||'0') > 0)
+    .sort((a,b) => parseInt(b.impressionsDelivered||'0') - parseInt(a.impressionsDelivered||'0'))
+    .slice(0, 5);
+  if (!active.length) {
+    el.innerHTML = '<div class="text-muted fs12" style="text-align:center;padding:10px">No active deliveries</div>';
     return;
   }
-  el.innerHTML = _gamAdUnits.slice(0,20).map(au => {
-    const isActive = !au.status || au.status === 'ACTIVE';
-    return \`
-    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
-      <i class="fas fa-circle" style="font-size:6px;color:\${isActive?'#00d68f':'#48486a'};flex-shrink:0"></i>
-      <span class="fs12" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="\${au.displayName||''}">\${au.displayName||au.name||'—'}</span>
-      <span class="fs10 text-muted">\${au.adUnitCode||''}</span>
-      \${au.status ? \`<span class="b \${isActive?'b-green':'b-gray'}" style="font-size:9px">\${au.status}</span>\` : ''}
-    </div>\`;
-  }).join('') + (_gamAdUnits.length > 20 ? \`<div class="fs11 text-muted" style="text-align:center;padding:6px">+\${_gamAdUnits.length-20} more</div>\` : '');
-}
-
-// ── Revenue / Budget Analysis ────────────────────────────────────────────────
-function renderRevenueAnalysis() {
-  const el = document.getElementById('revenueAnalysis');
-  const ordersWithBudget = _gamOrders.filter(o => o.totalBudget?.units);
-  if (!ordersWithBudget.length) {
-    el.innerHTML = '<div class="text-muted fs12" style="text-align:center;padding:12px">No budget data available on orders</div>';
-    // clear chart
-    const ctx = document.getElementById('budgetChart');
-    if (ctx) { ctx.getContext('2d').clearRect(0,0,ctx.width,ctx.height); }
-    return;
-  }
-
-  // Group budget by status
-  const byStatus = {};
-  let grandTotal = 0;
-  for (const o of ordersWithBudget) {
-    const s = o.status || 'UNKNOWN';
-    const v = parseFloat(o.totalBudget.units || '0');
-    byStatus[s] = (byStatus[s] || 0) + v;
-    grandTotal += v;
-  }
-
-  const cur = ordersWithBudget[0]?.totalBudget?.currencyCode || '';
-  const fmtV = v => v >= 1_000_000 ? cur+' '+(v/1_000_000).toFixed(2)+'M' : v >= 1_000 ? cur+' '+(v/1_000).toFixed(1)+'K' : cur+' '+v.toFixed(0);
-
-  const sorted = Object.entries(byStatus).sort((a,b)=>b[1]-a[1]);
-  el.innerHTML = sorted.map(([st, val]) => {
-    const pct = Math.round(val/grandTotal*100);
-    const col = STATUS_COLOR[st] || '#48486a';
-    return \`
-    <div style="margin-bottom:10px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-        <span class="fs12">\${st}</span>
-        <span class="fs12 fw7" style="color:\${col}">\${fmtV(val)} <span class="text-muted">(\${pct}%)</span></span>
-      </div>
-      <div class="prog-wrap"><div class="prog-fill" style="width:\${pct}%;background:\${col};border-radius:4px;height:6px;transition:width 0.6s"></div></div>
-    </div>\`;
-  }).join('') + \`<div class="fs11 text-muted" style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">Grand Total: <strong style="color:var(--text-primary)">\${fmtV(grandTotal)}</strong> across \${ordersWithBudget.length} orders with budget data</div>\`;
-
-  renderBudgetChart(byStatus);
-}
-
-// ── Reports ───────────────────────────────────────────────────────────────────
-function renderReports() {
-  const el = document.getElementById('reportsList');
-  if (!_gamReports.length) {
-    el.innerHTML = '<div class="text-muted fs12" style="text-align:center;padding:20px"><i class="fas fa-file-slash"></i> No saved reports found in GAM. Create reports in GAM UI → Reports to see them here.</div>';
-    return;
-  }
-  el.innerHTML = _gamReports.map(r => {
-    const rid = r.name?.split('/').pop() || '';
-    return \`
-    <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg-secondary);border-radius:10px;border:1px solid var(--border)">
-      <i class="fas fa-file-chart-pie" style="color:#e2007a;font-size:14px;flex-shrink:0"></i>
-      <div style="flex:1;min-width:0">
-        <div class="fs13 fw6" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">\${r.displayName||r.name||'Unnamed Report'}</div>
-        <div class="fs11 text-muted">ID: \${rid}</div>
-      </div>
-      <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 12px;flex-shrink:0" onclick="runGAMReport('\${rid}',\${JSON.stringify(r.displayName||r.name||'Report').replace(/"/g,'&quot;')})">
-        <i class="fas fa-play" id="runIcon-\${rid}"></i>Run
-      </button>
-    </div>\`;
+  el.innerHTML = active.map((li, i) => {
+    const impr = parseInt(li.impressionsDelivered||'0');
+    const clk  = parseInt(li.clicksDelivered||'0');
+    const ctr  = impr > 0 ? (clk/impr*100).toFixed(2)+'%' : '—';
+    const name = li.displayName||li.name||'—';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">'+
+      '<span style="width:16px;height:16px;border-radius:50%;background:rgba(0,214,143,0.15);display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#00d68f;flex-shrink:0">'+(i+1)+'</span>'+
+      '<div style="flex:1;min-width:0">'+
+        '<div class="fs11 fw6" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+name+'">'+name+'</div>'+
+        '<div class="fs10 text-muted">'+fmtImpr(impr)+' impr · '+ctr+' CTR</div>'+
+      '</div>'+
+      '<span class="b b-green" style="font-size:9px">LIVE</span>'+
+    '</div>';
   }).join('');
 }
 
-async function runGAMReport(reportId, name) {
-  const icon = document.getElementById('runIcon-' + reportId);
-  if (icon) icon.className = 'fas fa-spinner fa-spin';
-  const panel = document.getElementById('reportResultPanel');
-  const title = document.getElementById('reportResultTitle');
-  const meta  = document.getElementById('reportResultMeta');
-  title.textContent = 'Running: ' + name + '…';
-  panel.style.display = 'block';
-  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  document.getElementById('reportResultTable').innerHTML = '<tr><td class="text-muted" style="text-align:center;padding:20px"><i class="fas fa-spinner fa-spin"></i> Fetching report from GAM…</td></tr>';
-  meta.textContent = '';
-  try {
-    const res = await fetch('/api/gam/reports/' + reportId + '/run');
-    const d = await res.json();
-    if (icon) icon.className = 'fas fa-play';
-    if (!d.ok) { document.getElementById('reportResultTable').innerHTML = '<tr><td class="text-muted" style="padding:16px">' + (d.error||'Error') + '</td></tr>'; return; }
-    title.textContent = name;
-    const cols = d.columnNames || [];
-    const rows = d.rows || [];
-    const tbl  = document.getElementById('reportResultTable');
-    tbl.innerHTML = '<thead><tr>' + cols.map(c=>\`<th>\${c}</th>\`).join('') + '</tr></thead><tbody>' +
-      rows.slice(0,50).map(r=>'<tr>'+cols.map(c=>\`<td>\${r[c]??'—'}</td>\`).join('')+'</tr>').join('') + '</tbody>';
-    meta.textContent = rows.length + ' rows returned' + (rows.length>50?' (showing first 50)':'');
-  } catch(e) {
-    if (icon) icon.className = 'fas fa-play';
-    document.getElementById('reportResultTable').innerHTML = '<tr><td class="text-muted" style="padding:16px">Error: ' + e.message + '</td></tr>';
-  }
-}
-
-// ── Charts ─────────────────────────────────────────────────────────────────
+// ── Charts ──────────────────────────────────────────────────────────────────
 function renderCharts(s) {
   renderOrderStatusChart(s.orders?.byStatus || {});
 }
@@ -1662,8 +1569,10 @@ function renderOrderStatusChart(byStatus) {
   const ctx = document.getElementById('orderStatusChart');
   if (!ctx) return;
   if (_orderStatusChart) { _orderStatusChart.destroy(); _orderStatusChart = null; }
-  const labels = Object.keys(byStatus);
-  const values = Object.values(byStatus);
+  // Exclude DRAFT from the chart
+  const entries = Object.entries(byStatus).filter(([st]) => st !== 'DRAFT');
+  const labels = entries.map(([l]) => l);
+  const values = entries.map(([,v]) => v);
   if (!labels.length) return;
   const colors = labels.map(l => STATUS_COLOR[l] || '#48486a');
   _orderStatusChart = new Chart(ctx, {
@@ -1674,28 +1583,6 @@ function renderOrderStatusChart(byStatus) {
       plugins: {
         legend: { position: 'right', labels: { color: '#8080a8', font: { size: 11 }, boxWidth: 10, padding: 10 } },
         tooltip: { callbacks: { label: ctx => ' ' + ctx.label + ': ' + ctx.parsed } }
-      }
-    }
-  });
-}
-
-function renderBudgetChart(byStatus) {
-  const ctx = document.getElementById('budgetChart');
-  if (!ctx) return;
-  if (_budgetChart) { _budgetChart.destroy(); _budgetChart = null; }
-  const labels = Object.keys(byStatus);
-  const values = Object.values(byStatus);
-  if (!labels.length) return;
-  const colors = labels.map(l => STATUS_COLOR[l] || '#48486a');
-  _budgetChart = new Chart(ctx, {
-    type: 'bar',
-    data: { labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 6, borderWidth: 0 }] },
-    options: {
-      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' ' + ctx.parsed.x.toLocaleString() } } },
-      scales: {
-        x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#48486a', font: { size: 10 } } },
-        y: { grid: { display: false }, ticks: { color: '#8080a8', font: { size: 10 } } },
       }
     }
   });
@@ -1720,10 +1607,6 @@ function exportOrdersCSV() {
   a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
   a.download = 'gam-orders.csv';
   a.click();
-}
-
-function loadGAMOrders() {
-  document.getElementById('ordersTableCard')?.scrollIntoView({ behavior: 'smooth' });
 }
 
 // ── Auto-load on page render ────────────────────────────────────────────────
