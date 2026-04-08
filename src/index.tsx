@@ -30,8 +30,12 @@ type Bindings = {
   ADMIN_EMAIL:          string
   ADMIN_PASSWORD_HASH:  string
   ADMIN_SALT:           string
+  // Google Sheets (optional - configured via wrangler secret)
   SHEET_ID?:            string
   SERVICE_ACCOUNT_JSON?: string
+  // Google Ad Manager (optional - configured via wrangler secret)
+  GAM_NETWORK_CODE?:    string
+  GAM_SERVICE_ACCOUNT_JSON?: string
 }
 
 const app = new Hono<{ Bindings: Bindings }>()
@@ -49,14 +53,35 @@ async function requireAuth(c: any, next: () => Promise<void>) {
   await next()
 }
 
-// ── KV config helpers ─────────────────────────────────────────────────────
-async function getConfig(kv: KVNamespace): Promise<{ sheetId: string; tabs: Record<string,string>; hasCreds: boolean }> {
-  const raw = await kv.get('config:platform')
-  const cfg = raw ? JSON.parse(raw) : {}
+// ── Config helpers ─────────────────────────────────────────────────────────
+// Google Sheets - read from KV storage (same pattern as GAM)
+async function getSheetsConfig(kv: KVNamespace): Promise<{ sheetId: string; saJson: string } | null> {
+  const raw = await kv.get('config:conn:sheets')
+  if (!raw) return null
+  const cfg = JSON.parse(raw)
+  if (!cfg.sheets_sa_json || !cfg.sheets_id) return null
+  return { sheetId: cfg.sheets_id, saJson: cfg.sheets_sa_json }
+}
+
+// Google Ad Manager - read from KV storage
+async function getGAMConfig(kv: KVNamespace): Promise<{ saJson: string; networkCode: string } | null> {
+  const raw = await kv.get('config:conn:gam')
+  if (!raw) return null
+  const cfg = JSON.parse(raw)
+  if (!cfg.gam_sa_json || !cfg.gam_network_code) return null
+  return { saJson: cfg.gam_sa_json, networkCode: cfg.gam_network_code }
+}
+
+// Tab names configuration (with defaults)
+function getTabNames(): Record<string, string> {
   return {
-    sheetId: cfg.sheetId || '',
-    tabs: cfg.tabs || { pipeline:'Pipeline', revenue:'Revenue', campaign:'Campaign', ads:'Ads', traffic:'Traffic', social:'Social', clients:'Clients' },
-    hasCreds: !!(await kv.get('secret:service_account')),
+    pipeline: 'Pipeline',
+    revenue: 'Revenue',
+    campaign: 'Campaign',
+    ads: 'Ads',
+    traffic: 'Traffic',
+    social: 'Social',
+    clients: 'Clients'
   }
 }
 
@@ -426,14 +451,6 @@ app.post('/api/conn/sync/:sourceId', requireAuth, async (c) => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 // Helper: get stored GAM config from KV
-async function getGAMConfig(kv: KVNamespace): Promise<{ saJson: string; networkCode: string } | null> {
-  const raw = await kv.get('config:conn:gam')
-  if (!raw) return null
-  const cfg = JSON.parse(raw)
-  if (!cfg.gam_sa_json || !cfg.gam_network_code) return null
-  return { saJson: cfg.gam_sa_json, networkCode: cfg.gam_network_code }
-}
-
 // Test GAM connection — get network info
 app.get('/api/gam/test', requireAuth, async (c) => {
   try {
@@ -441,6 +458,66 @@ app.get('/api/gam/test', requireAuth, async (c) => {
     if (!gam) return c.json({ ok: false, error: 'GAM not configured. Click Config on the Google Ad Manager card to set it up.' })
     const network = await getGAMNetwork(gam.saJson, gam.networkCode)
     return c.json({ ok: true, network })
+  } catch (e: any) {
+    return c.json({ ok: false, error: e.message })
+  }
+})
+
+// Configure GAM (save to KV)
+app.post('/api/gam/config', requireAuth, async (c) => {
+  try {
+    const { serviceAccountJson, networkCode } = await c.req.json()
+    if (!serviceAccountJson || !networkCode) {
+      return c.json({ ok: false, error: 'Missing serviceAccountJson or networkCode' })
+    }
+    // Validate JSON
+    try {
+      JSON.parse(serviceAccountJson)
+    } catch {
+      return c.json({ ok: false, error: 'Invalid service account JSON' })
+    }
+    // Save to KV
+    await c.env.SESSIONS.put('config:conn:gam', JSON.stringify({
+      gam_sa_json: serviceAccountJson,
+      gam_network_code: networkCode
+    }))
+    return c.json({ ok: true, message: 'GAM configuration saved' })
+  } catch (e: any) {
+    return c.json({ ok: false, error: e.message })
+  }
+})
+
+// Test Sheets connection
+app.get('/api/sheets/test', requireAuth, async (c) => {
+  try {
+    const sheets = await getSheetsConfig(c.env.SESSIONS)
+    if (!sheets) return c.json({ ok: false, error: 'Google Sheets not configured. Click Config on the Google Sheets card to set it up.' })
+    const tabs = await listSheetTabs(sheets.saJson, sheets.sheetId)
+    return c.json({ ok: true, sheetId: sheets.sheetId, tabs, count: tabs.length })
+  } catch (e: any) {
+    return c.json({ ok: false, error: e.message })
+  }
+})
+
+// Configure Sheets (save to KV)
+app.post('/api/sheets/config', requireAuth, async (c) => {
+  try {
+    const { serviceAccountJson, sheetId } = await c.req.json()
+    if (!serviceAccountJson || !sheetId) {
+      return c.json({ ok: false, error: 'Missing serviceAccountJson or sheetId' })
+    }
+    // Validate JSON
+    try {
+      JSON.parse(serviceAccountJson)
+    } catch {
+      return c.json({ ok: false, error: 'Invalid service account JSON' })
+    }
+    // Save to KV
+    await c.env.SESSIONS.put('config:conn:sheets', JSON.stringify({
+      sheets_sa_json: serviceAccountJson,
+      sheets_id: sheetId
+    }))
+    return c.json({ ok: true, message: 'Google Sheets configuration saved' })
   } catch (e: any) {
     return c.json({ ok: false, error: e.message })
   }
@@ -591,18 +668,17 @@ app.get('/api/gam/metrics', requireAuth, async (c) => {
 app.get('/api/data/:section', requireAuth, async (c) => {
   try {
     const section = c.req.param('section')
-    const sa  = await c.env.SESSIONS.get('secret:service_account')
-    const cfg = await getConfig(c.env.SESSIONS)
+    const sheets = await getSheetsConfig(c.env.SESSIONS)
 
-    if (!sa || !cfg.sheetId) {
-      return c.json({ ok: false, error: 'Not configured', demo: true })
+    if (!sheets) {
+      return c.json({ ok: false, error: 'Google Sheets not configured. Click Config on the Google Sheets card to set it up.' })
     }
 
-    const tabMap: Record<string, string> = cfg.tabs
+    const tabMap: Record<string, string> = getTabNames()
     const tabName = tabMap[section]
     if (!tabName) return c.json({ ok: false, error: 'Unknown section: ' + section })
 
-    const rows = await readSheet(sa, cfg.sheetId, `${tabName}!A:Z`)
+    const rows = await readSheet(sheets.saJson, sheets.sheetId, `${tabName}!A:Z`)
     return c.json({ ok: true, rows, count: rows.length, tab: tabName })
   } catch (e: any) {
     return c.json({ ok: false, error: e.message })
@@ -612,13 +688,13 @@ app.get('/api/data/:section', requireAuth, async (c) => {
 // KPI summary endpoint — aggregates key metrics from Sheets
 app.get('/api/kpis', requireAuth, async (c) => {
   try {
-    const sa  = await c.env.SESSIONS.get('secret:service_account')
-    const cfg = await getConfig(c.env.SESSIONS)
-    if (!sa || !cfg.sheetId) return c.json({ ok: false, demo: true, error: 'Not configured' })
+    const sheets = await getSheetsConfig(c.env.SESSIONS)
+    if (!sheets) return c.json({ ok: false, error: 'Google Sheets not configured' })
 
+    const tabs = getTabNames()
     const [pipelineRows, revenueRows] = await Promise.all([
-      readSheet(sa, cfg.sheetId, `${cfg.tabs.pipeline || 'Pipeline'}!A:Z`).catch(() => []),
-      readSheet(sa, cfg.sheetId, `${cfg.tabs.revenue  || 'Revenue'}!A:Z`).catch(() => []),
+      readSheet(sheets.saJson, sheets.sheetId, `${tabs.pipeline}!A:Z`).catch(() => []),
+      readSheet(sheets.saJson, sheets.sheetId, `${tabs.revenue}!A:Z`).catch(() => []),
     ])
 
     const pipelineTotal = sumCol(pipelineRows, 'deal_value')

@@ -356,8 +356,8 @@ export function apiConnScreen(): string {
   <!-- ── Connection Cards ───────────────────────────────────────────────── -->
   <div class="g3 mb20" id="connCards">
     ${[
-      { id:'sheets', icon:'fa-table',        col:'#0f9d58', name:'Google Sheets',       desc:'Central data warehouse',   st:'CONNECTED',  bc:'b-green',
-        fields:[['Sheet ID','Configure in Settings →'],['Status','Not yet configured'],['Access','Read / Write'],['Auth','Service Account']] },
+      { id:'sheets', icon:'fa-table',        col:'#0f9d58', name:'Google Sheets',       desc:'Central data warehouse',   st:'NOT SET UP',  bc:'b-gray',
+        fields:[['Sheet ID','—'],['Status','Not configured'],['Access','Read / Write'],['Auth','Service Account']] },
       { id:'ga4',    icon:'fa-chart-bar',    col:'#e34c26', name:'Google Analytics 4',  desc:'Web traffic & engagement', st:'NOT SET UP',  bc:'b-gray',
         fields:[['Property ID','—'],['Auth Method','Service Account'],['Data','Sessions, Users, Bounce Rate'],['Sync','Daily · 02:00']] },
       { id:'gam',    icon:'fa-rectangle-ad', col:'#4285f4', name:'Google Ads Manager',  desc:'Ads performance data',     st:'NOT SET UP',  bc:'b-gray',
@@ -436,26 +436,18 @@ export function apiConnScreen(): string {
     </table>
   </div>
 
-  <!-- ── Google Sheets Quick-Config Banner ──────────────────────────────── -->
-  <div class="card" id="sheetsQuickConfig">
+  <!-- ── Setup Guide Banner ──────────────────────────────────────────────── -->
+  <div class="card">
     <div class="card-hd">
-      <div class="card-title"><i class="fas fa-circle-info" style="color:var(--info);margin-right:7px"></i>Quick Setup — Google Sheets</div>
-      <button class="btn-primary" style="height:30px;font-size:11px;padding:0 14px" onclick="window.location.href='/settings'">
-        <i class="fas fa-gear"></i>Open Settings
+      <div class="card-title"><i class="fas fa-circle-info" style="color:var(--info);margin-right:7px"></i>Getting Started</div>
+      <button class="btn-primary" style="height:30px;font-size:11px;padding:0 14px" onclick="window.location.href='/setup'">
+        <i class="fas fa-book-open"></i>View Setup Guide
       </button>
     </div>
     <div class="fs12 text-muted" style="line-height:1.8">
-      Google Sheets is the primary data source for all dashboards.
-      To connect: go to <strong>Settings → Google Sheets</strong>, paste your Service Account JSON, enter the Spreadsheet ID, and click <strong>Test Connection</strong>.
-      Once connected the status above will update to <span class="b b-green">CONNECTED</span>.
-    </div>
-    <div style="display:flex;gap:8px;margin-top:12px">
-      <button class="btn-ghost" style="height:30px;font-size:11px;padding:0 12px" onclick="testConnection('sheets','Google Sheets')">
-        <i class="fas fa-rotate"></i>Test Sheets Now
-      </button>
-      <button class="btn-ghost" style="height:30px;font-size:11px;padding:0 12px" onclick="window.location.href='/setup'">
-        <i class="fas fa-book-open"></i>View Setup Guide
-      </button>
+      <strong>Google Sheets</strong> and <strong>Google Ad Manager</strong> are your primary data sources.
+      Click <strong>Config</strong> on each card above to enter your Service Account credentials.
+      Then click <strong>Test</strong> to verify the connection. Once connected, all dashboards will automatically load live data.
     </div>
   </div>
 
@@ -597,12 +589,13 @@ async function testConnection(id, name) {
   // For Google Sheets, test the real Sheets API
   if (id === 'sheets') {
     try {
-      const res = await fetch('/api/settings/test-connection');
+      const res = await fetch('/api/sheets/test');
       const d = await res.json();
       if (d.ok) {
         statusBadge.textContent = 'CONNECTED';
         statusBadge.className = 'b b-green';
-        document.getElementById('field-sheets-sheet-id').textContent = 'Connected · ' + (d.tabs ? d.tabs.length + ' tabs' : 'OK');
+        document.getElementById('field-sheets-sheet-id').textContent = d.sheetId.substring(0, 20) + '… · ' + (d.tabs ? d.tabs.length + ' tabs' : 'OK');
+        document.getElementById('field-sheets-status').textContent = 'Connected ✓';
         document.getElementById('rowStatus-sheets').textContent = 'Live';
         document.getElementById('rowStatus-sheets').className = 'b b-green';
         if (icon) icon.className = 'fas fa-circle-check';
@@ -611,7 +604,7 @@ async function testConnection(id, name) {
         statusBadge.textContent = 'NOT CONFIGURED';
         statusBadge.className = 'b b-amber';
         if (icon) icon.className = 'fas fa-rotate';
-        showToast('Sheets: ' + (d.error || 'Not configured — open Settings to connect'), 'error');
+        showToast('Sheets: ' + (d.error || 'Not configured — click Config to connect'), 'error');
       }
     } catch(e) {
       if (icon) icon.className = 'fas fa-rotate';
@@ -802,24 +795,40 @@ async function saveConfig() {
     if (el) data[f.id] = el.value.trim();
   }
   try {
-    // Google Sheets uses dedicated credentials + sheet-config endpoints
+    // Google Sheets uses new unified API endpoint
     if (id === 'sheets') {
       const saJson = data['sheets_sa_json'];
       const sheetId = data['sheets_spreadsheet_id'];
       if (!saJson || !sheetId) { showToast('Please fill in both the Spreadsheet ID and Service Account JSON.', 'error'); return; }
       try { JSON.parse(saJson); } catch(e) { showToast('Invalid Service Account JSON — please check the format.', 'error'); return; }
-      // Save credentials
-      const credRes = await fetch('/api/settings/credentials', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({serviceAccountJson:saJson}) });
-      const credD = await credRes.json();
-      if (!credD.ok) { showToast('Credentials save failed: '+(credD.error||'Unknown error'), 'error'); return; }
-      // Save sheet config with spreadsheet ID
-      const cfgRes = await fetch('/api/settings/sheet-config', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({spreadsheetId:sheetId}) });
+      // Save via new API endpoint
+      const res = await fetch('/api/sheets/config', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({serviceAccountJson:saJson, sheetId}) });
+      const d = await res.json();
+      if (!d.ok) { showToast('Save failed: '+(d.error||'Unknown error'), 'error'); return; }
       closeModal('configModal');
       document.getElementById('status-sheets').textContent = 'CONFIGURED';
       document.getElementById('status-sheets').className = 'b b-green';
       const fieldEl = document.getElementById('field-sheets-sheet-id');
       if (fieldEl) fieldEl.textContent = sheetId.slice(0,18)+'…';
       showToast('Google Sheets credentials saved! Click Test to verify the connection.', 'success');
+      return;
+    }
+    // Google Ad Manager uses new unified API endpoint
+    if (id === 'gam') {
+      const saJson = data['gam_sa_json'];
+      const networkCode = data['gam_network_code'];
+      if (!saJson || !networkCode) { showToast('Please fill in both the Network Code and Service Account JSON.', 'error'); return; }
+      try { JSON.parse(saJson); } catch(e) { showToast('Invalid Service Account JSON — please check the format.', 'error'); return; }
+      // Save via new API endpoint
+      const res = await fetch('/api/gam/config', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({serviceAccountJson:saJson, networkCode}) });
+      const d = await res.json();
+      if (!d.ok) { showToast('Save failed: '+(d.error||'Unknown error'), 'error'); return; }
+      closeModal('configModal');
+      document.getElementById('status-gam').textContent = 'CONFIGURED';
+      document.getElementById('status-gam').className = 'b b-green';
+      const fieldEl = document.getElementById('field-gam-network-code');
+      if (fieldEl) fieldEl.textContent = networkCode;
+      showToast('Google Ad Manager credentials saved! Click Test to verify the connection.', 'success');
       return;
     }
     const res = await fetch('/api/conn/config', {
