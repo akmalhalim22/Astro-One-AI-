@@ -755,223 +755,541 @@ export function gamAnalyticsScreen(): string {
   return `
 ${PS_CSS}
 <style>
-.gam-simple-card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px}
-.gam-stat{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)}
-.gam-stat:last-child{border-bottom:none}
-.gam-stat-label{font-size:12px;color:var(--text-muted)}
-.gam-stat-value{font-size:16px;font-weight:700;color:var(--text-primary)}
+.gam-li-indent{padding-left:44px!important}
 </style>
 <div class="content fade-in">
 
 <!-- ── Data source ─────────────────────────────────────────────────────── -->
 <div class="ps-src">
   <i class="fab fa-google" style="color:#4285f4"></i>
-  <strong>Google Ad Manager</strong> <span class="text-muted">·</span> Live API
-  <span class="ps-plat ps-plat-gam">Cached · 5min TTL</span>
-  <span style="margin-left:auto;font-size:10.5px;color:var(--text-muted)"><i class="fas fa-bolt" style="margin-right:4px"></i>Fast load with cache</span>
+  <strong>Google Ad Manager</strong> <span class="text-muted">·</span> Orders &amp; Line Items
+  <span class="ps-plat ps-plat-gam">GAM API · Live</span>
+  <span class="b b-gray fs10">Network: <span id="gam-ds-network" style="color:#60a5fa">—</span></span>
+  <span style="margin-left:auto;font-size:10.5px;color:var(--text-muted)"><i class="fas fa-satellite-dish" style="margin-right:4px"></i>Real-time · auto-loads on open</span>
 </div>
 
 <!-- ── Status Banner ───────────────────────────────────────────────────── -->
 <div id="gamBanner" class="ps-banner">
   <i class="fas fa-spinner fa-spin" id="gamBannerIcon" style="color:#4285f4;font-size:14px"></i>
-  <span id="gamBannerText" style="flex:1;color:#60a5fa;font-size:12px">Loading GAM data…</span>
-  <button class="btn-ghost" style="height:26px;font-size:11px;padding:0 10px" onclick="loadGAMSimple(true)">
+  <span id="gamBannerText" style="flex:1;color:#60a5fa;font-size:12px">Loading live data from Google Ad Manager…</span>
+  <span id="gamLastRefresh" style="font-size:10px;color:var(--text-muted)"></span>
+  <button class="btn-ghost" style="height:26px;font-size:11px;padding:0 10px" onclick="loadGAMAnalytics()">
     <i class="fas fa-rotate" id="gamRefreshIcon"></i>Refresh
   </button>
 </div>
 
-<!-- ── Summary Grid ─────────────────────────────────────────────────────── -->
-<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-bottom:14px">
-  <div class="gam-simple-card">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-      <div style="width:36px;height:36px;border-radius:10px;background:rgba(66,133,244,0.12);display:flex;align-items:center;justify-content:center">
-        <i class="fas fa-file-invoice" style="color:#4285f4;font-size:16px"></i>
-      </div>
-      <div>
-        <div style="font-size:24px;font-weight:800;color:#4285f4" id="totalOrders">—</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Total Orders</div>
-      </div>
+<!-- ── KPI Strip ───────────────────────────────────────────────────────── -->
+<div class="ps-kpi-row" id="gamKpiStrip">
+  ${_psKpi(true,  '#4285f4','file-invoice',  'Total Orders',        'kv-orders',  'kc-orders')}
+  ${_psKpi(false, '#00d68f','circle-play',   'Active / Delivering',  'kv-active',  'kc-active')}
+  ${_psKpi(false, '#f59e0b','eye',           'Impressions Delivered','kv-impr',    'kc-impr')}
+  ${_psKpi(false, '#a78bfa','layer-group',   'Total Line Items',     'kv-li',      'kc-li')}
+</div>
+
+<!-- ── Row 2: Status Overview + Delivery Health ────────────────────────── -->
+<div class="ps-g62">
+
+  <!-- Order Status Overview -->
+  <div class="card">
+    <div class="card-hd">
+      <div class="card-title"><i class="fas fa-circle-dot" style="color:#4285f4;margin-right:7px"></i>Order Status Overview</div>
+      <span class="b b-gray fs10" id="networkStatusBadge">—</span>
     </div>
-    <div id="ordersByStatus"></div>
+    <div id="orderStatusBars" style="display:flex;flex-direction:column;gap:10px;min-height:100px">
+      <div class="text-muted fs12" style="padding:20px 0;text-align:center"><i class="fas fa-spinner fa-spin"></i> Loading…</div>
+    </div>
+    <div style="height:150px;margin-top:14px"><canvas id="orderStatusChart"></canvas></div>
   </div>
 
-  <div class="gam-simple-card">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-      <div style="width:36px;height:36px;border-radius:10px;background:rgba(0,214,143,0.12);display:flex;align-items:center;justify-content:center">
-        <i class="fas fa-layer-group" style="color:#00d68f;font-size:16px"></i>
+  <!-- Right column: LI Health + Top LIs -->
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-title"><i class="fas fa-signal" style="color:#00d68f;margin-right:7px"></i>Line Item Status</div>
       </div>
-      <div>
-        <div style="font-size:24px;font-weight:800;color:#00d68f" id="totalLineItems">—</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Total Line Items</div>
-      </div>
-    </div>
-    <div id="lineItemsByStatus"></div>
-  </div>
-
-  <div class="gam-simple-card">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-      <div style="width:36px;height:36px;border-radius:10px;background:rgba(245,158,11,0.12);display:flex;align-items:center;justify-content:center">
-        <i class="fas fa-eye" style="color:#f59e0b;font-size:16px"></i>
-      </div>
-      <div>
-        <div style="font-size:24px;font-weight:800;color:#f59e0b" id="totalImpressions">—</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Impressions</div>
+      <div id="liStatusBars" style="display:flex;flex-direction:column;gap:7px;min-height:60px">
+        <div class="text-muted fs12" style="text-align:center;padding:10px"><i class="fas fa-spinner fa-spin"></i></div>
       </div>
     </div>
-    <div class="gam-stat">
-      <span class="gam-stat-label">Clicks</span>
-      <span class="gam-stat-value" id="totalClicks">—</span>
-    </div>
-    <div class="gam-stat">
-      <span class="gam-stat-label">CTR</span>
-      <span class="gam-stat-value" id="totalCTR">—</span>
+    <div class="card card-sm">
+      <div class="card-hd">
+        <div class="card-title"><i class="fas fa-trophy" style="color:#f59e0b;margin-right:7px"></i>Top Delivering Line Items</div>
+        <span class="b b-gray fs10">by impressions</span>
+      </div>
+      <div id="gamTopLI" style="display:flex;flex-direction:column;gap:4px;min-height:60px">
+        <div class="text-muted fs12" style="text-align:center;padding:10px"><i class="fas fa-spinner fa-spin"></i></div>
+      </div>
     </div>
   </div>
 
-  <div class="gam-simple-card">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-      <div style="width:36px;height:36px;border-radius:10px;background:rgba(96,165,250,0.12);display:flex;align-items:center;justify-content:center">
-        <i class="fas fa-network-wired" style="color:#60a5fa;font-size:16px"></i>
-      </div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:14px;font-weight:700;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="networkName">—</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Network</div>
-      </div>
+</div>
+
+<!-- ── Row 3: Top Orders Bar Chart ─────────────────────────────────────── -->
+<div class="card" style="margin-bottom:14px">
+  <div class="card-hd">
+    <div class="card-title"><i class="fas fa-chart-bar" style="color:#4285f4;margin-right:7px"></i>Top Orders by Impressions</div>
+    <span class="fs11 text-muted" id="gamTopOrdersLbl"></span>
+  </div>
+  <div id="gamTopOrdersBars" style="display:flex;flex-direction:column;gap:6px;min-height:80px">
+    <div class="text-muted fs12" style="text-align:center;padding:20px"><i class="fas fa-spinner fa-spin"></i></div>
+  </div>
+</div>
+
+<!-- ── Row 4: Orders + Line Items Table ────────────────────────────────── -->
+<div class="card">
+  <div class="card-hd">
+    <div class="card-title"><i class="fas fa-sitemap" style="color:#4285f4;margin-right:7px"></i>Orders &amp; Line Items</div>
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+      <span id="ordersCountBadge" class="b b-gray fs10">—</span>
+      <input id="orderSearch" type="text" placeholder="Search orders…"
+        style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:4px 10px;color:var(--text-primary);font-size:11px;width:160px;outline:none;height:28px"
+        oninput="filterOrders(this.value)">
+      <select id="orderStatusFilter"
+        style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:4px 8px;color:var(--text-primary);font-size:11px;outline:none;height:28px"
+        onchange="filterOrders(document.getElementById('orderSearch').value)">
+        <option value="ACTIVE_DELIVERING">Active &amp; Delivering</option>
+        <option value="PAUSED">Paused</option>
+        <option value="COMPLETED">Completed</option>
+        <option value="CANCELED">Canceled</option>
+        <option value="">All (excl. Draft)</option>
+      </select>
+      <select id="orderPageSize"
+        style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:4px 8px;color:var(--text-primary);font-size:11px;outline:none;height:28px"
+        onchange="_ordersPageSize=parseInt(this.value);filterOrders(document.getElementById('orderSearch').value)">
+        <option value="15">15/page</option>
+        <option value="25" selected>25/page</option>
+        <option value="50">50/page</option>
+        <option value="100">100/page</option>
+      </select>
+      <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 10px" id="expandAllBtn" onclick="toggleExpandAll()"><i class="fas fa-expand-alt"></i>Expand All</button>
+      <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 10px" onclick="exportOrdersCSV()"><i class="fas fa-download"></i>CSV</button>
     </div>
-    <div class="gam-stat">
-      <span class="gam-stat-label">Network Code</span>
-      <span class="gam-stat-value" id="networkCode" style="font-size:13px">—</span>
-    </div>
-    <div class="gam-stat">
-      <span class="gam-stat-label">Currency</span>
-      <span class="gam-stat-value" id="networkCurrency" style="font-size:13px">—</span>
+  </div>
+
+  <div class="ps-tbl-wrap">
+    <table class="ps-tbl" style="min-width:900px">
+      <thead>
+        <tr>
+          <th style="width:30px"></th>
+          <th id="th-displayName" onclick="sortOrdersBy('displayName')" style="min-width:180px">Order Name <i class="fas fa-sort" id="si-displayName" style="opacity:0.3;font-size:9px"></i></th>
+          <th id="th-advertiserId" onclick="sortOrdersBy('advertiserId')">Advertiser <i class="fas fa-sort" id="si-advertiserId" style="opacity:0.3;font-size:9px"></i></th>
+          <th id="th-status" onclick="sortOrdersBy('status')">Status <i class="fas fa-sort" id="si-status" style="opacity:0.3;font-size:9px"></i></th>
+          <th id="th-startTime" onclick="sortOrdersBy('startTime')">Start <i class="fas fa-sort" id="si-startTime" style="opacity:0.3;font-size:9px"></i></th>
+          <th id="th-endTime" onclick="sortOrdersBy('endTime')">End <i class="fas fa-sort" id="si-endTime" style="opacity:0.3;font-size:9px"></i></th>
+          <th id="th-totalBudget" onclick="sortOrdersBy('totalBudget')">Budget <i class="fas fa-sort" id="si-totalBudget" style="opacity:0.3;font-size:9px"></i></th>
+          <th>Line Items</th>
+          <th id="th-impressions" onclick="sortOrdersBy('impressions')" class="num">Impressions <i class="fas fa-sort" id="si-impressions" style="opacity:0.3;font-size:9px"></i></th>
+          <th class="num">Clicks / CTR</th>
+        </tr>
+      </thead>
+      <tbody id="ordersTbody">
+        <tr><td colspan="10" class="text-muted" style="text-align:center;padding:32px"><i class="fas fa-spinner fa-spin" style="font-size:18px"></i><br><span style="font-size:11px;display:block;margin-top:8px">Fetching orders…</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="ps-pag">
+    <span id="ordersCount" class="fs11 text-muted">—</span>
+    <div style="display:flex;gap:6px;align-items:center">
+      <button class="btn-ghost" style="height:26px;font-size:11px;padding:0 10px" id="ordersPrevBtn" onclick="ordersPage(-1)" disabled>← Prev</button>
+      <span id="ordersPageLabel" class="fs11 text-muted" style="padding:0 6px;line-height:26px">Page 1</span>
+      <button class="btn-ghost" style="height:26px;font-size:11px;padding:0 10px" id="ordersNextBtn" onclick="ordersPage(1)">Next →</button>
     </div>
   </div>
 </div>
 
-<!-- ── Quick Links ─────────────────────────────────────────────────────── -->
-<div class="card">
+<!-- ── Row 5: Network Info ──────────────────────────────────────────────── -->
+<div class="card card-sm" style="margin-top:14px">
   <div class="card-hd">
-    <div class="card-title"><i class="fas fa-link" style="color:#a78bfa;margin-right:7px"></i>Quick Actions</div>
+    <div class="card-title"><i class="fas fa-network-wired" style="color:#4285f4;margin-right:7px"></i>Network Information</div>
+    <span class="b b-gray fs10" id="networkStatusBadge2">—</span>
   </div>
-  <div style="display:flex;gap:8px;flex-wrap:wrap">
-    <button class="btn-ghost" onclick="window.open('https://admanager.google.com','_blank')" style="height:32px;font-size:11px">
-      <i class="fab fa-google"></i>Open GAM Console
-    </button>
-    <button class="btn-ghost" onclick="exportGAMSummary()" style="height:32px;font-size:11px">
-      <i class="fas fa-download"></i>Export Summary CSV
-    </button>
-    <button class="btn-ghost" onclick="navigate('api')" style="height:32px;font-size:11px">
-      <i class="fas fa-gear"></i>Configure GAM Connection
-    </button>
-  </div>
+  <table class="ps-tbl">
+    <tbody id="networkInfoBody">
+      <tr><td colspan="2" class="text-muted fs12" style="text-align:center;padding:12px"><i class="fas fa-spinner fa-spin"></i></td></tr>
+    </tbody>
+  </table>
 </div>
 
 </div><!-- /content -->
 
 <script>
-let _gamData = null;
+// ── GAM Analytics state ────────────────────────────────────────────────────
+let _gamOrders=[], _gamLineItems=[], _gamNetwork=null;
+let _ordersFiltered=[], _ordersPageNum=1, _ordersPageSize=25;
+let _ordersSortKey='impressions', _ordersSortAsc=false;
+let _expandedOrders=new Set(), _allExpanded=false;
+let _orderMetaCache={};
+let _orderStatusChart=null;
 
-function fmtNum(n){n=parseInt(n)||0;if(n>=1e9)return(n/1e9).toFixed(1)+'B';if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return n.toLocaleString();}
+// ── Utilities ─────────────────────────────────────────────────────────────
+function fmtImpr(n){n=parseInt(n)||0;if(n>=1e9)return(n/1e9).toFixed(1)+'B';if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return n===0?'—':n.toLocaleString();}
+function fmtDateShort(s){if(!s)return'—';try{const d=new Date(s);return d.toLocaleDateString('en-MY',{day:'2-digit',month:'short',year:'2-digit'});}catch{return s.slice(0,10);}}
+function fmtBudget(b){if(!b)return'—';const u=parseFloat(b.units||'0');if(u===0)return'—';const c=b.currencyCode||'';if(u>=1e6)return c+'\u00a0'+(u/1e6).toFixed(2)+'M';if(u>=1e3)return c+'\u00a0'+(u/1e3).toFixed(1)+'K';return c+'\u00a0'+u.toFixed(0);}
+function advShort(id){if(!id)return'—';const n=id.split('/').pop();return n?'#'+n:id;}
+const STATUS_COLOR={ACTIVE:'#00d68f',DELIVERING:'#00c07f',COMPLETED:'#60a5fa',PAUSED:'#f59e0b',CANCELED:'#f43f5e',DRAFT:'#8080a8',PENDING_APPROVAL:'#a78bfa',UNKNOWN:'#48486a'};
+const STATUS_BADGE={ACTIVE:'b-green',DELIVERING:'b-green',COMPLETED:'b-blue',PAUSED:'b-amber',CANCELED:'b-red',DRAFT:'b-gray',PENDING_APPROVAL:'b-purple',UNKNOWN:'b-gray'};
+function statusBadge(s){const cls=STATUS_BADGE[s]||'b-gray';const lbl=(s||'UNKNOWN').replace(/_/g,'\u00a0');return \`<span class="b \${cls}" style="font-size:9px;white-space:nowrap">\${lbl}</span>\`;}
 
-async function loadGAMSimple(force=false){
+// ── Main Loader (Progressive: cached first, then fresh) ──────────────────────
+async function loadGAMAnalytics(force=false){
   const icon=document.getElementById('gamBannerIcon');
   const txt=document.getElementById('gamBannerText');
+  const ri=document.getElementById('gamRefreshIcon');
   const banner=document.getElementById('gamBanner');
-  
   icon.className='fas fa-spinner fa-spin';icon.style.color='#4285f4';
-  txt.textContent='Loading GAM data…';txt.style.color='#60a5fa';
+  txt.textContent='Loading data…';txt.style.color='#60a5fa';
   banner.style.background='rgba(66,133,244,0.08)';banner.style.borderColor='rgba(66,133,244,0.2)';
-  
+  if(ri) ri.className='fas fa-spinner fa-spin';
+  const tb=document.getElementById('ordersTbody');
+  if(tb) tb.innerHTML='<tr><td colspan="10" class="text-muted" style="text-align:center;padding:32px"><i class="fas fa-spinner fa-spin" style="font-size:18px"></i><br><span style="font-size:11px;display:block;margin-top:8px">Fetching orders…</span></td></tr>';
+
   try{
-    // Try cached first for instant display
-    if(!force && !window._gamLoaded){
-      const cacheRes = await fetch('/api/gam/summary?cached=true').then(r=>r.json()).catch(()=>({ok:false}));
-      if(cacheRes.ok && cacheRes.cached){
-        _gamData = cacheRes;
-        renderGAMSimple();
+    // Step 1: Try to load cached data for instant display (unless forced refresh)
+    if(!force && !window._gamDataLoaded){
+      const[cSumRes,cOrdRes,cLiRes]=await Promise.all([
+        fetch('/api/gam/summary?cached=true').then(r=>r.json()).catch(()=>({ok:false})),
+        fetch('/api/gam/orders?pageSize=500&cached=true').then(r=>r.json()).catch(()=>({ok:false})),
+        fetch('/api/gam/lineitems?pageSize=500&cached=true').then(r=>r.json()).catch(()=>({ok:false})),
+      ]);
+      
+      if(cSumRes.ok && cSumRes.cached){
+        // Render cached data immediately
+        _gamOrders=(cOrdRes.ok?cOrdRes.orders:[])||[];
+        _gamLineItems=(cLiRes.ok?cLiRes.lineItems:[])||[];
+        _gamOrders=_gamOrders.filter(o=>o.status!=='UNKNOWN'&&o.status!=='DRAFT');
+        _gamLineItems=_gamLineItems.filter(li=>li.status!=='UNKNOWN'&&li.status!=='DRAFT');
+        _gamNetwork=cSumRes;
+        _orderMetaCache={};_buildOrderMetaCache();
+        
         icon.className='fas fa-database';icon.style.color='#a78bfa';
-        const age=Math.round((cacheRes.cacheAge||0)/1000);
-        txt.textContent='Cached data ('+age+'s old) · Refreshing…';txt.style.color='#a78bfa';
+        const age=Math.round((cSumRes.cacheAge||0)/1000);
+        txt.textContent='Cached data ('+age+'s old) · Refreshing live data…';txt.style.color='#a78bfa';
+        
+        renderGAMKPIs();renderGAMCharts();applyOrderFilters();renderNetworkInfo();
+        if(ri)ri.className='fas fa-spinner fa-spin';
       }
     }
     
-    // Fetch fresh data
-    const res = await fetch('/api/gam/summary').then(r=>r.json());
-    if(!res.ok){
+    // Step 2: Fetch fresh data from GAM API
+    const[sumRes,ordRes,liRes]=await Promise.all([
+      fetch('/api/gam/summary').then(r=>r.json()),
+      fetch('/api/gam/orders?pageSize=500').then(r=>r.json()),
+      fetch('/api/gam/lineitems?pageSize=500').then(r=>r.json()),
+    ]);
+    
+    if(!sumRes.ok){
+      const em=sumRes.error||'Unknown error. Set up GAM in API Connections.';
       icon.className='fas fa-triangle-exclamation';icon.style.color='#f59e0b';
-      txt.textContent='GAM not connected — '+res.error;txt.style.color='#f59e0b';
+      txt.textContent='GAM not connected — '+em;txt.style.color='#f59e0b';
       banner.style.background='rgba(245,158,11,0.07)';banner.style.borderColor='rgba(245,158,11,0.2)';
-      return;
+      const noConf='<div class="text-muted fs12" style="padding:14px 0;text-align:center"><i class="fas fa-plug" style="color:#f59e0b;margin-right:6px"></i>GAM not configured — <a href="#" onclick="navigate(\'api\')" style="color:#60a5fa">Set up in API Connections</a></div>';
+      ['ordersTbody','gamTopLI','orderStatusBars','liStatusBars','networkInfoBody','gamTopOrdersBars'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=noConf;});
+      if(ri)ri.className='fas fa-rotate';return;
     }
     
-    _gamData = res;
-    window._gamLoaded = true;
-    renderGAMSimple();
+    // Update with fresh data
+    _gamOrders=(ordRes.ok?ordRes.orders:[])||[];
+    _gamLineItems=(liRes.ok?liRes.lineItems:[])||[];
+    _gamOrders=_gamOrders.filter(o=>o.status!=='UNKNOWN'&&o.status!=='DRAFT');
+    _gamLineItems=_gamLineItems.filter(li=>li.status!=='UNKNOWN'&&li.status!=='DRAFT');
+    _gamNetwork=sumRes;
+    _orderMetaCache={};_buildOrderMetaCache();
     
+    const now=new Date().toLocaleTimeString('en-MY',{hour:'2-digit',minute:'2-digit'});
     icon.className='fas fa-circle-check';icon.style.color='#00d68f';
-    txt.textContent='Connected to '+(res.networkName||res.networkCode)+' · Last updated: '+new Date().toLocaleTimeString('en-MY',{hour:'2-digit',minute:'2-digit'});
-    txt.style.color='#00d68f';
-    banner.style.background='rgba(0,214,143,0.06)';banner.style.borderColor='rgba(0,214,143,0.2)';
+    txt.textContent='Connected to '+(sumRes.networkName||sumRes.networkCode)+' · '+_gamOrders.length+' orders · '+_gamLineItems.length+' line items · Fetching delivery metrics…';
+    txt.style.color='#00d68f';banner.style.background='rgba(0,214,143,0.06)';banner.style.borderColor='rgba(0,214,143,0.18)';
+    const lr=document.getElementById('gamLastRefresh');if(lr)lr.textContent='Last refresh: '+now;
+    if(ri)ri.className='fas fa-rotate';
+    renderKPIs(sumRes);renderOrderStatusBars(sumRes.orders?.byStatus||{});renderLIStatusBars(sumRes.lineItems?.byStatus||{});renderNetworkInfo(sumRes);renderTopLI();renderOrdersTable();renderCharts(sumRes);renderTopOrdersBars();
+
+    // Async metrics fetch
+    txt.textContent='Connected to '+(sumRes.networkName||sumRes.networkCode)+' · Fetching delivery metrics (15-30s)…';
+    try{
+      const metricsRes=await fetch('/api/gam/metrics').then(r=>r.json());
+      if(metricsRes.ok&&metricsRes.lineItemMetrics){
+        for(const li of _gamLineItems){const liNum=li.name?li.name.split('/').pop():'';const m=metricsRes.lineItemMetrics[liNum]||metricsRes.lineItemMetrics[li.name]||null;if(m){li.impressionsDelivered=String(m.impressions||0);li.clicksDelivered=String(m.clicks||0);}}
+        _orderMetaCache={};_buildOrderMetaCache();
+        let totalImpr=0,totalClk=0;
+        for(const li of _gamLineItems){totalImpr+=parseInt(li.impressionsDelivered||'0');totalClk+=parseInt(li.clicksDelivered||'0');}
+        const enriched={...sumRes,lineItems:{...sumRes.lineItems,totalImpressions:totalImpr,totalClicks:totalClk}};
+        renderKPIs(enriched);renderTopLI();renderTopOrdersBars();renderOrdersPage();
+        txt.textContent='Connected to '+(sumRes.networkName||sumRes.networkCode)+' · '+_gamOrders.length+' orders · '+_gamLineItems.length+' line items · Metrics updated';
+      }else{
+        txt.textContent='Connected · '+_gamOrders.length+' orders (metrics unavailable: '+(metricsRes.error||'unknown')+')';
+        icon.className='fas fa-circle-exclamation';icon.style.color='#f59e0b';
+      }
+    }catch(me){
+      txt.textContent='Connected · '+_gamOrders.length+' orders (delivery metrics failed: '+me.message+')';
+      icon.className='fas fa-circle-exclamation';icon.style.color='#f59e0b';
+    }
   }catch(e){
-    icon.className='fas fa-xmark';icon.style.color='#f43f5e';
-    txt.textContent='Error loading data: '+e.message;txt.style.color='#f43f5e';
+    icon.className='fas fa-circle-xmark';icon.style.color='#f43f5e';
+    txt.textContent='Failed to load GAM data: '+e.message;txt.style.color='#f43f5e';
+    banner.style.background='rgba(244,63,94,0.07)';banner.style.borderColor='rgba(244,63,94,0.2)';
+    if(ri)ri.className='fas fa-rotate';
   }
 }
 
-function renderGAMSimple(){
-  if(!_gamData) return;
-  
-  // Orders
-  document.getElementById('totalOrders').textContent = _gamData.orders.total.toLocaleString();
-  const orderStats = Object.entries(_gamData.orders.byStatus).sort((a,b)=>b[1]-a[1]).slice(0,4);
-  document.getElementById('ordersByStatus').innerHTML = orderStats.map(([status,count])=>
-    '<div class="gam-stat"><span class="gam-stat-label">'+status.replace(/_/g,' ')+'</span><span class="gam-stat-value">'+count+'</span></div>'
-  ).join('');
-  
-  // Line Items
-  document.getElementById('totalLineItems').textContent = _gamData.lineItems.total.toLocaleString();
-  const liStats = Object.entries(_gamData.lineItems.byStatus).sort((a,b)=>b[1]-a[1]).slice(0,4);
-  document.getElementById('lineItemsByStatus').innerHTML = liStats.map(([status,count])=>
-    '<div class="gam-stat"><span class="gam-stat-label">'+status.replace(/_/g,' ')+'</span><span class="gam-stat-value">'+count+'</span></div>'
-  ).join('');
-  
-  // Metrics
-  const impr = _gamData.lineItems.totalImpressions || 0;
-  const clicks = _gamData.lineItems.totalClicks || 0;
-  const ctr = impr > 0 ? ((clicks / impr) * 100).toFixed(2) + '%' : '—';
-  document.getElementById('totalImpressions').textContent = fmtNum(impr);
-  document.getElementById('totalClicks').textContent = fmtNum(clicks);
-  document.getElementById('totalCTR').textContent = ctr;
-  
-  // Network
-  document.getElementById('networkName').textContent = _gamData.networkName || _gamData.networkCode || '—';
-  document.getElementById('networkCode').textContent = _gamData.networkCode || '—';
-  document.getElementById('networkCurrency').textContent = _gamData.currency || '—';
-  document.getElementById('gam-ds-network').textContent = _gamData.networkCode || '—';
+// ── Per-order metrics cache ────────────────────────────────────────────────
+function _buildOrderMetaCache(){
+  const map={};
+  for(const li of _gamLineItems){
+    if(li.status==='UNKNOWN'||li.status==='DRAFT') continue;
+    const oid=li.orderId||(li.name?li.name.split('/lineItems/')[0]:'');
+    if(!oid) continue;
+    if(!map[oid]) map[oid]={impr:0,clicks:0,lis:[],activeCount:0};
+    const im=parseInt(li.impressionsDelivered||'0');
+    const cl=parseInt(li.clicksDelivered||'0');
+    map[oid].impr+=im;map[oid].clicks+=cl;map[oid].lis.push(li);
+    if(li.status==='ACTIVE'||li.status==='DELIVERING') map[oid].activeCount++;
+  }
+  for(const key of Object.keys(map)){const num=key.split('/').pop();if(num&&num!==key) map[num]=map[key];}
+  _orderMetaCache=map;
+}
+function _getOrderMeta(o){const oid=o.name||o.id||'';const num=oid.split('/').pop();return _orderMetaCache[oid]||_orderMetaCache[num]||{impr:0,clicks:0,lis:[],activeCount:0};}
+
+// ── KPIs ───────────────────────────────────────────────────────────────────
+function renderKPIs(s){
+  const tot=s.orders?.total||_gamOrders.length;
+  const act=(s.orders?.byStatus?.ACTIVE||0)+(s.orders?.byStatus?.DELIVERING||0);
+  const impr=s.lineItems?.totalImpressions||0;
+  const li=s.lineItems?.total||_gamLineItems.length;
+  const ali=(s.lineItems?.byStatus?.ACTIVE||0)+(s.lineItems?.byStatus?.DELIVERING||0);
+  const clk=s.lineItems?.totalClicks||0;
+  const ctr=impr>0?(clk/impr*100).toFixed(2)+'%':'—';
+  document.getElementById('kv-orders').textContent=tot.toLocaleString();
+  document.getElementById('kc-orders').innerHTML='<span class="text-muted">'+li+' line items</span>';
+  document.getElementById('kv-active').textContent=act.toLocaleString();
+  document.getElementById('kc-active').innerHTML='<span class="up"><i class="fas fa-circle" style="font-size:7px;margin-right:4px;color:#00d68f"></i>'+ali+' active LIs</span>';
+  document.getElementById('kv-impr').innerHTML=fmtImpr(impr);
+  document.getElementById('kc-impr').innerHTML='<span class="text-muted">'+fmtImpr(clk)+' clicks · '+ctr+'</span>';
+  document.getElementById('kv-li').textContent=li.toLocaleString();
+  document.getElementById('kc-li').innerHTML='<span class="up">'+ali+' active</span>';
 }
 
-function exportGAMSummary(){
-  if(!_gamData) return;
-  const rows = [
-    ['Metric','Value'],
-    ['Total Orders',_gamData.orders.total],
-    ['Total Line Items',_gamData.lineItems.total],
-    ['Impressions',_gamData.lineItems.totalImpressions],
-    ['Clicks',_gamData.lineItems.totalClicks],
-    ['Network',_gamData.networkName],
-    ['Network Code',_gamData.networkCode],
-    ['Currency',_gamData.currency],
-  ];
-  const csv = rows.map(r=>r.join(',')).join('\\n');
-  const a=document.createElement('a');
-  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
-  a.download='gam-summary.csv';
-  a.click();
+// ── Status bars ────────────────────────────────────────────────────────────
+function renderOrderStatusBars(by){
+  const el=document.getElementById('orderStatusBars');
+  const order=['ACTIVE','DELIVERING','PAUSED','COMPLETED','CANCELED','PENDING_APPROVAL'];
+  const all=Object.entries(by).filter(([s])=>s!=='DRAFT'&&s!=='UNKNOWN');
+  const tot=all.reduce((a,[,v])=>a+v,0)||1;
+  all.sort((a,b)=>{const ia=order.indexOf(a[0]),ib=order.indexOf(b[0]);if(ia!==-1&&ib!==-1)return ia-ib;if(ia!==-1)return -1;if(ib!==-1)return 1;return b[1]-a[1];});
+  if(!all.length){el.innerHTML='<div class="text-muted fs12" style="text-align:center;padding:16px">No order data</div>';return;}
+  el.innerHTML=all.map(([st,cnt])=>{
+    const pct=Math.round(cnt/tot*100);const col=STATUS_COLOR[st]||'#48486a';
+    return \`<div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span class="fs12" style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:\${col};display:inline-block"></span>\${st.replace(/_/g,' ')}</span><span class="fs12 fw7">\${cnt} <span class="text-muted">(\${pct}%)</span></span></div><div class="ps-prog-wrap"><div class="ps-prog-fill" style="width:\${pct}%;background:\${col}"></div></div></div>\`;
+  }).join('');
 }
 
-if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>loadGAMSimple());
-else setTimeout(()=>loadGAMSimple(),80);
+function renderLIStatusBars(by){
+  const el=document.getElementById('liStatusBars');
+  const filt=Object.entries(by).filter(([s])=>s!=='DRAFT'&&s!=='UNKNOWN');
+  const tot=filt.reduce((a,[,v])=>a+v,0)||1;
+  const srt=[...filt].sort((a,b)=>b[1]-a[1]).slice(0,7);
+  if(!srt.length){el.innerHTML='<div class="text-muted fs12" style="text-align:center;padding:10px">No line item data</div>';return;}
+  el.innerHTML=srt.map(([st,cnt])=>{
+    const pct=Math.round(cnt/tot*100);const col=STATUS_COLOR[st]||'#48486a';
+    return \`<div style="display:flex;align-items:center;gap:8px"><span class="fs11 text-muted" style="width:90px;flex-shrink:0">\${st.replace(/_/g,' ')}</span><div class="ps-prog-wrap" style="flex:1"><div class="ps-prog-fill" style="width:\${pct}%;background:\${col}"></div></div><span class="fs11 fw7" style="width:32px;text-align:right">\${cnt}</span></div>\`;
+  }).join('');
+}
+
+// ── Network Info ───────────────────────────────────────────────────────────
+function renderNetworkInfo(s){
+  ['networkStatusBadge','networkStatusBadge2'].forEach(id=>{const b=document.getElementById(id);if(b){b.textContent='Live';b.className='b b-green';}});
+  const dn=document.getElementById('gam-ds-network');if(dn) dn.textContent=s.networkName||s.networkCode||'—';
+  const body=document.getElementById('networkInfoBody');if(!body) return;
+  body.innerHTML=[['Network',s.networkName||s.networkCode||'—'],['Code',s.networkCode||'—'],['Currency',s.currency||'—'],['Time Zone',s.timeZone||'—'],['Orders',(s.orders?.total||0)+' total'],['Line Items',(s.lineItems?.total||0)+' total']].map(([k,v])=>'<tr><td class="muted fs12">'+k+'</td><td class="fs12 fw6">'+v+'</td></tr>').join('');
+}
+
+// ── Top Delivering LIs ─────────────────────────────────────────────────────
+function renderTopLI(){
+  const el=document.getElementById('gamTopLI');if(!el) return;
+  const act=_gamLineItems.filter(li=>(li.status==='ACTIVE'||li.status==='DELIVERING')&&li.status!=='UNKNOWN'&&parseInt(li.impressionsDelivered||'0')>0).sort((a,b)=>parseInt(b.impressionsDelivered||'0')-parseInt(a.impressionsDelivered||'0')).slice(0,6);
+  if(!act.length){el.innerHTML='<div class="text-muted fs12" style="text-align:center;padding:12px 0">No active deliveries</div>';return;}
+  const mx=parseInt(act[0].impressionsDelivered||'0')||1;
+  el.innerHTML=act.map((li,i)=>{
+    const im=parseInt(li.impressionsDelivered||'0');const cl=parseInt(li.clicksDelivered||'0');const ctr=im>0?(cl/im*100).toFixed(2)+'%':'—';const pct=Math.round(im/mx*100);const nm=li.displayName||li.name||'—';
+    return '<div style="padding:5px 0;border-bottom:1px solid var(--border)">'+
+      '<div style="display:flex;align-items:center;gap:7px;margin-bottom:3px">'+
+        '<span style="min-width:16px;height:16px;border-radius:50%;background:rgba(0,214,143,0.15);display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#00d68f">'+(i+1)+'</span>'+
+        '<div style="flex:1;min-width:0"><div class="fs11 fw6" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+nm+'">'+nm+'</div></div>'+
+        '<span class="b b-green" style="font-size:9px;flex-shrink:0">LIVE</span>'+
+      '</div>'+
+      '<div style="display:flex;align-items:center;gap:8px;padding-left:23px">'+
+        '<div style="flex:1;height:3px;background:rgba(66,133,244,0.12);border-radius:2px"><div style="width:'+pct+'%;height:3px;background:#4285f4;border-radius:2px;transition:width 0.5s"></div></div>'+
+        '<span class="fs10 text-muted" style="white-space:nowrap">'+fmtImpr(im)+' impr · '+ctr+'</span>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+
+// ── Top Orders Bars ────────────────────────────────────────────────────────
+function renderTopOrdersBars(){
+  const el=document.getElementById('gamTopOrdersBars');
+  const lbl=document.getElementById('gamTopOrdersLbl');
+  const ordersWithImpr=_gamOrders.map(o=>{const m=_getOrderMeta(o);return{name:o.displayName||o.name||'—',impr:m.impr,clicks:m.clicks,lis:m.lis.length};}).filter(o=>o.impr>0).sort((a,b)=>b.impr-a.impr).slice(0,10);
+  if(lbl) lbl.textContent=ordersWithImpr.length+' orders with impressions';
+  if(!ordersWithImpr.length){el.innerHTML='<div class="text-muted fs12" style="text-align:center;padding:20px">No impression data yet — metrics load after ~20s</div>';return;}
+  const mx=ordersWithImpr[0].impr||1;
+  el.innerHTML=ordersWithImpr.map((o,i)=>{
+    const pct=Math.round(o.impr/mx*100);const col=['#4285f4','#a78bfa','#00d68f','#f59e0b','#f43f5e','#34d399','#60a5fa','#e879f9','#fb923c','#38bdf8'][i%10];
+    const ctr=o.impr>0?(o.clicks/o.impr*100).toFixed(2)+'%':'—';
+    return '<div class="ps-hbar-item"><span class="ps-hbar-name" title="'+o.name+'">'+o.name+'</span><div class="ps-hbar-track"><div class="ps-hbar-fill" style="width:'+pct+'%;background:'+col+'"></div></div><span class="ps-hbar-val">'+fmtImpr(o.impr)+'</span><span style="font-size:10px;color:var(--text-muted);width:60px;text-align:right;flex-shrink:0">'+ctr+' CTR</span></div>';
+  }).join('');
+}
+
+// ── Charts ─────────────────────────────────────────────────────────────────
+function renderCharts(s){renderOrderStatusChart(s.orders?.byStatus||{});}
+function renderOrderStatusChart(by){
+  const ctx=document.getElementById('orderStatusChart');if(!ctx) return;
+  if(_orderStatusChart){_orderStatusChart.destroy();_orderStatusChart=null;}
+  const ent=Object.entries(by).filter(([s])=>s!=='DRAFT'&&s!=='UNKNOWN');
+  if(!ent.length) return;
+  const labels=ent.map(([l])=>l.replace(/_/g,' '));const values=ent.map(([,v])=>v);const colors=ent.map(([l])=>STATUS_COLOR[l]||'#48486a');
+  _orderStatusChart=new Chart(ctx,{type:'doughnut',data:{labels,datasets:[{data:values,backgroundColor:colors,borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{position:'right',labels:{color:'#8080a8',font:{size:10},boxWidth:10,padding:8}},tooltip:{callbacks:{label:c=>' '+c.label+': '+c.parsed}}}}});
+}
+
+// ── Orders Table ───────────────────────────────────────────────────────────
+function renderOrdersTable(){
+  const sel=document.getElementById('orderStatusFilter');if(sel) sel.value='ACTIVE_DELIVERING';
+  _ordersFiltered=[..._gamOrders];filterOrders('');
+}
+
+function filterOrders(query){
+  const sf=document.getElementById('orderStatusFilter').value;
+  const q=(query||'').toLowerCase().trim();
+  _ordersFiltered=_gamOrders.filter(o=>{
+    const mq=!q||(o.displayName||'').toLowerCase().includes(q)||(o.name||'').toLowerCase().includes(q)||(o.advertiserId||'').toLowerCase().includes(q);
+    let ms;
+    if(sf==='ACTIVE_DELIVERING') ms=o.status==='ACTIVE'||o.status==='DELIVERING';
+    else if(sf==='') ms=o.status!=='DRAFT'&&o.status!=='UNKNOWN';
+    else ms=o.status===sf;
+    return mq&&ms;
+  });
+  _ordersFiltered.sort((a,b)=>{
+    let va,vb;
+    if(_ordersSortKey==='totalBudget'){va=parseFloat(a.totalBudget?.units||'0');vb=parseFloat(b.totalBudget?.units||'0');}
+    else if(_ordersSortKey==='impressions'){va=_getOrderMeta(a).impr;vb=_getOrderMeta(b).impr;}
+    else if(_ordersSortKey==='advertiserId'){va=(a.advertiserId||'').split('/').pop()||'';vb=(b.advertiserId||'').split('/').pop()||'';}
+    else{va=(a[_ordersSortKey]||'').toString().toLowerCase();vb=(b[_ordersSortKey]||'').toString().toLowerCase();}
+    if(va<vb)return _ordersSortAsc?-1:1;if(va>vb)return _ordersSortAsc?1:-1;return 0;
+  });
+  _ordersPageNum=1;_updateSortIcons();renderOrdersPage();
+}
+
+function _updateSortIcons(){
+  const keys=['displayName','advertiserId','status','startTime','endTime','totalBudget','impressions'];
+  for(const k of keys){
+    const ic=document.getElementById('si-'+k);const th=document.getElementById('th-'+k);
+    if(!ic||!th) continue;
+    if(k===_ordersSortKey){ic.className=_ordersSortAsc?'fas fa-sort-up':'fas fa-sort-down';ic.style.opacity='0.9';ic.style.color='#60a5fa';th.classList.add('sort-active');}
+    else{ic.className='fas fa-sort';ic.style.opacity='0.3';ic.style.color='';th.classList.remove('sort-active');}
+  }
+}
+
+function sortOrdersBy(key){if(_ordersSortKey===key)_ordersSortAsc=!_ordersSortAsc;else{_ordersSortKey=key;_ordersSortAsc=true;}filterOrders(document.getElementById('orderSearch')?.value||'');}
+function toggleOrder(oid){if(_expandedOrders.has(oid))_expandedOrders.delete(oid);else _expandedOrders.add(oid);renderOrdersPage();}
+function toggleExpandAll(){
+  _allExpanded=!_allExpanded;const btn=document.getElementById('expandAllBtn');
+  if(_allExpanded){_expandedOrders=new Set(_ordersFiltered.map(o=>o.name||o.id||o.displayName));if(btn) btn.innerHTML='<i class="fas fa-compress-alt"></i>Collapse All';}
+  else{_expandedOrders.clear();if(btn) btn.innerHTML='<i class="fas fa-expand-alt"></i>Expand All';}
+  renderOrdersPage();
+}
+
+function renderOrdersPage(){
+  const tbody=document.getElementById('ordersTbody');
+  const start=(_ordersPageNum-1)*_ordersPageSize;
+  const page=_ordersFiltered.slice(start,start+_ordersPageSize);
+  const total=_ordersFiltered.length;
+  const pages=Math.max(1,Math.ceil(total/_ordersPageSize));
+  const cb=document.getElementById('ordersCountBadge');if(cb) cb.textContent=total+' orders'+(total!==_gamOrders.length?' of '+_gamOrders.length:'');
+  document.getElementById('ordersCount').textContent=(start+1)+'–'+Math.min(start+_ordersPageSize,total)+' of '+total.toLocaleString()+' orders';
+  document.getElementById('ordersPageLabel').textContent='Page '+_ordersPageNum+' / '+pages;
+  document.getElementById('ordersPrevBtn').disabled=_ordersPageNum<=1;
+  document.getElementById('ordersNextBtn').disabled=_ordersPageNum>=pages;
+  if(!page.length){tbody.innerHTML='<tr><td colspan="10" class="text-muted" style="text-align:center;padding:28px"><i class="fas fa-filter" style="margin-right:6px"></i>No orders match</td></tr>';return;}
+  const rows=[];
+  for(const o of page){
+    const oid=o.name||o.id||o.displayName;
+    const isOpen=_expandedOrders.has(oid);
+    const meta=_getOrderMeta(o);
+    const lis=meta.lis||[];const liCount=lis.length;
+    const ctr=meta.impr>0?(meta.clicks/meta.impr*100).toFixed(2)+'%':'—';
+    const adv=advShort(o.advertiserId);
+    rows.push(\`<tr class="ps-order-row\${isOpen?' order-expanded':''}" onclick="toggleOrder(\${JSON.stringify(oid)})">
+      <td style="text-align:center;padding:8px 4px"><span class="ps-chevron\${isOpen?' open':''}"><i class="fas fa-chevron-right"></i></span></td>
+      <td style="max-width:220px;padding:8px 10px">
+        <div class="fw6 fs12" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="\${o.displayName||''}">\${o.displayName||o.name||'—'}</div>
+        <div class="fs10 text-muted">\${oid?oid.split('/').pop():''}</div>
+      </td>
+      <td class="fs11 text-muted" style="max-width:100px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">\${adv}</div></td>
+      <td>\${statusBadge(o.status)}</td>
+      <td class="muted fs11">\${fmtDateShort(o.startTime)}</td>
+      <td class="muted fs11">\${fmtDateShort(o.endTime)}</td>
+      <td class="fw6 fs11" style="color:#60a5fa;white-space:nowrap">\${fmtBudget(o.totalBudget)}</td>
+      <td>
+        \${liCount>0?'<span style="padding:2px 7px;border-radius:10px;background:rgba(167,139,250,0.15);color:#a78bfa;font-size:9px;font-weight:700">'+liCount+'</span>'+(meta.activeCount>0?'<span style="font-size:9px;color:#00d68f;margin-left:4px">'+meta.activeCount+' active</span>':''):'<span class="text-muted fs11">—</span>'}
+      </td>
+      <td class="num fw7 fs11" style="color:\${meta.impr>0?'#f59e0b':'var(--text-muted)'}">
+        \${fmtImpr(meta.impr)}
+      </td>
+      <td class="num fs11" style="white-space:nowrap">
+        \${meta.impr>0?fmtImpr(meta.clicks)+' <span class="text-muted">('+ctr+')</span>':'<span class="text-muted">—</span>'}
+      </td>
+    </tr>\`);
+
+    if(isOpen){
+      const validLIs=lis.filter(li=>li.status!=='UNKNOWN');
+      if(validLIs.length>0){
+        rows.push(\`<tr class="ps-li-hdr"><td></td><th>Line Item</th><th>Status</th><th>Type</th><th>Start</th><th>End</th><th>Budget</th><th></th><th class="num">Impressions</th><th class="num">Clicks / CTR</th></tr>\`);
+        const slis=[...validLIs].sort((a,b)=>{const aa=a.status==='ACTIVE'||a.status==='DELIVERING'?1:0;const ba=b.status==='ACTIVE'||b.status==='DELIVERING'?1:0;if(ba!==aa)return ba-aa;return parseInt(b.impressionsDelivered||'0')-parseInt(a.impressionsDelivered||'0');});
+        for(const li of slis){
+          const lim=parseInt(li.impressionsDelivered||'0');const lcl=parseInt(li.clicksDelivered||'0');const lctr=lim>0?(lcl/lim*100).toFixed(2)+'%':'—';const ltyp=(li.lineItemType||'—').replace(/_/g,' ');
+          rows.push(\`<tr class="ps-li-row">
+            <td style="text-align:center"><span style="display:inline-flex;width:14px;height:14px;border-radius:3px;background:rgba(167,139,250,0.15);align-items:center;justify-content:center;font-size:8px;color:#a78bfa"><i class="fas fa-minus"></i></span></td>
+            <td class="gam-li-indent" style="max-width:200px"><div class="fw6 fs11" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="\${li.displayName||''}">\${li.displayName||li.name||'—'}</div><div class="fs10 text-muted">\${li.name?li.name.split('/').pop():''}</div></td>
+            <td>\${statusBadge(li.status)}</td>
+            <td class="fs10 muted" style="white-space:nowrap">\${ltyp}</td>
+            <td class="muted fs10">\${fmtDateShort(li.startTime)}</td>
+            <td class="muted fs10">\${fmtDateShort(li.endTime)}</td>
+            <td class="fs10" style="color:#60a5fa">\${fmtBudget(li.budget)}</td>
+            <td></td>
+            <td class="num fw6 fs11" style="color:\${lim>0?'#f59e0b':'var(--text-muted)'}">
+              \${fmtImpr(lim)}
+            </td>
+            <td class="num fs11" style="white-space:nowrap">
+              \${lim>0?fmtImpr(lcl)+' <span class="text-muted">('+lctr+')</span>':'<span class="text-muted">—</span>'}
+            </td>
+          </tr>\`);
+        }
+      }else{
+        rows.push(\`<tr class="ps-li-row"><td></td><td colspan="9" class="muted fs11" style="padding-left:44px;padding-top:8px;padding-bottom:8px"><i class="fas fa-circle-info" style="margin-right:5px;color:#60a5fa"></i>No line items found for this order</td></tr>\`);
+      }
+    }
+  }
+  tbody.innerHTML=rows.join('');
+}
+
+function ordersPage(dir){const pages=Math.max(1,Math.ceil(_ordersFiltered.length/_ordersPageSize));_ordersPageNum=Math.max(1,Math.min(pages,_ordersPageNum+dir));renderOrdersPage();}
+
+// ── CSV Export ─────────────────────────────────────────────────────────────
+function exportOrdersCSV(){
+  const data=_ordersFiltered.length?_ordersFiltered:_gamOrders;if(!data.length) return;
+  const esc=s=>'"'+String(s||'').replace(/"/g,'""')+'"';
+  const hdrs=['Order ID','Order Name','Advertiser ID','Status','Budget Currency','Budget Amount','Start','End','Line Items','Impressions','Clicks','CTR'];
+  const rows=data.map(o=>{
+    const m=_getOrderMeta(o);const ctr=m.impr>0?(m.clicks/m.impr*100).toFixed(2)+'%':'';
+    return [esc(o.name?o.name.split('/').pop():''),esc(o.displayName||o.name||''),esc(o.advertiserId?o.advertiserId.split('/').pop():''),esc(o.status||''),esc(o.totalBudget?.currencyCode||''),esc(o.totalBudget?.units||''),esc(o.startTime?o.startTime.slice(0,10):''),esc(o.endTime?o.endTime.slice(0,10):''),m.lis.length,m.impr,m.clicks,esc(ctr)].join(',');
+  });
+  const csv=[hdrs.join(','),...rows].join('\\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='gam-orders-'+new Date().toISOString().slice(0,10)+'.csv';a.click();
+}
+
+// ── Auto-load ──────────────────────────────────────────────────────────────
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',loadGAMAnalytics);
+else setTimeout(loadGAMAnalytics,80);
 </script>
 `;
 }
