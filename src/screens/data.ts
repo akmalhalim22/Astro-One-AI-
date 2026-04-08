@@ -361,7 +361,7 @@ export function apiConnScreen(): string {
       { id:'ga4',    icon:'fa-chart-bar',    col:'#e34c26', name:'Google Analytics 4',  desc:'Web traffic & engagement', st:'NOT SET UP',  bc:'b-gray',
         fields:[['Property ID','—'],['Auth Method','Service Account'],['Data','Sessions, Users, Bounce Rate'],['Sync','Daily · 02:00']] },
       { id:'gam',    icon:'fa-rectangle-ad', col:'#4285f4', name:'Google Ads Manager',  desc:'Ads performance data',     st:'NOT SET UP',  bc:'b-gray',
-        fields:[['Customer ID','—'],['Auth Method','OAuth 2.0'],['Data','Campaigns, Impressions, Clicks'],['Sync','Daily · 03:00']] },
+        fields:[['Network Code','—'],['Auth Method','Service Account'],['Data','Orders, Line Items, Ad Units, Reports'],['Scope','Read-Only · admanager.readonly']] },
       { id:'bq',     icon:'fa-database',     col:'#669df6', name:'BigQuery',            desc:'Large-scale analytics',    st:'NOT SET UP',  bc:'b-gray',
         fields:[['Project ID','—'],['Auth Method','Service Account'],['Data','Custom SQL queries → Sheets'],['Sync','Daily · 04:00']] },
       { id:'tiktok', icon:'fa-music',        col:'#ff0050', name:'TikTok Ads',          desc:'TikTok campaign data',     st:'NOT SET UP',  bc:'b-gray',
@@ -628,14 +628,15 @@ async function testConnection(id, name) {
         const net = d.network;
         statusBadge.textContent = 'CONNECTED';
         statusBadge.className = 'b b-green';
+        // Update the card fields that exist in the new Service Account card layout
         const ncEl = document.getElementById('field-gam-network-code');
         if (ncEl) ncEl.textContent = net.networkCode || 'Connected';
-        const tzEl = document.getElementById('field-gam-time-zone');
-        if (tzEl) tzEl.textContent = net.timeZone || '—';
-        const curEl = document.getElementById('field-gam-currency');
-        if (curEl) curEl.textContent = net.currencyCode || '—';
-        const rowSt = document.getElementById('rowStatus-gam');
-        if (rowSt) { rowSt.textContent = 'Live'; rowSt.className = 'b b-green'; }
+        const authEl = document.getElementById('field-gam-auth-method');
+        if (authEl) authEl.textContent = 'Service Account ✓';
+        const dataEl = document.getElementById('field-gam-data');
+        if (dataEl) dataEl.textContent = 'Orders, Line Items, Ad Units, Reports';
+        const scopeEl = document.getElementById('field-gam-scope');
+        if (scopeEl) scopeEl.textContent = 'Read-Only · ' + (net.currencyCode ? net.currencyCode + ' · ' : '') + (net.timeZone || 'Active');
         if (icon) icon.className = 'fas fa-circle-check';
         showToast('Google Ad Manager connected! Network: ' + (net.displayName || net.networkCode), 'success');
         loadGAMSummary();
@@ -1032,31 +1033,133 @@ export function setupScreen(): string {
   </div>
 
   <div id="setup-gam" style="display:none">
+
+    <div class="card" style="margin-bottom:16px;border-left:3px solid #4285f4">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <i class="fas fa-circle-info" style="color:#4285f4"></i>
+        <span style="font-weight:700;font-size:13px">Service Account Authentication (No OAuth required)</span>
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);line-height:1.7">
+        This platform connects to Google Ad Manager using a <strong>Service Account JSON key</strong> — no browser OAuth flow, no refresh tokens needed.
+        The service account authenticates server-to-server using <code style="background:var(--bg3);padding:1px 5px;border-radius:4px;font-size:11px">admanager.readonly</code> scope.
+        Your GAM data is <strong>read-only</strong>: orders, line items, ad units and saved reports are fetched but never modified.
+      </div>
+    </div>
+
     <div class="g2">
       <div class="card">
-        <div class="card-hd"><div class="card-title">Google Ads Manager API Setup</div></div>
-        ${[
-          ['Enable Google Ads API','Google Cloud Console → APIs → "Google Ads API" → Enable. Requires Google Ads Manager Account.',''],
-          ['OAuth2 Setup','Create OAuth credentials (Desktop App) → Get developer token from your MCC account.',''],
-          ['Install Client Library','Run: npm install google-ads-api or use REST directly with your access token.',''],
-          ['Configure credentials','Create google-ads.yaml with developer_token, client_id, client_secret, refresh_token.',''],
-        ].map(([t,b],i)=>`
+        <div class="card-hd"><div class="card-title"><i class="fas fa-list-check" style="color:#4285f4;margin-right:7px"></i>Setup Steps</div></div>
+
         <div class="step-item">
-          <div class="step-num">${i+1}</div>
-          <div><div class="step-title">${t}</div><div class="step-body">${b}</div></div>
-        </div>`).join('')}
+          <div class="step-num">1</div>
+          <div>
+            <div class="step-title">Enable Ad Manager API in Google Cloud</div>
+            <div class="step-body">
+              Go to <strong>Google Cloud Console → APIs &amp; Services → Library</strong><br>
+              Search for <em>"Google Ad Manager API"</em> → Click <strong>Enable</strong>.<br>
+              Make sure this is the same project your service account belongs to.
+              <br><a href="https://console.cloud.google.com/apis/library/admanager.googleapis.com" target="_blank" class="text-pink fs11">Open API Library →</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-num">2</div>
+          <div>
+            <div class="step-title">Create (or reuse) a Service Account</div>
+            <div class="step-body">
+              In Cloud Console → <strong>IAM &amp; Admin → Service Accounts → Create Service Account</strong>.<br>
+              Name it e.g. <code style="background:var(--bg3);padding:1px 5px;border-radius:4px;font-size:11px">gam-reader</code>. No Cloud IAM roles needed for GAM access.<br>
+              Then: <strong>Keys → Add Key → Create New Key → JSON</strong> → download the file.
+              <br><a href="https://console.cloud.google.com/iam-admin/serviceaccounts" target="_blank" class="text-pink fs11">Manage Service Accounts →</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-num">3</div>
+          <div>
+            <div class="step-title">Add Service Account to Google Ad Manager</div>
+            <div class="step-body">
+              In GAM UI: <strong>Admin → Global Settings → API access → Service accounts → Add a service account user</strong>.<br>
+              Paste the service account email (ends in <code style="background:var(--bg3);padding:1px 5px;border-radius:4px;font-size:11px">@...iam.gserviceaccount.com</code>).<br>
+              Set role to <strong>Read Only</strong> (Viewer is sufficient for pulling reports/orders/line items).<br>
+              Save. GAM may take a few minutes to activate the account.
+            </div>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-num">4</div>
+          <div>
+            <div class="step-title">Find your Network Code</div>
+            <div class="step-body">
+              In GAM UI: <strong>Admin → Global Settings</strong> — the <strong>Network code</strong> is listed at the top (e.g. <code style="background:var(--bg3);padding:1px 5px;border-radius:4px;font-size:11px">142680780</code>).<br>
+              You'll need this along with the JSON key when configuring the connection.
+            </div>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-num">5</div>
+          <div>
+            <div class="step-title">Configure &amp; Test in API Connections</div>
+            <div class="step-body">
+              Go to <strong>API Connections</strong> → Google Ads Manager card → <strong>Config</strong>.<br>
+              Enter your <strong>Network Code</strong> and paste the full <strong>Service Account JSON</strong>.<br>
+              Click <strong>Save</strong>, then click <strong>Test</strong> — you should see <span style="color:#00d68f;font-weight:600">CONNECTED</span> with your network name.
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="card">
-        <div class="card-hd"><div class="card-title">GAM → Sheets Sync</div></div>
-        <div class="code-block"><span class="kw">const</span> { GoogleAdsApi } = <span class="fn">require</span>(<span class="str">'google-ads-api'</span>);
-<span class="kw">const</span> client = <span class="kw">new</span> <span class="fn">GoogleAdsApi</span>({ client_id, client_secret, developer_token });
-<span class="kw">const</span> customer = client.<span class="fn">Customer</span>({ customer_id, refresh_token });
-<span class="kw">const</span> campaigns = <span class="kw">await</span> customer.report({
-  entity: <span class="str">'campaign'</span>,
-  attributes: [<span class="str">'campaign.id'</span>, <span class="str">'campaign.name'</span>],
-  metrics: [<span class="str">'metrics.impressions'</span>, <span class="str">'metrics.clicks'</span>, <span class="str">'metrics.cost_micros'</span>],
-  date_constant: <span class="str">'LAST_30_DAYS'</span>,
-});</div>
+
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="card">
+          <div class="card-hd"><div class="card-title"><i class="fas fa-code" style="color:#4285f4;margin-right:7px"></i>How the Authentication Works</div></div>
+          <div class="code-block"><span class="cmt">// 1. Sign a JWT with the service account private key</span>
+<span class="kw">const</span> jwt = <span class="kw">await</span> <span class="fn">signJwt</span>(saJson, {
+  scope: <span class="str">'https://www.googleapis.com/auth/admanager.readonly'</span>,
+  aud:   <span class="str">'https://oauth2.googleapis.com/token'</span>,
+  iss:   saJson.client_email,
+});
+
+<span class="cmt">// 2. Exchange JWT for a short-lived access token</span>
+<span class="kw">const</span> { access_token } = <span class="kw">await</span> fetch(<span class="str">'https://oauth2.googleapis.com/token'</span>, {
+  method: <span class="str">'POST'</span>,
+  body: <span class="str">\`grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=\${jwt}\`</span>
+}).<span class="fn">json</span>();
+
+<span class="cmt">// 3. Call GAM REST API with Bearer token</span>
+<span class="kw">const</span> network = <span class="kw">await</span> fetch(
+  <span class="str">\`https://admanager.googleapis.com/v1/networks/\${networkCode}\`</span>,
+  { headers: { Authorization: <span class="str">\`Bearer \${access_token}\`</span> } }
+).<span class="fn">json</span>();</div>
+        </div>
+
+        <div class="card">
+          <div class="card-hd"><div class="card-title"><i class="fas fa-plug" style="color:#4285f4;margin-right:7px"></i>Available API Endpoints</div></div>
+          ${[
+            ['/api/gam/test',         'GET', 'Test connection & get network info'],
+            ['/api/gam/network',      'GET', 'Full network metadata'],
+            ['/api/gam/orders',       'GET', 'List all orders (up to 100)'],
+            ['/api/gam/lineitems',    'GET', 'List all line items'],
+            ['/api/gam/adunits',      'GET', 'List all ad units'],
+            ['/api/gam/reports',      'GET', 'List saved reports'],
+            ['/api/gam/reports/:id/run', 'GET', 'Fetch results of a saved report'],
+            ['/api/gam/summary',      'GET', 'Aggregated dashboard summary'],
+          ].map(([ep, method, desc]) => `
+          <div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+            <span style="background:rgba(66,133,244,0.15);color:#4285f4;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;flex-shrink:0;margin-top:1px">${method}</span>
+            <div>
+              <code style="font-size:11px;color:var(--text-muted)">${ep}</code>
+              <div style="font-size:11px;color:var(--text-muted2);margin-top:1px">${desc}</div>
+            </div>
+          </div>`).join('')}
+          <div style="margin-top:10px;font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:6px">
+            <i class="fas fa-lock" style="color:#4285f4"></i>
+            All endpoints require an active session (login) and use read-only GAM scope.
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1123,7 +1226,7 @@ export function setupScreen(): string {
           ${[
             ['1','Manual Upload','CSV/Excel → UI → Auto-clean → Google Sheets','fa-upload','var(--warning)'],
             ['2','API Sync — GA4','Daily cron → GA4 Data API → Process → Traffic Sheet','fa-chart-bar','var(--info)'],
-            ['3','API Sync — GAM','Daily cron → Google Ads API → Process → Ads Sheet','fa-rectangle-ad','#4285f4'],
+            ['3','API Sync — GAM','Service Account JWT → GAM REST API (read-only) → Orders/Line Items/Reports','fa-rectangle-ad','#4285f4'],
             ['4','API Sync — BigQuery','Daily cron → BQ SQL query → Process → Multiple Sheets','fa-database','#669df6'],
             ['5','API Sync — TikTok','Daily cron → TikTok API → Process → Ads Sheet','fa-music','#ff0050'],
             ['6','Dashboard Read','Dashboard → Read from Sheets → Visualize → User','fa-chart-pie','var(--magenta)'],
@@ -1143,8 +1246,13 @@ cron.<span class="fn">schedule</span>(<span class="str">'0 2 * * *'</span>, <spa
   <span class="kw">await</span> <span class="fn">syncGA4ToSheets</span>();
 });
 
-<span class="cmt">// Daily at 3 AM — Google Ads sync</span>
-cron.<span class="fn">schedule</span>(<span class="str">'0 3 * * *'</span>, <span class="fn">syncGAMToSheets</span>);
+<span class="cmt">// Daily at 3 AM — GAM read-only pull via Service Account</span>
+cron.<span class="fn">schedule</span>(<span class="str">'0 3 * * *'</span>, <span class="kw">async</span> () => {
+  <span class="cmt">// JWT signed with SA key → admanager.readonly token</span>
+  <span class="kw">const</span> token = <span class="kw">await</span> <span class="fn">getGAMAccessToken</span>(saJson);
+  <span class="kw">const</span> orders = <span class="kw">await</span> <span class="fn">listGAMOrders</span>(token, networkCode);
+  <span class="cmt">// No writes to GAM — data is pulled and stored locally</span>
+});
 
 <span class="cmt">// Daily at 3:30 AM — TikTok sync</span>
 cron.<span class="fn">schedule</span>(<span class="str">'30 3 * * *'</span>, <span class="fn">syncTikTokToSheets</span>);
