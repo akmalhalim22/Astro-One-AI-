@@ -2,6 +2,16 @@ export function canvasScreen(): string {
   return `
 <div class="content fade-in" style="display:flex;gap:0;padding:0;height:calc(100vh - var(--topbar-h));overflow:hidden">
 
+  <!-- ── Active Data Source Indicator (top bar) ─────────────── -->
+  <div style="position:absolute;top:0;left:280px;right:0;z-index:100;display:flex;align-items:center;gap:7px;padding:5px 14px;background:rgba(96,165,250,0.07);border-bottom:1px solid rgba(96,165,250,0.15);font-size:11px;color:var(--text-muted)">
+    <i class="fas fa-database" style="color:#a78bfa"></i>
+    <strong style="color:var(--text-primary)">Active Data Source:</strong>
+    <span id="cvsActiveSource" style="color:#4285f4;font-weight:700">Pre-Sales · Pipeline</span>
+    <span class="text-muted">·</span>
+    <span id="cvsSourceMeta" style="font-size:10px">7 columns available</span>
+    <span style="margin-left:auto;font-size:10px">Change source in left panel →</span>
+  </div>
+
   <!-- ── Left Panel: Toolbox ────────────────────────────────── -->
   <div class="cvs-left">
     <div class="rai-panel-hd">
@@ -79,7 +89,7 @@ export function canvasScreen(): string {
   </div>
 
   <!-- ── Main: Canvas Grid ──────────────────────────────────── -->
-  <div class="cvs-main" id="cvsMain" ondragover="event.preventDefault()" ondrop="dropWidget(event)">
+  <div class="cvs-main" id="cvsMain" ondragover="event.preventDefault()" ondrop="dropWidget(event)" style="padding-top:36px">
 
     <!-- Canvas Toolbar -->
     <div class="cvs-toolbar">
@@ -372,11 +382,26 @@ function changeDataSource(val) {
     social:   ['date','platform','reach','impressions','engagements','eng_rate','followers'],
     blended:  ['source','date','client_name','revenue','sessions','impressions','roas','stage'],
   };
+  const sourceNames = {
+    pipeline: 'Pre-Sales · Pipeline',
+    revenue:  'Revenue Data',
+    campaign: 'Campaign Performance',
+    ads:      'Ads Performance',
+    traffic:  'Traffic Data',
+    social:   'Social Media',
+    blended:  'Blended Source ✨',
+  };
   const cols = colSets[val] || [];
   const container = document.getElementById('cvsColumns');
   if (container) container.innerHTML = cols.map(col =>
     \`<span class="cvs-col-tag" draggable="true" ondragstart="dragColumn('\${col}')">\${col}</span>\`
   ).join('');
+  
+  // Update top indicator
+  const activeEl = document.getElementById('cvsActiveSource');
+  const metaEl = document.getElementById('cvsSourceMeta');
+  if (activeEl) activeEl.textContent = sourceNames[val] || val;
+  if (metaEl) metaEl.textContent = cols.length + ' columns available';
 }
 
 // ── Init canvas charts ─────────────────────────────────────

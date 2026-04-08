@@ -1,6 +1,14 @@
 export function pipelineScreen(): string {
   return `
 <div class="content fade-in">
+
+  <!-- ── Data Source ─────────────────────────────────────────────────────── -->
+  <div style="display:flex;align-items:center;gap:7px;padding:5px 12px;background:rgba(96,165,250,0.07);border:1px solid rgba(96,165,250,0.15);border-radius:8px;margin-bottom:12px;font-size:11px;color:var(--text-muted);flex-wrap:wrap">
+    <i class="fas fa-table-cells" style="color:#34d399"></i>
+    <strong style="color:var(--text-primary)">Google Sheets</strong> <span class="text-muted">·</span> Pipeline tab
+    <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;background:rgba(52,211,153,0.15);color:#34d399">Sheets · Live</span>
+  </div>
+
   <div class="alert alert-red">
     <i class="fas fa-circle-exclamation"></i>
     <strong>3 deals (RM 8.7M)</strong> at critical risk of slipping this quarter — immediate review required.
@@ -165,6 +173,13 @@ export function clientsScreen(): string {
   return `
 <div class="content fade-in">
 
+  <!-- ── Data Source ─────────────────────────────────────────────────────── -->
+  <div style="display:flex;align-items:center;gap:7px;padding:5px 12px;background:rgba(96,165,250,0.07);border:1px solid rgba(96,165,250,0.15);border-radius:8px;margin-bottom:12px;font-size:11px;color:var(--text-muted);flex-wrap:wrap">
+    <i class="fas fa-table-cells" style="color:#34d399"></i>
+    <strong style="color:var(--text-primary)">Google Sheets</strong> <span class="text-muted">·</span> Clients tab
+    <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;background:rgba(52,211,153,0.15);color:#34d399">Sheets · Live</span>
+  </div>
+
   <!-- ── KPIs ─────────────────────────────────────────────────── -->
   <div class="kpi-grid-4">
     <div class="kpi accent">
@@ -310,6 +325,13 @@ export function clientsScreen(): string {
 export function salesPerfScreen(): string {
   return `
 <div class="content fade-in">
+
+  <!-- ── Data Source ─────────────────────────────────────────────────────── -->
+  <div style="display:flex;align-items:center;gap:7px;padding:5px 12px;background:rgba(96,165,250,0.07);border:1px solid rgba(96,165,250,0.15);border-radius:8px;margin-bottom:12px;font-size:11px;color:var(--text-muted);flex-wrap:wrap">
+    <i class="fas fa-table-cells" style="color:#34d399"></i>
+    <strong style="color:var(--text-primary)">Google Sheets</strong> <span class="text-muted">·</span> Sales Performance tab
+    <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;background:rgba(52,211,153,0.15);color:#34d399">Sheets · Live</span>
+  </div>
 
   <!-- ── KPIs ─────────────────────────────────────────────────── -->
   <div class="kpi-grid-4">

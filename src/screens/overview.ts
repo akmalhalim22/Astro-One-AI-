@@ -2,6 +2,16 @@ export function overviewScreen(): string {
   return `
 <div class="content fade-in">
 
+  <!-- ── Data Sources ─────────────────────────────────────────────────────── -->
+  <div style="display:flex;align-items:center;gap:7px;padding:5px 12px;background:rgba(96,165,250,0.07);border:1px solid rgba(96,165,250,0.15);border-radius:8px;margin-bottom:12px;font-size:11px;color:var(--text-muted);flex-wrap:wrap">
+    <i class="fas fa-layer-group" style="color:#a78bfa"></i>
+    <strong style="color:var(--text-primary)">Blended View</strong> <span class="text-muted">·</span>
+    <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;background:rgba(52,211,153,0.15);color:#34d399"><i class="fas fa-table-cells" style="font-size:9px"></i> Sheets</span>
+    <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;background:rgba(66,133,244,0.15);color:#4285f4"><i class="fab fa-google" style="font-size:9px"></i> GAM</span>
+    <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;background:rgba(45,212,191,0.15);color:#2dd4bf"><i class="fas fa-chart-line" style="font-size:9px"></i> Analytics</span>
+    <span style="margin-left:auto;font-size:10px;color:var(--text-muted)">Real-time dashboard</span>
+  </div>
+
   <!-- ── ROW 1: 4 HEADLINE KPIs ─────────────────────────────── -->
   <div class="kpi-grid-4">
     <div class="kpi accent">

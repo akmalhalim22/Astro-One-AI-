@@ -1,6 +1,17 @@
 export function aiScreen(): string {
   return `
 <div class="content fade-in" style="padding:16px 24px;height:calc(100vh - var(--topbar-h));overflow:hidden">
+
+  <!-- ── Data Sources Available ───────────────────────────────────────── -->
+  <div style="display:flex;align-items:center;gap:7px;padding:5px 12px;background:rgba(96,165,250,0.07);border:1px solid rgba(96,165,250,0.15);border-radius:8px;margin-bottom:12px;font-size:11px;color:var(--text-muted);flex-wrap:wrap">
+    <i class="fas fa-brain" style="color:#a78bfa"></i>
+    <strong style="color:var(--text-primary)">AI Query Engine</strong> <span class="text-muted">·</span> Can access:
+    <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border-radius:6px;font-size:10px;font-weight:700;background:rgba(52,211,153,0.15);color:#34d399">Sheets</span>
+    <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border-radius:6px;font-size:10px;font-weight:700;background:rgba(66,133,244,0.15);color:#4285f4">GAM</span>
+    <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border-radius:6px;font-size:10px;font-weight:700;background:rgba(45,212,191,0.15);color:#2dd4bf">Analytics</span>
+    <span style="margin-left:auto;font-size:10px">Ask any question about your data</span>
+  </div>
+
   <div class="chat-wrap">
 
     <!-- ── LEFT SIDEBAR ─────────────────────────────────────── -->

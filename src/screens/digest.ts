@@ -2,6 +2,16 @@ export function digestScreen(): string {
   return `
 <div class="content fade-in">
 
+  <!-- ── Data Sources ─────────────────────────────────────────────────────── -->
+  <div style="display:flex;align-items:center;gap:7px;padding:5px 12px;background:rgba(96,165,250,0.07);border:1px solid rgba(96,165,250,0.15);border-radius:8px;margin-bottom:12px;font-size:11px;color:var(--text-muted);flex-wrap:wrap">
+    <i class="fas fa-newspaper" style="color:#f59e0b"></i>
+    <strong style="color:var(--text-primary)">Daily Digest</strong> <span class="text-muted">·</span> Aggregated from:
+    <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border-radius:6px;font-size:10px;font-weight:700;background:rgba(52,211,153,0.15);color:#34d399">Sheets</span>
+    <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border-radius:6px;font-size:10px;font-weight:700;background:rgba(66,133,244,0.15);color:#4285f4">GAM</span>
+    <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border-radius:6px;font-size:10px;font-weight:700;background:rgba(45,212,191,0.15);color:#2dd4bf">Analytics</span>
+    <span style="margin-left:auto;font-size:10px">Updated daily at 6:00 AM</span>
+  </div>
+
   <!-- ── HEADER ──────────────────────────────────────────────── -->
   <div class="digest-hd">
     <div style="flex:1;min-width:0">
