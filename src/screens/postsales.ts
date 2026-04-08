@@ -1,1009 +1,1125 @@
+// ═══════════════════════════════════════════════════════════════════════════
+//  POST-SALES MODULE  —  Revenue · Campaign · Ads Performance · GAM Analytics
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ─── Shared inline styles ────────────────────────────────────────────────────
+const PS_CSS = `
+<style>
+/* ── filter bar ─────────────────────────────────────────────────── */
+.ps-filter-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;margin-bottom:14px}
+.ps-filter-bar label{font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.ps-filter-bar select,.ps-filter-bar input{background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:5px 10px;color:var(--text-primary);font-size:11px;outline:none;height:30px}
+.ps-filter-bar select:focus,.ps-filter-bar input:focus{border-color:#4285f4}
+.ps-filter-sep{width:1px;height:20px;background:var(--border);margin:0 4px}
+/* ── section header ─────────────────────────────────────────────── */
+.ps-section-hd{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.ps-section-hd h3{font-size:13px;font-weight:700;color:var(--text-primary);margin:0}
+.ps-section-hd .ps-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+/* ── data source pill ───────────────────────────────────────────── */
+.ps-src{display:flex;align-items:center;gap:7px;padding:5px 12px;background:rgba(96,165,250,0.07);border:1px solid rgba(96,165,250,0.15);border-radius:8px;margin-bottom:12px;font-size:11px;color:var(--text-muted);flex-wrap:wrap}
+.ps-src strong{color:var(--text-primary)}
+/* ── connection banner ──────────────────────────────────────────── */
+.ps-banner{display:flex;align-items:center;gap:10px;padding:10px 15px;border-radius:11px;margin-bottom:14px;border:1px solid rgba(66,133,244,0.2);background:rgba(66,133,244,0.07);font-size:12px}
+/* ── kpi grid ───────────────────────────────────────────────────── */
+.ps-kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+@media(max-width:900px){.ps-kpi-row{grid-template-columns:repeat(2,1fr)}}
+.ps-kpi{background:var(--bg-card);border:1px solid var(--border);border-radius:13px;padding:14px 16px;display:flex;flex-direction:column;gap:4px}
+.ps-kpi.accent{border-left:3px solid #4285f4}
+.ps-kpi-icon{width:32px;height:32px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;margin-bottom:4px}
+.ps-kpi-lbl{font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em}
+.ps-kpi-val{font-size:22px;font-weight:800;color:var(--text-primary);line-height:1}
+.ps-kpi-sub{font-size:11px;color:var(--text-muted)}
+.ps-kpi-sub.up{color:#00d68f}.ps-kpi-sub.dn{color:#f43f5e}.ps-kpi-sub.flat{color:#f59e0b}
+/* ── chart grid ─────────────────────────────────────────────────── */
+.ps-g2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.ps-g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px}
+.ps-g62{display:grid;grid-template-columns:1.6fr 1fr;gap:12px;margin-bottom:14px}
+.ps-g26{display:grid;grid-template-columns:1fr 1.6fr;gap:12px;margin-bottom:14px}
+@media(max-width:900px){.ps-g2,.ps-g3,.ps-g62,.ps-g26{grid-template-columns:1fr}}
+/* ── table ──────────────────────────────────────────────────────── */
+.ps-tbl-wrap{overflow-x:auto}
+.ps-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.ps-tbl th{padding:8px 10px;text-align:left;background:var(--bg-input);border-bottom:2px solid var(--border);font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;cursor:pointer;white-space:nowrap;user-select:none}
+.ps-tbl th:hover{color:var(--text-primary)}
+.ps-tbl th.sort-asc::after{content:' ▲';font-size:9px;color:#4285f4}
+.ps-tbl th.sort-desc::after{content:' ▼';font-size:9px;color:#4285f4}
+.ps-tbl td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.ps-tbl tr:hover td{background:rgba(66,133,244,0.04)}
+.ps-tbl .num{text-align:right;font-variant-numeric:tabular-nums}
+.ps-tbl .muted{color:var(--text-muted);font-size:11px}
+/* ── expand rows ────────────────────────────────────────────────── */
+.ps-order-row{cursor:pointer}
+.ps-order-row:hover td{background:rgba(66,133,244,0.05)!important}
+.ps-li-row td{background:rgba(0,0,0,0.12)!important;font-size:11px}
+.ps-li-row:hover td{background:rgba(66,133,244,0.06)!important}
+.ps-chevron{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:5px;background:rgba(66,133,244,0.1);color:#4285f4;font-size:9px;transition:transform .2s;flex-shrink:0}
+.ps-chevron.open{transform:rotate(90deg)}
+.ps-li-hdr th{background:rgba(167,139,250,0.08)!important;color:#a78bfa!important}
+/* ── pagination ─────────────────────────────────────────────────── */
+.ps-pag{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+/* ── progress bar ───────────────────────────────────────────────── */
+.ps-prog-wrap{height:5px;border-radius:3px;background:rgba(255,255,255,0.07);overflow:hidden}
+.ps-prog-fill{height:5px;border-radius:3px;transition:width .6s ease}
+/* ── platform pill ──────────────────────────────────────────────── */
+.ps-plat{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700}
+.ps-plat-gam{background:rgba(66,133,244,0.15);color:#4285f4}
+.ps-plat-tiktok{background:rgba(20,20,20,0.4);color:#fff}
+.ps-plat-fb{background:rgba(59,89,152,0.2);color:#6990d3}
+.ps-plat-sheets{background:rgba(52,211,153,0.15);color:#34d399}
+/* ── top-order bar ──────────────────────────────────────────────── */
+.ps-hbar-item{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)}
+.ps-hbar-name{flex:1;min-width:0;font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ps-hbar-track{flex:2;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden}
+.ps-hbar-fill{height:6px;border-radius:3px;transition:width .5s}
+.ps-hbar-val{font-size:10px;color:var(--text-muted);white-space:nowrap;width:60px;text-align:right}
+</style>`;
+
+// ─── Shared utility ───────────────────────────────────────────────────────────
+function _psIcon(color: string, icon: string) {
+  return `<div class="ps-kpi-icon" style="background:${color}20;color:${color}"><i class="fas fa-${icon}"></i></div>`;
+}
+function _psKpi(accent: boolean, color: string, icon: string, lbl: string, valId: string, subId: string) {
+  return `
+  <div class="ps-kpi${accent?' accent':''}">
+    ${_psIcon(color, icon)}
+    <div class="ps-kpi-lbl">${lbl}</div>
+    <div class="ps-kpi-val" id="${valId}"><span class="text-muted" style="font-size:14px">—</span></div>
+    <div class="ps-kpi-sub" id="${subId}"></div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  1. REVENUE PERFORMANCE
+// ═══════════════════════════════════════════════════════════════════════════
 export function revenueScreen(): string {
   return `
+${PS_CSS}
 <div class="content fade-in">
 
-  <!-- ── DATA SOURCE INDICATOR ──────────────────────────────────── -->
-  <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(96,165,250,0.07);border:1px solid rgba(96,165,250,0.15);border-radius:9px;margin-bottom:14px;flex-wrap:wrap">
-    <i class="fas fa-database" style="color:#60a5fa;font-size:10px"></i>
-    <span style="font-size:11px;color:var(--text-muted);font-weight:600">DATA SOURCE</span>
-    <span style="font-size:11px;color:var(--text-primary)">Google Sheets <span class="text-muted">·</span> Revenue tab</span>
-    <span class="b b-gray" style="font-size:10px;margin-left:4px">Sheets</span>
-    <span style="margin-left:auto;font-size:10.5px;color:var(--text-muted)"><i class="fas fa-circle-info" style="margin-right:4px"></i>Static data — connect Google Sheets in <a href="/apiconn" style="color:#60a5fa;text-decoration:none">API Connections</a> to sync live</span>
-  </div>
+<!-- ── Data source ─────────────────────────────────────────────────────── -->
+<div class="ps-src">
+  <i class="fas fa-table-cells" style="color:#34d399"></i>
+  <strong>Google Sheets</strong> <span class="text-muted">·</span> Revenue tab
+  <span class="ps-plat ps-plat-sheets">Sheets · Live</span>
+  <span id="rev-src-status" style="margin-left:auto"></span>
+</div>
 
-  <!-- ── KPIs ─────────────────────────────────────────────────── -->
-  <div class="kpi-grid-4">
-    <div class="kpi accent">
-      <div class="kpi-icon pink"><i class="fas fa-sack-dollar"></i></div>
-      <div class="kpi-lbl">YTD Revenue</div>
-      <div class="kpi-val">RM 63.7<sup>M</sup></div>
-      <div class="kpi-chg up"><i class="fas fa-arrow-trend-up"></i>+12.4% vs LY</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-icon green"><i class="fas fa-bullseye"></i></div>
-      <div class="kpi-lbl">Q1 Target</div>
-      <div class="kpi-val">RM 67.6<sup>M</sup></div>
-      <div class="kpi-chg flat">94.2% attainment</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-icon amber"><i class="fas fa-chart-line"></i></div>
-      <div class="kpi-lbl">MoM Growth</div>
-      <div class="kpi-val">+8.2<sup>%</sup></div>
-      <div class="kpi-chg up">vs +5.1% last month</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-icon blue"><i class="fas fa-building"></i></div>
-      <div class="kpi-lbl">Enterprise Share</div>
-      <div class="kpi-val">RM 44.0<sup>M</sup></div>
-      <div class="kpi-chg up">69% of total · +14% YoY</div>
-    </div>
-  </div>
+<!-- ── Filters ─────────────────────────────────────────────────────────── -->
+<div class="ps-filter-bar">
+  <label>Financial Year</label>
+  <select id="rev-fy" onchange="revApplyFilters()"><option value="">All Years</option></select>
+  <div class="ps-filter-sep"></div>
+  <label>Portal</label>
+  <select id="rev-portal" onchange="revApplyFilters()"><option value="">All Portals</option></select>
+  <div class="ps-filter-sep"></div>
+  <label>Revenue Type</label>
+  <select id="rev-type" onchange="revApplyFilters()"><option value="">All Types</option></select>
+  <div class="ps-filter-sep"></div>
+  <label>Month</label>
+  <select id="rev-month" onchange="revApplyFilters()"><option value="">All Months</option></select>
+  <button class="btn-ghost" style="margin-left:auto;height:28px;font-size:11px;padding:0 10px" onclick="revReset()"><i class="fas fa-filter-circle-xmark"></i>Reset</button>
+  <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 10px" onclick="loadRevenueData()"><i class="fas fa-rotate"></i>Refresh</button>
+  <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 10px" onclick="revExportCSV()"><i class="fas fa-download"></i>CSV</button>
+</div>
 
-  <!-- ── CHART + BREAKDOWN ─────────────────────────────────────── -->
-  <div class="g62">
-    <div class="card">
-      <div class="card-hd">
-        <div class="card-title">Monthly Revenue vs Target</div>
-        <div style="display:flex;gap:8px">
-          <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 10px"><i class="fas fa-download"></i>Export</button>
-          <span class="card-action" onclick="navigate('ai')">AI Forecast →</span>
-        </div>
-      </div>
-      <div class="ch" style="height:178px"><canvas id="revPerfChart"></canvas></div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
-        ${[
-          ['Jan','RM 18.4M','var(--success)'],
-          ['Feb','RM 21.2M','var(--success)'],
-          ['Mar (est)','RM 24.1M','var(--magenta)'],
-          ['Run Rate','RM 190M/yr','var(--info)'],
-        ].map(([l,v,c]) => `
-        <div style="padding:0 10px;border-right:1px solid var(--border)">
-          <div class="fs11 text-muted" style="margin-bottom:3px">${l}</div>
-          <div style="font-size:14px;font-weight:800;color:${c}">${v}</div>
-        </div>`).join('')}
-      </div>
-    </div>
+<!-- ── KPIs ────────────────────────────────────────────────────────────── -->
+<div class="ps-kpi-row">
+  ${_psKpi(true,  '#4285f4','sack-dollar',   'Total Revenue',    'rev-kv-total',  'rev-ks-total')}
+  ${_psKpi(false, '#00d68f','bullseye',       'Target',           'rev-kv-target', 'rev-ks-target')}
+  ${_psKpi(false, '#f59e0b','chart-line',     '% Achievement',    'rev-kv-ach',    'rev-ks-ach')}
+  ${_psKpi(false, '#a78bfa','arrow-trend-up', 'Top Portal',       'rev-kv-portal', 'rev-ks-portal')}
+</div>
 
-    <div style="display:flex;flex-direction:column;gap:14px">
-      <div class="card">
-        <div class="card-hd"><div class="card-title">Revenue by Product Line</div></div>
-        ${[
-          ['Digital Ads',       'RM 28.7M','pf-pink',  45],
-          ['Content Syndi.',    'RM 17.2M','pf-blue',  27],
-          ['Events & Live',     'RM 11.0M','pf-amber', 17],
-          ['Sponsorship',       'RM  6.8M','pf-green', 11],
-        ].map(([l,v,f,p]) => `
-        <div style="margin-bottom:12px">
-          <div class="flex justify-between" style="margin-bottom:5px">
-            <span class="fs12 text-sec">${l}</span>
-            <span class="fs12 fw7">${v} <span class="text-muted">(${p}%)</span></span>
-          </div>
-          <div class="prog-wrap"><div class="prog-fill ${f}" style="width:${p*2.2}%"></div></div>
-        </div>`).join('')}
-      </div>
-
-      <div class="card card-sm">
-        <div class="card-hd">
-          <div class="card-title">AI Forecast</div>
-          <span class="b b-blue" style="font-size:9px">Live Model</span>
-        </div>
-        ${[
-          ['Q1 Close Prob.','68%',        'b-amber'],
-          ['Full Year Proj.','RM 190M',   'b-green'],
-          ['Risk Amount',   'RM 5.4M',   'b-red'],
-          ['Upsell Opp.',   'RM 8.4M',   'b-blue'],
-          ['Q2 Outlook',    'Strong',     'b-green'],
-        ].map(([l,v,b]) => `
-        <div class="stat-row">
-          <span class="stat-lbl">${l}</span><span class="b ${b}">${v}</span>
-        </div>`).join('')}
-      </div>
-    </div>
-  </div>
-
-  <!-- ── REVENUE TABLE ──────────────────────────────────────────── -->
+<!-- ── Row 2: Trend + Portal Breakdown ─────────────────────────────────── -->
+<div class="ps-g62">
   <div class="card">
     <div class="card-hd">
-      <div class="card-title">Revenue by Client — Top 10</div>
-      <span class="card-action">Full Report →</span>
+      <div class="card-title"><i class="fas fa-chart-area" style="color:#4285f4;margin-right:6px"></i>Revenue Trend</div>
+      <span id="rev-trend-lbl" class="fs11 text-muted"></span>
     </div>
-    <table class="tbl">
+    <div style="height:200px"><canvas id="revTrendChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-hd">
+      <div class="card-title"><i class="fas fa-chart-pie" style="color:#a78bfa;margin-right:6px"></i>Revenue Type</div>
+    </div>
+    <div style="height:140px"><canvas id="revTypeChart"></canvas></div>
+    <div id="revTypeBars" style="margin-top:10px;display:flex;flex-direction:column;gap:6px"></div>
+  </div>
+</div>
+
+<!-- ── Row 3: Portal Breakdown + Target vs Actual ───────────────────────── -->
+<div class="ps-g2">
+  <div class="card">
+    <div class="card-hd">
+      <div class="card-title"><i class="fas fa-globe" style="color:#00d68f;margin-right:6px"></i>Revenue by Portal</div>
+      <span id="rev-portal-count" class="fs11 text-muted"></span>
+    </div>
+    <div id="revPortalBars" style="display:flex;flex-direction:column;gap:7px;min-height:80px">
+      <div class="text-muted fs12" style="text-align:center;padding:20px"><i class="fas fa-spinner fa-spin"></i></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hd">
+      <div class="card-title"><i class="fas fa-scale-balanced" style="color:#f59e0b;margin-right:6px"></i>Target vs Actual</div>
+    </div>
+    <div style="height:200px"><canvas id="revTvAChart"></canvas></div>
+  </div>
+</div>
+
+<!-- ── Row 4: Revenue Table ─────────────────────────────────────────────── -->
+<div class="card">
+  <div class="card-hd">
+    <div class="card-title"><i class="fas fa-table-list" style="color:#60a5fa;margin-right:6px"></i>Revenue Detail</div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <input id="rev-search" type="text" placeholder="Search…" style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:4px 10px;color:var(--text-primary);font-size:11px;width:140px;outline:none" oninput="revApplyFilters()">
+      <span id="rev-count" class="fs11 text-muted"></span>
+    </div>
+  </div>
+  <div class="ps-tbl-wrap">
+    <table class="ps-tbl" id="revTable">
       <thead>
-        <tr><th>#</th><th>Client</th><th>Segment</th><th>Q1 Rev</th><th>YTD Rev</th><th>vs Target</th><th>YoY Growth</th><th>Status</th></tr>
-      </thead>
-      <tbody>
-        ${[
-          ['1', 'Maxis Bhd',     'Enterprise', 'RM 4.1M', 'RM 12.4M', '+8%',  '+18%', 'b-green'],
-          ['2', 'Celcom Axiata', 'Enterprise', 'RM 3.6M', 'RM 10.8M', '+3%',  '+12%', 'b-green'],
-          ['3', 'Petronas',      'Enterprise', 'RM 3.2M', 'RM 9.6M',  '+1%',  '+9%',  'b-green'],
-          ['4', 'CIMB Group',    'Enterprise', 'RM 2.4M', 'RM 7.2M',  '−2%',  '+6%',  'b-amber'],
-          ['5', 'Digi Telecom',  'Mid-Market', 'RM 1.7M', 'RM 5.1M',  '−5%',  '−3%',  'b-red'],
-          ['6', 'TNB',           'Enterprise', 'RM 1.6M', 'RM 4.9M',  '+4%',  '+11%', 'b-green'],
-          ['7', 'RHB Bank',      'Enterprise', 'RM 1.4M', 'RM 4.2M',  '−8%',  '+2%',  'b-amber'],
-          ['8', 'Watsons MY',    'Mid-Market', 'RM 1.3M', 'RM 3.8M',  '−12%', '−8%',  'b-red'],
-        ].map(([r,n,s,q,y,t,g,b]) => `
         <tr>
-          <td class="dim fw7">${r}</td>
-          <td class="fw6">${n}</td>
-          <td><span class="b ${s === 'Enterprise' ? 'b-blue' : 'b-gray'}" style="font-size:10px">${s}</span></td>
-          <td class="text-pink fw7">${q}</td>
-          <td class="fw7">${y}</td>
-          <td style="color:${String(t).startsWith('+') ? 'var(--success)' : 'var(--danger)'};font-weight:600">${t}</td>
-          <td style="color:${String(g).startsWith('+') ? 'var(--success)' : 'var(--danger)'};font-weight:600">${g}</td>
-          <td><span class="b ${b}">${b === 'b-green' ? 'On Track' : b === 'b-amber' ? 'Watch' : 'At Risk'}</span></td>
-        </tr>`).join('')}
+          <th onclick="revSort('Portal')" id="revth-Portal">Portal</th>
+          <th onclick="revSort('FinancialYear')" id="revth-FinancialYear">FY</th>
+          <th onclick="revSort('Month')" id="revth-Month">Month</th>
+          <th onclick="revSort('RevenueType')" id="revth-RevenueType">Type</th>
+          <th onclick="revSort('Revenue')" class="num" id="revth-Revenue">Revenue</th>
+          <th onclick="revSort('Target')" class="num" id="revth-Target">Target</th>
+          <th class="num">Achievement</th>
+        </tr>
+      </thead>
+      <tbody id="revTbody">
+        <tr><td colspan="7" class="text-muted" style="text-align:center;padding:32px"><i class="fas fa-spinner fa-spin" style="font-size:18px"></i></td></tr>
       </tbody>
     </table>
   </div>
-
-</div>`;
-}
-
-
-export function campaignScreen(): string {
-  return `
-<div class="content fade-in">
-
-  <!-- ── DATA SOURCE INDICATOR ──────────────────────────────────── -->
-  <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(66,133,244,0.07);border:1px solid rgba(66,133,244,0.15);border-radius:9px;margin-bottom:10px;flex-wrap:wrap">
-    <i class="fas fa-rectangle-ad" style="color:#4285f4;font-size:10px"></i>
-    <span style="font-size:11px;color:var(--text-muted);font-weight:600">DATA SOURCE</span>
-    <span style="font-size:11px;color:var(--text-primary)">Google Ad Manager <span class="text-muted">·</span> Orders (as Campaigns)</span>
-    <span class="b b-blue" style="font-size:10px;margin-left:4px">GAM API · Live</span>
-    <span style="margin-left:auto;font-size:10.5px;color:var(--text-muted)"><i class="fas fa-satellite-dish" style="margin-right:4px"></i>Fetches live from GAM on page load</span>
-  </div>
-
-  <!-- ── Connection Banner ────────────────────────────────────────────────── -->
-  <div id="campBanner" style="display:flex;align-items:center;gap:10px;background:rgba(66,133,244,0.08);border:1px solid rgba(66,133,244,0.2);border-radius:12px;padding:11px 16px;margin-bottom:4px">
-    <i class="fas fa-spinner fa-spin" id="campBannerIcon" style="color:#4285f4;font-size:13px"></i>
-    <span id="campBannerText" style="font-size:12px;color:#60a5fa">Loading campaign data from Google Ad Manager…</span>
-    <button class="btn-ghost" style="margin-left:auto;height:26px;font-size:11px;padding:0 10px" onclick="loadCampaignData()">
-      <i class="fas fa-rotate"></i>Refresh
-    </button>
-  </div>
-
-  <!-- ── KPI STRIP ─────────────────────────────────────────────────────────── -->
-  <div class="kpi-grid-4">
-    <div class="kpi accent">
-      <div class="kpi-icon pink"><i class="fas fa-megaphone"></i></div>
-      <div class="kpi-lbl">Active Campaigns</div>
-      <div class="kpi-val" id="camp-kv-active"><span class="text-muted fs13">—</span></div>
-      <div class="kpi-chg" id="camp-kc-active"></div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-icon green"><i class="fas fa-sack-dollar"></i></div>
-      <div class="kpi-lbl">Total Budget (Orders)</div>
-      <div class="kpi-val" id="camp-kv-budget"><span class="text-muted fs13">—</span></div>
-      <div class="kpi-chg" id="camp-kc-budget"></div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-icon amber"><i class="fas fa-eye"></i></div>
-      <div class="kpi-lbl">Impressions Delivered</div>
-      <div class="kpi-val" id="camp-kv-impr"><span class="text-muted fs13">—</span></div>
-      <div class="kpi-chg" id="camp-kc-impr"></div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-icon blue"><i class="fas fa-layer-group"></i></div>
-      <div class="kpi-lbl">Total Line Items</div>
-      <div class="kpi-val" id="camp-kv-li"><span class="text-muted fs13">—</span></div>
-      <div class="kpi-chg" id="camp-kc-li"></div>
+  <div class="ps-pag">
+    <span id="rev-pag-info" class="fs11 text-muted">—</span>
+    <div style="display:flex;gap:6px">
+      <button class="btn-ghost" style="height:26px;font-size:11px;padding:0 10px" id="revPrevBtn" onclick="revPage(-1)" disabled>← Prev</button>
+      <span id="rev-pag-lbl" class="fs11 text-muted" style="padding:0 6px;line-height:26px">Page 1</span>
+      <button class="btn-ghost" style="height:26px;font-size:11px;padding:0 10px" id="revNextBtn" onclick="revPage(1)">Next →</button>
     </div>
   </div>
-
-  <!-- ── CHART ROW ─────────────────────────────────────────────────────────── -->
-  <div class="g62">
-    <!-- Campaign Status Breakdown chart -->
-    <div class="card">
-      <div class="card-hd">
-        <div class="card-title"><i class="fas fa-chart-pie" style="color:#4285f4;margin-right:7px"></i>Campaign Status Breakdown</div>
-        <span class="b b-gray fs10" id="camp-source-badge">GAM · Orders</span>
-      </div>
-      <div style="height:170px"><canvas id="campStatusChart"></canvas></div>
-      <div id="campStatusBars" style="display:flex;flex-direction:column;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)"></div>
-    </div>
-
-    <!-- Budget by Status + Network Info -->
-    <div style="display:flex;flex-direction:column;gap:14px">
-      <div class="card">
-        <div class="card-hd"><div class="card-title"><i class="fas fa-sack-dollar" style="color:#00d68f;margin-right:7px"></i>Budget Allocation</div></div>
-        <div id="campBudgetRows" style="display:flex;flex-direction:column;gap:8px;min-height:60px">
-          <div class="text-muted fs12" style="padding:14px 0;text-align:center"><i class="fas fa-spinner fa-spin"></i></div>
-        </div>
-        <div style="height:110px;margin-top:10px"><canvas id="campBudgetChart"></canvas></div>
-      </div>
-      <div class="card card-sm">
-        <div class="card-hd"><div class="card-title"><i class="fas fa-network-wired" style="color:#00d68f;margin-right:7px"></i>Network</div><span class="b b-gray fs10" id="campNetBadge">—</span></div>
-        <div id="campNetInfo" style="display:flex;flex-direction:column;gap:5px">
-          <div class="text-muted fs12" style="text-align:center;padding:8px"><i class="fas fa-spinner fa-spin"></i></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── CAMPAIGNS TABLE ───────────────────────────────────────────────────── -->
-  <div class="card">
-    <div class="card-hd">
-      <div class="card-title"><i class="fas fa-list-check" style="color:#4285f4;margin-right:7px"></i>Campaigns (GAM Orders)</div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <input id="campSearch" type="text" placeholder="Search…"
-          style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:4px 10px;color:var(--text-primary);font-size:11px;width:140px;outline:none"
-          oninput="filterCampaigns(this.value)">
-        <select id="campStatusFilter"
-          style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:4px 8px;color:var(--text-primary);font-size:11px;outline:none"
-          onchange="filterCampaigns(document.getElementById('campSearch').value)">
-          <option value="">All Statuses</option>
-          <option value="ACTIVE">Active</option>
-          <option value="DELIVERING">Delivering</option>
-          <option value="COMPLETED">Completed</option>
-          <option value="PAUSED">Paused</option>
-          <option value="CANCELED">Canceled</option>
-          <option value="DRAFT">Draft</option>
-        </select>
-        <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 10px" onclick="exportCampaignCSV()">
-          <i class="fas fa-download"></i>CSV
-        </button>
-      </div>
-    </div>
-    <div style="overflow-x:auto">
-      <table class="tbl" id="campTable">
-        <thead>
-          <tr>
-            <th onclick="sortCampaignsBy('displayName')" style="cursor:pointer">Campaign (Order) <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
-            <th onclick="sortCampaignsBy('status')" style="cursor:pointer">Status <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
-            <th onclick="sortCampaignsBy('totalBudget')" style="cursor:pointer">Budget <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
-            <th>Impressions</th>
-            <th>Clicks</th>
-            <th>CTR</th>
-            <th onclick="sortCampaignsBy('startTime')" style="cursor:pointer">Start <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
-            <th onclick="sortCampaignsBy('endTime')" style="cursor:pointer">End <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
-            <th>Line Items</th>
-          </tr>
-        </thead>
-        <tbody id="campTbody">
-          <tr><td colspan="9" class="text-muted" style="text-align:center;padding:28px"><i class="fas fa-spinner fa-spin"></i> Loading…</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
-      <span class="fs11 text-muted" id="campCount">—</span>
-      <div style="display:flex;gap:6px">
-        <button class="btn-ghost" style="height:26px;font-size:11px;padding:0 10px" id="campPrevBtn" onclick="campPage(-1)" disabled>← Prev</button>
-        <span class="fs11 text-muted" id="campPageLabel" style="padding:0 6px;line-height:26px">Page 1</span>
-        <button class="btn-ghost" style="height:26px;font-size:11px;padding:0 10px" id="campNextBtn" onclick="campPage(1)">Next →</button>
-      </div>
-    </div>
-  </div>
-
 </div>
 
+</div><!-- /content -->
+
 <script>
-// ── Campaign state ────────────────────────────────────────────────────────────
-let _campOrders    = [];
-let _campLineItems = [];
-let _campNetwork   = null;
-let _campFiltered  = [];
-let _campPageNum   = 1;
-const CAMP_PAGE    = 20;
-let _campSortKey   = 'status';
-let _campSortAsc   = true;
-let _campStatusChart = null;
-let _campBudgetChart = null;
+// ── Revenue state ────────────────────────────────────────────────────────────
+let _revRows = [], _revFiltered = [], _revPageNum = 1, _revPageSz = 25;
+let _revSortKey = 'Revenue', _revSortAsc = false;
+let _revTrendChart = null, _revTypeChart = null, _revTvAChart = null;
+const PORTALS = ['ARENA','AWANI','CHINESE - OTHERS','GEMPAK','GEN NEXT','HOTSPOT','INDIAN - OTHERS',
+  'MALAY - OTHERS','NI','OTHERS','OTT - VOD','RADIO','ROJAK DAILY','SHAW','SOOKA',
+  'SPORTS - OTHERS','STADIUM ASTRO','THINKER STUDIOS','TV Linear','ULAGAM','XUAN','KULT'];
+const REV_TYPES = ['AA','Direct','Programmatic'];
+const PORTAL_COLORS = ['#4285f4','#a78bfa','#00d68f','#f59e0b','#f43f5e','#34d399','#60a5fa','#e879f9',
+  '#fb923c','#38bdf8','#4ade80','#f472b6','#94a3b8','#fbbf24','#c084fc','#22d3ee','#86efac','#fca5a5',
+  '#a5f3fc','#d8b4fe','#fed7aa','#bfdbfe'];
+const TYPE_COLORS = {'AA':'#4285f4','Direct':'#00d68f','Programmatic':'#f59e0b'};
 
-// ── Utilities (shared with GAM Analytics if on same page, else redeclared) ───
-function campFmtImpr(n) {
-  n = parseInt(n)||0;
-  if (n >= 1e9) return (n/1e9).toFixed(1)+'B';
-  if (n >= 1e6) return (n/1e6).toFixed(1)+'M';
-  if (n >= 1e3) return (n/1e3).toFixed(1)+'K';
-  return String(n);
-}
-function campFmtDate(s) {
-  if (!s) return '—';
-  try { return new Date(s).toLocaleDateString('en-MY',{day:'2-digit',month:'short',year:'numeric'}); } catch { return s.slice(0,10); }
-}
-function campFmtBudget(b) {
-  if (!b) return '—';
-  const u = parseFloat(b.units||'0'); const c = b.currencyCode||'';
-  if (u>=1e6) return c+' '+(u/1e6).toFixed(2)+'M';
-  if (u>=1e3) return c+' '+(u/1e3).toFixed(1)+'K';
-  return c+' '+u.toFixed(0);
-}
-const CAMP_STATUS_COLOR = { ACTIVE:'#00d68f', DELIVERING:'#00d68f', COMPLETED:'#60a5fa', PAUSED:'#f59e0b', CANCELED:'#f43f5e', DRAFT:'#8080a8', UNKNOWN:'#48486a' };
-const CAMP_STATUS_BADGE = { ACTIVE:'b-green', DELIVERING:'b-green', COMPLETED:'b-blue', PAUSED:'b-amber', CANCELED:'b-red', DRAFT:'b-gray', UNKNOWN:'b-gray' };
-function campStatusBadge(s) { return '<span class="b '+(CAMP_STATUS_BADGE[s]||'b-gray')+'" style="font-size:9px">'+(s||'UNKNOWN')+'</span>'; }
+function revFmt(n){ n=parseFloat(n)||0; if(n>=1e6) return 'RM '+(n/1e6).toFixed(2)+'M'; if(n>=1e3) return 'RM '+(n/1e3).toFixed(1)+'K'; return 'RM '+n.toFixed(0); }
+function revFmtShort(n){ n=parseFloat(n)||0; if(n>=1e6) return (n/1e6).toFixed(1)+'M'; if(n>=1e3) return (n/1e3).toFixed(1)+'K'; return n.toFixed(0); }
 
-// ── Loader ────────────────────────────────────────────────────────────────────
-async function loadCampaignData() {
-  const icon = document.getElementById('campBannerIcon');
-  const text = document.getElementById('campBannerText');
-  icon.className = 'fas fa-spinner fa-spin'; icon.style.color = '#4285f4';
-  text.textContent = 'Loading campaign data from Google Ad Manager…'; text.style.color = '#60a5fa';
-
-  try {
-    const [sumRes, ordRes, liRes] = await Promise.all([
-      fetch('/api/gam/summary').then(r=>r.json()),
-      fetch('/api/gam/orders?pageSize=200').then(r=>r.json()),
-      fetch('/api/gam/lineitems?pageSize=200').then(r=>r.json()),
-    ]);
-
-    if (!sumRes.ok) {
-      icon.className = 'fas fa-triangle-exclamation'; icon.style.color = '#f59e0b';
-      text.textContent = 'GAM not connected: '+(sumRes.error||'Go to API Connections → Config to set up.'); text.style.color = '#f59e0b';
-      document.getElementById('campTbody').innerHTML = '<tr><td colspan="9" class="text-muted" style="text-align:center;padding:28px"><i class="fas fa-plug" style="color:#f59e0b"></i> GAM not configured — go to API Connections to set up.</td></tr>';
-      return;
-    }
-
-    _campOrders    = (ordRes.orders    || []).filter(o=>o.status!=='UNKNOWN'&&o.status!=='DRAFT');
-    _campLineItems = (liRes.lineItems  || []).filter(li=>li.status!=='UNKNOWN'&&li.status!=='DRAFT');
-    _campNetwork   = sumRes;
-
-    icon.className = 'fas fa-circle-check'; icon.style.color = '#00d68f';
-    text.textContent = 'Connected to '+(sumRes.networkName||sumRes.networkCode)+' · '+_campOrders.length+' campaigns (orders) · '+_campLineItems.length+' line items · Live';
-    text.style.color = '#00d68f';
-    document.getElementById('camp-source-badge').textContent = (sumRes.networkName||sumRes.networkCode)+' · GAM Orders';
-
-    renderCampKPIs(sumRes);
-    renderCampStatusBars(sumRes.orders?.byStatus || {});
-    renderCampBudget();
-    renderCampNetwork(sumRes);
-    renderCampaignsTable();
-  } catch(e) {
-    icon.className = 'fas fa-circle-xmark'; icon.style.color = '#f43f5e';
-    text.textContent = 'Failed to load: '+e.message; text.style.color = '#f43f5e';
+async function loadRevenueData(){
+  const src = document.getElementById('rev-src-status');
+  if(src) src.innerHTML = '<i class="fas fa-spinner fa-spin" style="color:#4285f4;font-size:11px"></i> Loading…';
+  try{
+    const r = await fetch('/api/data/revenue').then(x=>x.json());
+    if(!r.ok){ if(src) src.innerHTML='<span style="color:#f59e0b;font-size:11px"><i class="fas fa-triangle-exclamation"></i> '+( r.error||'Not connected')+'</span>'; revShowEmpty(); return; }
+    _revRows = r.rows||[];
+    if(src) src.innerHTML='<span style="color:#00d68f;font-size:11px"><i class="fas fa-circle-check"></i> '+_revRows.length+' rows loaded</span>';
+    revPopulateFilters();
+    revApplyFilters();
+  }catch(e){
+    if(src) src.innerHTML='<span style="color:#f43f5e;font-size:11px"><i class="fas fa-xmark"></i> '+e.message+'</span>';
+    revShowEmpty();
   }
 }
 
-// ── KPIs ──────────────────────────────────────────────────────────────────────
-function renderCampKPIs(s) {
-  const active = (s.orders?.byStatus?.ACTIVE||0)+(s.orders?.byStatus?.DELIVERING||0);
-  const total  = s.orders?.total || 0;
-  const impr   = s.lineItems?.totalImpressions || 0;
-  const li     = s.lineItems?.total || 0;
-
-  // Budget total
-  let budgetTotal = 0; const cur = _campOrders.length ? (_campOrders.find(o=>o.totalBudget?.units)?.totalBudget?.currencyCode||'') : '';
-  _campOrders.forEach(o => { budgetTotal += parseFloat(o.totalBudget?.units||'0'); });
-  const fmtBudget = budgetTotal >= 1e6 ? cur+' '+(budgetTotal/1e6).toFixed(2)+'M' : budgetTotal >= 1e3 ? cur+' '+(budgetTotal/1e3).toFixed(1)+'K' : cur+' '+budgetTotal.toFixed(0);
-
-  document.getElementById('camp-kv-active').textContent = active;
-  document.getElementById('camp-kc-active').innerHTML   = '<span class="text-muted">of '+total+' total orders</span>';
-  document.getElementById('camp-kv-budget').innerHTML   = budgetTotal > 0 ? fmtBudget.replace(/^(\w+ )(.+)$/,'$1<sup style="font-size:12px;font-weight:600">$2</sup>') : '<span class="text-muted fs13">—</span>';
-  document.getElementById('camp-kc-budget').innerHTML   = '<span class="text-muted">across orders with budget</span>';
-  document.getElementById('camp-kv-impr').innerHTML     = campFmtImpr(impr)+'<sup style="font-size:12px;font-weight:600"> total</sup>';
-  document.getElementById('camp-kc-impr').innerHTML     = '<span class="text-muted">'+campFmtImpr(s.lineItems?.totalClicks||0)+' clicks</span>';
-  document.getElementById('camp-kv-li').textContent     = li;
-  const activeLI = (s.lineItems?.byStatus?.ACTIVE||0)+(s.lineItems?.byStatus?.DELIVERING||0);
-  document.getElementById('camp-kc-li').innerHTML       = '<span class="up">'+activeLI+' active</span>';
+function revShowEmpty(){
+  document.getElementById('revTbody').innerHTML='<tr><td colspan="7" class="text-muted" style="text-align:center;padding:32px"><i class="fas fa-plug" style="color:#f59e0b;font-size:16px"></i><br><span style="font-size:11px;display:block;margin-top:8px">Connect Google Sheets in <a href="#" onclick="navigate(\'api\')" style="color:#60a5fa">API Connections</a></span></td></tr>';
+  document.getElementById('revPortalBars').innerHTML='<div class="text-muted fs12" style="text-align:center;padding:20px">No data</div>';
 }
 
-// ── Status Bars ───────────────────────────────────────────────────────────────
-function renderCampStatusBars(byStatus) {
-  const el = document.getElementById('campStatusBars');
-  // Filter out DRAFT and UNKNOWN
-  const filteredEntries = Object.entries(byStatus).filter(([s])=>s!=='DRAFT'&&s!=='UNKNOWN');
-  const total = filteredEntries.reduce((a,[,b])=>a+b,0)||1;
-  const sorted = [...filteredEntries].sort((a,b)=>b[1]-a[1]);
-  if (!sorted.length) { el.innerHTML = '<div class="text-muted fs12" style="text-align:center;padding:10px">No data</div>'; return; }
-  el.innerHTML = sorted.map(([st, cnt]) => {
-    const pct = Math.round(cnt/total*100);
-    const col = CAMP_STATUS_COLOR[st]||'#48486a';
-    return '<div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span class="fs12">'+st+'</span><span class="fs12 fw7">'+cnt+' <span class="text-muted">('+pct+'%)</span></span></div><div class="prog-wrap"><div class="prog-fill" style="width:'+pct+'%;background:'+col+';border-radius:4px;height:6px;transition:width 0.6s"></div></div></div>';
+function revPopulateFilters(){
+  const fys=[...new Set(_revRows.map(r=>r['Financial Year']||r['FinancialYear']||r['FY']||'').filter(Boolean))].sort().reverse();
+  const portals=[...new Set(_revRows.map(r=>r['Portal']||'').filter(Boolean))].sort();
+  const types=[...new Set(_revRows.map(r=>r['Revenue Type']||r['RevenueType']||r['Type']||'').filter(Boolean))].sort();
+  const months=[...new Set(_revRows.map(r=>r['Month']||r['Revenue Month']||'').filter(Boolean))];
+
+  const fyS=document.getElementById('rev-fy');
+  const cur=fyS.value;
+  fyS.innerHTML='<option value="">All Years</option>'+fys.map(v=>'<option value="'+v+'"'+(v===cur?' selected':'')+'">'+v+'</option>').join('');
+
+  const pS=document.getElementById('rev-portal');
+  const cp=pS.value;
+  pS.innerHTML='<option value="">All Portals</option>'+portals.map(v=>'<option value="'+v+'"'+(v===cp?' selected':'')+'">'+v+'</option>').join('');
+
+  const tS=document.getElementById('rev-type');
+  const ct=tS.value;
+  tS.innerHTML='<option value="">All Types</option>'+types.map(v=>'<option value="'+v+'"'+(v===ct?' selected':'')+'">'+v+'</option>').join('');
+
+  const mS=document.getElementById('rev-month');
+  const cm=mS.value;
+  mS.innerHTML='<option value="">All Months</option>'+months.map(v=>'<option value="'+v+'"'+(v===cm?' selected':'')+'">'+v+'</option>').join('');
+}
+
+function revGetField(row,keys){ for(const k of keys){ if(row[k]!==undefined) return row[k]; } return ''; }
+
+function revApplyFilters(){
+  const fy=document.getElementById('rev-fy').value;
+  const portal=document.getElementById('rev-portal').value;
+  const type=document.getElementById('rev-type').value;
+  const month=document.getElementById('rev-month').value;
+  const q=(document.getElementById('rev-search')?.value||'').toLowerCase();
+  _revFiltered=_revRows.filter(r=>{
+    const rFy=revGetField(r,['Financial Year','FinancialYear','FY']);
+    const rPortal=revGetField(r,['Portal']);
+    const rType=revGetField(r,['Revenue Type','RevenueType','Type']);
+    const rMonth=revGetField(r,['Month','Revenue Month']);
+    const mFy=!fy||rFy===fy;
+    const mPortal=!portal||rPortal===portal;
+    const mType=!type||rType===type;
+    const mMonth=!month||rMonth===month;
+    const mQ=!q||Object.values(r).some(v=>String(v).toLowerCase().includes(q));
+    return mFy&&mPortal&&mType&&mMonth&&mQ;
+  });
+  _revFiltered.sort((a,b)=>{
+    const va=parseFloat(revGetField(a,[_revSortKey]))||revGetField(a,[_revSortKey])||'';
+    const vb=parseFloat(revGetField(b,[_revSortKey]))||revGetField(b,[_revSortKey])||'';
+    if(va<vb) return _revSortAsc?-1:1; if(va>vb) return _revSortAsc?1:-1; return 0;
+  });
+  _revPageNum=1;
+  revRenderKPIs();
+  revRenderCharts();
+  revRenderPortalBars();
+  revRenderPage();
+}
+
+function revReset(){ ['rev-fy','rev-portal','rev-type','rev-month'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';}); document.getElementById('rev-search').value=''; revApplyFilters(); }
+
+function revRenderKPIs(){
+  const totalRev=_revFiltered.reduce((s,r)=>s+parseFloat(revGetField(r,['Revenue'])||'0'),0);
+  const totalTgt=_revFiltered.reduce((s,r)=>s+parseFloat(revGetField(r,['Target'])||'0'),0);
+  const ach=totalTgt>0?(totalRev/totalTgt*100).toFixed(1):'—';
+  // top portal
+  const byPortal={};
+  _revFiltered.forEach(r=>{ const p=revGetField(r,['Portal'])||'—'; byPortal[p]=(byPortal[p]||0)+parseFloat(revGetField(r,['Revenue'])||'0'); });
+  const topPortal=Object.entries(byPortal).sort((a,b)=>b[1]-a[1])[0]||['—',0];
+  document.getElementById('rev-kv-total').textContent=revFmt(totalRev);
+  document.getElementById('rev-ks-total').innerHTML='<span class="text-muted">'+_revFiltered.length+' records</span>';
+  document.getElementById('rev-kv-target').textContent=revFmt(totalTgt);
+  document.getElementById('rev-ks-target').innerHTML=totalTgt?'<span class="text-muted">Total target budget</span>':'<span class="text-muted">No target data</span>';
+  document.getElementById('rev-kv-ach').textContent=(ach!=='—'?ach+'%':ach);
+  const achN=parseFloat(ach)||0;
+  document.getElementById('rev-ks-ach').className='ps-kpi-sub '+(achN>=100?'up':achN>=80?'flat':'dn');
+  document.getElementById('rev-ks-ach').textContent=achN>=100?'On target':achN>=80?'Near target':'Below target';
+  document.getElementById('rev-kv-portal').textContent=topPortal[0];
+  document.getElementById('rev-ks-portal').innerHTML='<span class="text-muted">'+revFmt(topPortal[1])+' · highest revenue</span>';
+}
+
+function revRenderCharts(){
+  // Trend: group by Month
+  const byMonth={};
+  _revFiltered.forEach(r=>{
+    const m=revGetField(r,['Month','Revenue Month'])||'Unknown';
+    byMonth[m]=(byMonth[m]||{rev:0,tgt:0});
+    byMonth[m].rev+=parseFloat(revGetField(r,['Revenue'])||'0');
+    byMonth[m].tgt+=parseFloat(revGetField(r,['Target'])||'0');
+  });
+  const mLabels=Object.keys(byMonth);
+  const mRevs=mLabels.map(k=>byMonth[k].rev);
+  const mTgts=mLabels.map(k=>byMonth[k].tgt);
+  const trendLbl=document.getElementById('rev-trend-lbl');
+  if(trendLbl) trendLbl.textContent=mLabels.length+' months';
+  const tCtx=document.getElementById('revTrendChart');
+  if(tCtx){
+    if(_revTrendChart){_revTrendChart.destroy();_revTrendChart=null;}
+    _revTrendChart=new Chart(tCtx,{type:'line',data:{labels:mLabels,datasets:[
+      {label:'Revenue',data:mRevs,borderColor:'#4285f4',backgroundColor:'rgba(66,133,244,0.1)',fill:true,tension:0.4,pointRadius:3,borderWidth:2},
+      {label:'Target',data:mTgts,borderColor:'#f59e0b',backgroundColor:'transparent',borderDash:[5,3],tension:0.4,pointRadius:2,borderWidth:1.5}
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#8080a8',font:{size:10},boxWidth:10,padding:10}}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#48486a',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#48486a',font:{size:9},callback:v=>revFmtShort(v)}}}}});
+  }
+
+  // Type donut
+  const byType={};
+  _revFiltered.forEach(r=>{ const t=revGetField(r,['Revenue Type','RevenueType','Type'])||'Other'; byType[t]=(byType[t]||0)+parseFloat(revGetField(r,['Revenue'])||'0'); });
+  const tLabels=Object.keys(byType); const tVals=tLabels.map(k=>byType[k]);
+  const tColors=tLabels.map(k=>TYPE_COLORS[k]||'#60a5fa');
+  const ttCtx=document.getElementById('revTypeChart');
+  if(ttCtx){
+    if(_revTypeChart){_revTypeChart.destroy();_revTypeChart=null;}
+    _revTypeChart=new Chart(ttCtx,{type:'doughnut',data:{labels:tLabels,datasets:[{data:tVals,backgroundColor:tColors,borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'right',labels:{color:'#8080a8',font:{size:10},boxWidth:9,padding:8}},tooltip:{callbacks:{label:c=>' '+c.label+': '+revFmt(c.parsed)}}}}});
+  }
+  const total=tVals.reduce((s,v)=>s+v,0)||1;
+  const tbEl=document.getElementById('revTypeBars');
+  if(tbEl) tbEl.innerHTML=tLabels.map((l,i)=>{const pct=Math.round(tVals[i]/total*100);return '<div><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="fs11">'+l+'</span><span class="fs11 fw7" style="color:'+tColors[i]+'">'+revFmt(tVals[i])+'</span></div><div class="ps-prog-wrap"><div class="ps-prog-fill" style="width:'+pct+'%;background:'+tColors[i]+'"></div></div></div>';}).join('');
+
+  // Target vs Actual bar
+  const tvaCtx=document.getElementById('revTvAChart');
+  if(tvaCtx){
+    if(_revTvAChart){_revTvAChart.destroy();_revTvAChart=null;}
+    _revTvAChart=new Chart(tvaCtx,{type:'bar',data:{labels:mLabels,datasets:[
+      {label:'Actual',data:mRevs,backgroundColor:'rgba(66,133,244,0.7)',borderRadius:4,borderWidth:0},
+      {label:'Target',data:mTgts,backgroundColor:'rgba(245,158,11,0.4)',borderRadius:4,borderWidth:0}
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#8080a8',font:{size:10},boxWidth:9,padding:8}}},scales:{x:{grid:{display:false},ticks:{color:'#48486a',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#48486a',font:{size:9},callback:v=>revFmtShort(v)}}}}});
+  }
+}
+
+function revRenderPortalBars(){
+  const el=document.getElementById('revPortalBars');
+  const cntEl=document.getElementById('rev-portal-count');
+  const byPortal={};
+  _revFiltered.forEach(r=>{ const p=revGetField(r,['Portal'])||'—'; byPortal[p]=(byPortal[p]||0)+parseFloat(revGetField(r,['Revenue'])||'0'); });
+  const sorted=Object.entries(byPortal).sort((a,b)=>b[1]-a[1]);
+  if(!sorted.length){el.innerHTML='<div class="text-muted fs12" style="text-align:center;padding:16px">No data</div>';return;}
+  const mx=sorted[0][1]||1;
+  if(cntEl) cntEl.textContent=sorted.length+' portals';
+  el.innerHTML=sorted.map(([name,val],i)=>{
+    const pct=Math.round(val/mx*100);
+    const col=PORTAL_COLORS[i%PORTAL_COLORS.length];
+    return '<div class="ps-hbar-item"><span class="ps-hbar-name" title="'+name+'">'+name+'</span><div class="ps-hbar-track"><div class="ps-hbar-fill" style="width:'+pct+'%;background:'+col+'"></div></div><span class="ps-hbar-val">'+revFmt(val)+'</span></div>';
   }).join('');
-
-  // Doughnut chart (also filter UNKNOWN)
-  const ctx = document.getElementById('campStatusChart');
-  if (!ctx) return;
-  if (_campStatusChart) { _campStatusChart.destroy(); _campStatusChart = null; }
-  const labels = sorted.map(([l])=>l); const values = sorted.map(([,v])=>v);
-  if (!labels.length) return;
-  _campStatusChart = new Chart(ctx, {
-    type:'doughnut',
-    data:{ labels, datasets:[{ data:values, backgroundColor:labels.map(l=>CAMP_STATUS_COLOR[l]||'#48486a'), borderWidth:0, hoverOffset:4 }] },
-    options:{ responsive:true, maintainAspectRatio:false, cutout:'70%',
-      plugins:{ legend:{ position:'right', labels:{ color:'#8080a8', font:{size:10}, boxWidth:9, padding:8 } },
-        tooltip:{ callbacks:{ label:ctx=>' '+ctx.label+': '+ctx.parsed } } } }
-  });
 }
 
-// ── Budget by Status ──────────────────────────────────────────────────────────
-function renderCampBudget() {
-  const el = document.getElementById('campBudgetRows');
-  const ordersWithBudget = _campOrders.filter(o=>o.totalBudget?.units);
-  if (!ordersWithBudget.length) {
-    el.innerHTML = '<div class="text-muted fs12" style="text-align:center;padding:12px">No budget data on orders</div>';
-    return;
-  }
-  const byStatus = {}; let grand = 0;
-  for (const o of ordersWithBudget) {
-    const s = o.status||'UNKNOWN'; const v = parseFloat(o.totalBudget.units||'0');
-    byStatus[s] = (byStatus[s]||0)+v; grand += v;
-  }
-  const cur = ordersWithBudget[0]?.totalBudget?.currencyCode||'';
-  const fmtV = v => v>=1e6?cur+' '+(v/1e6).toFixed(2)+'M':v>=1e3?cur+' '+(v/1e3).toFixed(1)+'K':cur+' '+v.toFixed(0);
-  const sorted = Object.entries(byStatus).sort((a,b)=>b[1]-a[1]);
-  el.innerHTML = sorted.map(([st,val]) => {
-    const pct = Math.round(val/grand*100); const col = CAMP_STATUS_COLOR[st]||'#48486a';
-    return '<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span class="fs12">'+st+'</span><span class="fs12 fw7" style="color:'+col+'">'+fmtV(val)+' <span class="text-muted">('+pct+'%)</span></span></div><div class="prog-wrap"><div class="prog-fill" style="width:'+pct+'%;background:'+col+';border-radius:4px;height:5px;transition:width 0.6s"></div></div></div>';
-  }).join('')+'<div class="fs11 text-muted" style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px">Total: <strong style="color:var(--text-primary)">'+fmtV(grand)+'</strong></div>';
-
-  // Budget bar chart
-  const ctx = document.getElementById('campBudgetChart');
-  if (!ctx) return;
-  if (_campBudgetChart) { _campBudgetChart.destroy(); _campBudgetChart = null; }
-  const labels = Object.keys(byStatus); const values = Object.values(byStatus);
-  _campBudgetChart = new Chart(ctx, {
-    type:'bar',
-    data:{ labels, datasets:[{ data:values, backgroundColor:labels.map(l=>CAMP_STATUS_COLOR[l]||'#48486a'), borderRadius:5, borderWidth:0 }] },
-    options:{ responsive:true, maintainAspectRatio:false, indexAxis:'y',
-      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:ctx=>' '+cur+' '+ctx.parsed.x.toLocaleString() } } },
-      scales:{ x:{ grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#48486a',font:{size:9}} }, y:{ grid:{display:false}, ticks:{color:'#8080a8',font:{size:9}} } } }
-  });
-}
-
-// ── Network info panel ────────────────────────────────────────────────────────
-function renderCampNetwork(s) {
-  const badge = document.getElementById('campNetBadge');
-  badge.textContent = 'Live'; badge.className = 'b b-green fs10';
-  document.getElementById('campNetInfo').innerHTML = [
-    ['Network', s.networkName||s.networkCode||'—'],
-    ['Currency', s.currency||'—'],
-    ['Time Zone', s.timeZone||'—'],
-  ].map(([k,v])=>'<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)"><span class="fs11 text-muted">'+k+'</span><span class="fs11 fw6">'+v+'</span></div>').join('');
-}
-
-// ── Campaigns Table ───────────────────────────────────────────────────────────
-function filterCampaigns(query) {
-  const sf = document.getElementById('campStatusFilter').value;
-  const q  = (query||'').toLowerCase();
-  _campFiltered = _campOrders.filter(o => {
-    const mQ = !q || (o.displayName||'').toLowerCase().includes(q) || (o.advertiserId||'').toLowerCase().includes(q);
-    const mS = !sf || o.status === sf;
-    return mQ && mS;
-  });
-  _campFiltered.sort((a,b) => {
-    let va = a[_campSortKey]||'', vb = b[_campSortKey]||'';
-    if (_campSortKey==='totalBudget') { va=parseFloat(a.totalBudget?.units||'0'); vb=parseFloat(b.totalBudget?.units||'0'); }
-    if (_campSortKey==='status') { // active/delivering first
-      const rank = s => (s==='ACTIVE'||s==='DELIVERING')?0:(s==='PAUSED'?1:(s==='COMPLETED'?2:3));
-      if (_campSortAsc) return rank(a.status)-rank(b.status); else return rank(b.status)-rank(a.status);
-    }
-    if (va<vb) return _campSortAsc?-1:1; if (va>vb) return _campSortAsc?1:-1; return 0;
-  });
-  _campPageNum = 1;
-  renderCampaignsPage();
-}
-function sortCampaignsBy(key) {
-  if (_campSortKey===key) _campSortAsc=!_campSortAsc; else { _campSortKey=key; _campSortAsc=true; }
-  filterCampaigns(document.getElementById('campSearch')?.value||'');
-}
-function renderCampaignsTable() {
-  _campFiltered = [..._campOrders];
-  // Default sort: active/delivering first
-  _campSortKey = 'status'; _campSortAsc = true;
-  filterCampaigns('');
-}
-
-// Build order→lineItems map for this screen
-function campBuildLIMap() {
-  const map = {};
-  for (const li of _campLineItems) {
-    const oid = li.orderId || (li.name?li.name.split('/lineItems/')[0]:null);
-    if (!oid) continue;
-    if (!map[oid]) map[oid]=[];
-    map[oid].push(li);
-  }
-  return map;
-}
-
-function renderCampaignsPage() {
-  const tbody = document.getElementById('campTbody');
-  const start = (_campPageNum-1)*CAMP_PAGE;
-  const page  = _campFiltered.slice(start, start+CAMP_PAGE);
-  const total = _campFiltered.length;
-  const pages = Math.ceil(total/CAMP_PAGE);
-
-  document.getElementById('campCount').textContent = total+' campaigns'+(total!==_campOrders.length?' (filtered from '+_campOrders.length+')':'');
-  document.getElementById('campPageLabel').textContent = 'Page '+_campPageNum+' / '+(pages||1);
-  document.getElementById('campPrevBtn').disabled = _campPageNum<=1;
-  document.getElementById('campNextBtn').disabled = _campPageNum>=pages;
-
-  if (!page.length) {
-    tbody.innerHTML = '<tr><td colspan="9" class="text-muted" style="text-align:center;padding:24px">No campaigns match.</td></tr>';
-    return;
-  }
-  const liMap = campBuildLIMap();
-  tbody.innerHTML = page.map(o => {
-    const oid = o.name||o.id||o.displayName;
-    const oNum = oid?.split('/').pop();
-    let lis = liMap[oid]||liMap[oNum]||[];
-    if (!lis.length && oNum) lis = _campLineItems.filter(li=>(li.orderId||'').split('/').pop()===oNum);
-    const totalImpr   = lis.reduce((s,li)=>s+parseInt(li.impressionsDelivered||'0'),0);
-    const totalClicks = lis.reduce((s,li)=>s+parseInt(li.clicksDelivered||'0'),0);
-    const ctr         = totalImpr>0?(totalClicks/totalImpr*100).toFixed(2)+'%':'—';
-    const activeLI    = lis.filter(li=>li.status==='ACTIVE'||li.status==='DELIVERING').length;
+function revRenderPage(){
+  const tbody=document.getElementById('revTbody');
+  const start=(_revPageNum-1)*_revPageSz;
+  const page=_revFiltered.slice(start,start+_revPageSz);
+  const total=_revFiltered.length;
+  const pages=Math.max(1,Math.ceil(total/_revPageSz));
+  document.getElementById('rev-pag-info').textContent=(start+1)+'–'+Math.min(start+_revPageSz,total)+' of '+total+' rows';
+  document.getElementById('rev-pag-lbl').textContent='Page '+_revPageNum+' / '+pages;
+  document.getElementById('revPrevBtn').disabled=_revPageNum<=1;
+  document.getElementById('revNextBtn').disabled=_revPageNum>=pages;
+  document.getElementById('rev-count').textContent=total+' records';
+  if(!page.length){tbody.innerHTML='<tr><td colspan="7" class="text-muted" style="text-align:center;padding:24px">No records match</td></tr>';return;}
+  tbody.innerHTML=page.map(r=>{
+    const rev=parseFloat(revGetField(r,['Revenue'])||'0');
+    const tgt=parseFloat(revGetField(r,['Target'])||'0');
+    const ach=tgt>0?(rev/tgt*100).toFixed(1)+'%':'—';
+    const achN=parseFloat(ach)||0;
+    const achCol=achN>=100?'#00d68f':achN>=80?'#f59e0b':'#f43f5e';
     return '<tr>'+
-      '<td style="max-width:220px"><div class="fw6" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+(o.displayName||'')+'">'+( o.displayName||o.name||'—')+'</div>'+
-        (o.advertiserId?'<div class="fs10 text-muted">Adv: '+o.advertiserId.split('/').pop()+'</div>':'')+'</td>'+
-      '<td>'+campStatusBadge(o.status)+'</td>'+
-      '<td class="fw7" style="color:#60a5fa">'+campFmtBudget(o.totalBudget)+'</td>'+
-      '<td class="fw6" style="color:#f59e0b">'+campFmtImpr(totalImpr)+'</td>'+
-      '<td class="dim">'+campFmtImpr(totalClicks)+'</td>'+
-      '<td class="fw6">'+ctr+'</td>'+
-      '<td class="dim fs11">'+campFmtDate(o.startTime)+'</td>'+
-      '<td class="dim fs11">'+campFmtDate(o.endTime)+'</td>'+
-      '<td class="fs11"><span class="li-count-badge" style="display:inline-flex;align-items:center;background:rgba(167,139,250,0.15);color:#a78bfa;font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px">'+lis.length+'</span>'+
-        (activeLI>0?'<span style="color:#00d68f;font-size:9px;margin-left:4px">'+activeLI+' active</span>':'')+'</td>'+
+      '<td class="fw6">'+( revGetField(r,['Portal'])||'—')+'</td>'+
+      '<td class="muted">'+( revGetField(r,['Financial Year','FinancialYear','FY'])||'—')+'</td>'+
+      '<td class="muted">'+( revGetField(r,['Month','Revenue Month'])||'—')+'</td>'+
+      '<td><span class="ps-plat ps-plat-sheets" style="font-size:9px">'+( revGetField(r,['Revenue Type','RevenueType','Type'])||'—')+'</span></td>'+
+      '<td class="num fw7" style="color:#4285f4">'+revFmt(rev)+'</td>'+
+      '<td class="num muted">'+revFmt(tgt)+'</td>'+
+      '<td class="num fw7" style="color:'+achCol+'">'+ach+'</td>'+
     '</tr>';
   }).join('');
 }
-function campPage(dir) {
-  const pages = Math.ceil(_campFiltered.length/CAMP_PAGE);
-  _campPageNum = Math.max(1,Math.min(pages,_campPageNum+dir));
-  renderCampaignsPage();
+
+function revSort(key){
+  if(_revSortKey===key) _revSortAsc=!_revSortAsc; else {_revSortKey=key;_revSortAsc=false;}
+  const ths=document.querySelectorAll('[id^="revth-"]');
+  ths.forEach(th=>{th.classList.remove('sort-asc','sort-desc');});
+  const th=document.getElementById('revth-'+key);
+  if(th) th.classList.add(_revSortAsc?'sort-asc':'sort-desc');
+  revApplyFilters();
 }
-function exportCampaignCSV() {
-  const data = _campFiltered.length?_campFiltered:_campOrders;
-  if (!data.length) return;
-  const liMap = campBuildLIMap();
-  const headers = ['Campaign','Status','Budget','Currency','Impressions','Clicks','CTR','Start','End','Line Items'];
-  const rows = data.map(o => {
-    const oid=o.name||o.id||o.displayName; const oNum=oid?.split('/').pop();
-    let lis=liMap[oid]||liMap[oNum]||[];
-    if (!lis.length&&oNum) lis=_campLineItems.filter(li=>(li.orderId||'').split('/').pop()===oNum);
-    const impr=lis.reduce((s,li)=>s+parseInt(li.impressionsDelivered||'0'),0);
-    const clk=lis.reduce((s,li)=>s+parseInt(li.clicksDelivered||'0'),0);
-    const ctr=impr>0?(clk/impr*100).toFixed(2)+'%':'';
-    return ['"'+(o.displayName||o.name||'').replace(/"/g,'""')+'"',o.status||'',o.totalBudget?.units||'',o.totalBudget?.currencyCode||'',impr,clk,ctr,o.startTime?.slice(0,10)||'',o.endTime?.slice(0,10)||'',lis.length].join(',');
-  });
-  const csv=[headers.join(','),...rows].join('\\n');
-  const a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv); a.download='campaigns.csv'; a.click();
+function revPage(dir){ const pages=Math.max(1,Math.ceil(_revFiltered.length/_revPageSz)); _revPageNum=Math.max(1,Math.min(pages,_revPageNum+dir)); revRenderPage(); }
+function revExportCSV(){
+  if(!_revFiltered.length) return;
+  const keys=Object.keys(_revFiltered[0]||{});
+  const csv=[keys.join(','),..._revFiltered.map(r=>keys.map(k=>'"'+(String(r[k]||'').replace(/"/g,'""'))+'"').join(','))].join('\\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='revenue.csv';a.click();
 }
 
-// ── Auto-load ─────────────────────────────────────────────────────────────────
-if (document.readyState==='loading') document.addEventListener('DOMContentLoaded',loadCampaignData);
-else setTimeout(loadCampaignData,80);
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',loadRevenueData);
+else setTimeout(loadRevenueData,80);
 </script>
 `;
 }
 
 
-export function adsScreen(): string {
+// ═══════════════════════════════════════════════════════════════════════════
+//  2. CAMPAIGN PERFORMANCE (Direct Campaign – Google Sheets)
+// ═══════════════════════════════════════════════════════════════════════════
+export function campaignScreen(): string {
   return `
+${PS_CSS}
 <div class="content fade-in">
 
-  <!-- ── DATA SOURCE INDICATOR ───────────────────────────────────────────── -->
-  <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(66,133,244,0.07);border:1px solid rgba(66,133,244,0.15);border-radius:9px;margin-bottom:10px;flex-wrap:wrap">
-    <i class="fas fa-rectangle-ad" style="color:#4285f4;font-size:10px"></i>
-    <span style="font-size:11px;color:var(--text-muted);font-weight:600">DATA SOURCE</span>
-    <span style="font-size:11px;color:var(--text-primary)">Google Ad Manager <span class="text-muted">·</span> Line Items (as Ad Performance)</span>
-    <span class="b b-blue" style="font-size:10px;margin-left:4px">GAM API · Live</span>
-    <span style="margin-left:auto;font-size:10.5px;color:var(--text-muted)"><i class="fas fa-satellite-dish" style="margin-right:4px"></i>Fetches live from GAM on page load</span>
-  </div>
-
-  <!-- ── Connection Banner ─────────────────────────────────────────────────── -->
-  <div id="adsBanner" style="display:flex;align-items:center;gap:10px;background:rgba(66,133,244,0.08);border:1px solid rgba(66,133,244,0.2);border-radius:12px;padding:11px 16px;margin-bottom:4px">
-    <i class="fas fa-spinner fa-spin" id="adsBannerIcon" style="color:#4285f4;font-size:13px"></i>
-    <span id="adsBannerText" style="font-size:12px;color:#60a5fa">Loading ad performance data from Google Ad Manager…</span>
-    <button class="btn-ghost" style="margin-left:auto;height:26px;font-size:11px;padding:0 10px" onclick="loadAdsData()">
-      <i class="fas fa-rotate"></i>Refresh
-    </button>
-  </div>
-
-  <!-- ── KPI STRIP ─────────────────────────────────────────────────────────── -->
-  <div class="kpi-grid-4">
-    <div class="kpi accent">
-      <div class="kpi-icon pink"><i class="fas fa-rectangle-ad"></i></div>
-      <div class="kpi-lbl">Active Line Items</div>
-      <div class="kpi-val" id="ads-kv-active"><span class="text-muted fs13">—</span></div>
-      <div class="kpi-chg" id="ads-kc-active"></div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-icon green"><i class="fas fa-eye"></i></div>
-      <div class="kpi-lbl">Total Impressions</div>
-      <div class="kpi-val" id="ads-kv-impr"><span class="text-muted fs13">—</span></div>
-      <div class="kpi-chg" id="ads-kc-impr"></div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-icon blue"><i class="fas fa-arrow-pointer"></i></div>
-      <div class="kpi-lbl">Total Clicks</div>
-      <div class="kpi-val" id="ads-kv-clicks"><span class="text-muted fs13">—</span></div>
-      <div class="kpi-chg" id="ads-kc-clicks"></div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-icon amber"><i class="fas fa-percent"></i></div>
-      <div class="kpi-lbl">Overall CTR</div>
-      <div class="kpi-val" id="ads-kv-ctr"><span class="text-muted fs13">—</span></div>
-      <div class="kpi-chg" id="ads-kc-ctr"></div>
-    </div>
-  </div>
-
-  <!-- ── CHART ROW ─────────────────────────────────────────────────────────── -->
-  <div class="g62">
-    <!-- Line Item Type breakdown -->
-    <div class="card">
-      <div class="card-hd">
-        <div class="card-title"><i class="fas fa-layer-group" style="color:#a78bfa;margin-right:7px"></i>Ad Performance by Type</div>
-        <span class="b b-gray fs10" id="ads-source-badge">GAM · Line Items</span>
-      </div>
-      <div style="height:160px"><canvas id="adsTypeChart"></canvas></div>
-      <div id="adsTypeBars" style="display:flex;flex-direction:column;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)"></div>
-    </div>
-
-    <!-- Status bars + top performers -->
-    <div style="display:flex;flex-direction:column;gap:14px">
-      <div class="card">
-        <div class="card-hd"><div class="card-title"><i class="fas fa-signal" style="color:#00d68f;margin-right:7px"></i>Line Item Status</div></div>
-        <div id="adsStatusBars" style="display:flex;flex-direction:column;gap:8px;min-height:60px">
-          <div class="text-muted fs12" style="text-align:center;padding:14px"><i class="fas fa-spinner fa-spin"></i></div>
-        </div>
-      </div>
-      <div class="card card-sm">
-        <div class="card-hd"><div class="card-title"><i class="fas fa-trophy" style="color:#f59e0b;margin-right:7px"></i>Top Performers</div><span class="b b-gray fs10">by impressions</span></div>
-        <div id="adsTopPerformers" style="display:flex;flex-direction:column;gap:5px">
-          <div class="text-muted fs12" style="text-align:center;padding:10px"><i class="fas fa-spinner fa-spin"></i></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── AD PERFORMANCE TABLE ───────────────────────────────────────────────── -->
-  <div class="card">
-    <div class="card-hd">
-      <div class="card-title"><i class="fas fa-table-list" style="color:#4285f4;margin-right:7px"></i>Line Items — Ad Performance</div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <input id="adsSearch" type="text" placeholder="Search line items…"
-          style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:4px 10px;color:var(--text-primary);font-size:11px;width:150px;outline:none"
-          oninput="filterAds(this.value)">
-        <select id="adsStatusFilter"
-          style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:4px 8px;color:var(--text-primary);font-size:11px;outline:none"
-          onchange="filterAds(document.getElementById('adsSearch').value)">
-          <option value="ACTIVE_DELIVERING">Active &amp; Delivering</option>
-          <option value="">All Statuses</option>
-          <option value="ACTIVE">Active</option>
-          <option value="DELIVERING">Delivering</option>
-          <option value="COMPLETED">Completed</option>
-          <option value="PAUSED">Paused</option>
-        </select>
-        <select id="adsTypeFilter"
-          style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:4px 8px;color:var(--text-primary);font-size:11px;outline:none"
-          onchange="filterAds(document.getElementById('adsSearch').value)">
-          <option value="">All Types</option>
-        </select>
-        <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 10px" onclick="exportAdsCSV()">
-          <i class="fas fa-download"></i>CSV
-        </button>
-      </div>
-    </div>
-    <div style="overflow-x:auto">
-      <table class="tbl">
-        <thead>
-          <tr>
-            <th onclick="sortAdsBy('displayName')" style="cursor:pointer">Line Item <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
-            <th onclick="sortAdsBy('status')" style="cursor:pointer">Status <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
-            <th onclick="sortAdsBy('lineItemType')" style="cursor:pointer">Type <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
-            <th onclick="sortAdsBy('impressionsDelivered')" style="cursor:pointer">Impressions <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
-            <th onclick="sortAdsBy('clicksDelivered')" style="cursor:pointer">Clicks <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
-            <th>CTR</th>
-            <th onclick="sortAdsBy('startTime')" style="cursor:pointer">Start <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
-            <th onclick="sortAdsBy('endTime')" style="cursor:pointer">End <i class="fas fa-sort" style="opacity:0.4;font-size:9px"></i></th>
-            <th>Order</th>
-          </tr>
-        </thead>
-        <tbody id="adsTbody">
-          <tr><td colspan="9" class="text-muted" style="text-align:center;padding:28px"><i class="fas fa-spinner fa-spin"></i> Loading…</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
-      <span class="fs11 text-muted" id="adsCount">—</span>
-      <div style="display:flex;gap:6px">
-        <button class="btn-ghost" style="height:26px;font-size:11px;padding:0 10px" id="adsPrevBtn" onclick="adsPage(-1)" disabled>← Prev</button>
-        <span class="fs11 text-muted" id="adsPageLabel" style="padding:0 6px;line-height:26px">Page 1</span>
-        <button class="btn-ghost" style="height:26px;font-size:11px;padding:0 10px" id="adsNextBtn" onclick="adsPage(1)">Next →</button>
-      </div>
-    </div>
-  </div>
-
+<!-- ── Data source ─────────────────────────────────────────────────────── -->
+<div class="ps-src">
+  <i class="fas fa-table-cells" style="color:#34d399"></i>
+  <strong>Google Sheets</strong> <span class="text-muted">·</span> Direct Campaign tab
+  <span class="ps-plat ps-plat-sheets">Sheets · Live</span>
+  <span id="camp-src-status" style="margin-left:auto"></span>
 </div>
 
+<!-- ── Filters ─────────────────────────────────────────────────────────── -->
+<div class="ps-filter-bar">
+  <label>Financial Year</label>
+  <select id="camp-fy" onchange="campApplyFilters()"><option value="">All Years</option></select>
+  <div class="ps-filter-sep"></div>
+  <label>Advertiser</label>
+  <select id="camp-adv" onchange="campApplyFilters()"><option value="">All Advertisers</option></select>
+  <div class="ps-filter-sep"></div>
+  <label>Campaign Type</label>
+  <select id="camp-type" onchange="campApplyFilters()"><option value="">All Types</option></select>
+  <div class="ps-filter-sep"></div>
+  <label>Platform</label>
+  <select id="camp-platform" onchange="campApplyFilters()"><option value="">All Platforms</option></select>
+  <button class="btn-ghost" style="margin-left:auto;height:28px;font-size:11px;padding:0 10px" onclick="campReset()"><i class="fas fa-filter-circle-xmark"></i>Reset</button>
+  <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 10px" onclick="loadCampData()"><i class="fas fa-rotate"></i>Refresh</button>
+  <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 10px" onclick="campExportCSV()"><i class="fas fa-download"></i>CSV</button>
+</div>
+
+<!-- ── KPIs ────────────────────────────────────────────────────────────── -->
+<div class="ps-kpi-row">
+  ${_psKpi(true,  '#4285f4','sack-dollar',     'Total Revenue',         'camp-kv-rev',   'camp-ks-rev')}
+  ${_psKpi(false, '#a78bfa','bullhorn',         'Total Campaigns',       'camp-kv-count', 'camp-ks-count')}
+  ${_psKpi(false, '#00d68f','chart-bar',        'Avg Revenue / Campaign','camp-kv-avg',   'camp-ks-avg')}
+  ${_psKpi(false, '#f59e0b','crown',            'Top Advertiser',        'camp-kv-adv',   'camp-ks-adv')}
+</div>
+
+<!-- ── Row 2: Trend + Advertiser Bar ───────────────────────────────────── -->
+<div class="ps-g62">
+  <div class="card">
+    <div class="card-hd">
+      <div class="card-title"><i class="fas fa-chart-line" style="color:#4285f4;margin-right:6px"></i>Revenue Trend (Monthly)</div>
+      <span id="camp-trend-lbl" class="fs11 text-muted"></span>
+    </div>
+    <div style="height:200px"><canvas id="campTrendChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-hd">
+      <div class="card-title"><i class="fas fa-chart-pie" style="color:#a78bfa;margin-right:6px"></i>Campaign Type Split</div>
+    </div>
+    <div style="height:140px"><canvas id="campTypeChart"></canvas></div>
+    <div id="campTypeBars" style="margin-top:10px;display:flex;flex-direction:column;gap:6px"></div>
+  </div>
+</div>
+
+<!-- ── Row 3: Top Advertisers + Deal Type ──────────────────────────────── -->
+<div class="ps-g2">
+  <div class="card">
+    <div class="card-hd">
+      <div class="card-title"><i class="fas fa-building" style="color:#00d68f;margin-right:6px"></i>Top Advertisers</div>
+      <span id="camp-adv-count" class="fs11 text-muted"></span>
+    </div>
+    <div id="campAdvBars" style="display:flex;flex-direction:column;gap:6px;min-height:80px">
+      <div class="text-muted fs12" style="text-align:center;padding:20px"><i class="fas fa-spinner fa-spin"></i></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hd">
+      <div class="card-title"><i class="fas fa-handshake" style="color:#f59e0b;margin-right:6px"></i>Revenue by Deal Type</div>
+    </div>
+    <div id="campDealBars" style="display:flex;flex-direction:column;gap:7px"></div>
+    <div style="height:130px;margin-top:10px"><canvas id="campDealChart"></canvas></div>
+  </div>
+</div>
+
+<!-- ── Row 4: Campaign Table ────────────────────────────────────────────── -->
+<div class="card">
+  <div class="card-hd">
+    <div class="card-title"><i class="fas fa-table-list" style="color:#60a5fa;margin-right:6px"></i>Campaign Detail</div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <input id="camp-search" type="text" placeholder="Search campaign, advertiser…" style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:4px 10px;color:var(--text-primary);font-size:11px;width:200px;outline:none" oninput="campApplyFilters()">
+      <span id="camp-count" class="fs11 text-muted"></span>
+    </div>
+  </div>
+  <div class="ps-tbl-wrap">
+    <table class="ps-tbl">
+      <thead>
+        <tr>
+          <th onclick="campSort('Campaign Name')" id="campth-Campaign-Name">Campaign</th>
+          <th onclick="campSort('AdvertiserCompany')" id="campth-AdvertiserCompany">Advertiser</th>
+          <th onclick="campSort('campaignType')" id="campth-campaignType">Type</th>
+          <th onclick="campSort('Platform')" id="campth-Platform">Platform</th>
+          <th onclick="campSort('DealType')" id="campth-DealType">Deal Type</th>
+          <th onclick="campSort('ProductCategory')" id="campth-ProductCategory">Category</th>
+          <th onclick="campSort('Financial Year')" id="campth-Financial-Year">FY</th>
+          <th onclick="campSort('Month')" id="campth-Month">Month</th>
+          <th onclick="campSort('Total')" class="num" id="campth-Total">Revenue</th>
+        </tr>
+      </thead>
+      <tbody id="campTbody">
+        <tr><td colspan="9" class="text-muted" style="text-align:center;padding:32px"><i class="fas fa-spinner fa-spin" style="font-size:18px"></i></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ps-pag">
+    <span id="camp-pag-info" class="fs11 text-muted">—</span>
+    <div style="display:flex;gap:6px">
+      <button class="btn-ghost" style="height:26px;font-size:11px;padding:0 10px" id="campPrevBtn" onclick="campPage(-1)" disabled>← Prev</button>
+      <span id="camp-pag-lbl" class="fs11 text-muted" style="padding:0 6px;line-height:26px">Page 1</span>
+      <button class="btn-ghost" style="height:26px;font-size:11px;padding:0 10px" id="campNextBtn" onclick="campPage(1)">Next →</button>
+    </div>
+  </div>
+</div>
+
+</div>
 <script>
-// ── Ads state ─────────────────────────────────────────────────────────────────
-let _adsLineItems = [];
-let _adsOrders    = [];
-let _adsFiltered  = [];
-let _adsPageNum   = 1;
-const ADS_PAGE    = 25;
-let _adsSortKey   = 'impressionsDelivered';
-let _adsSortAsc   = false;
-let _adsTypeChart  = null;
+let _campRows=[], _campFiltered=[], _campPageNum=1, _campPageSz=25;
+let _campSortKey='Total', _campSortAsc=false;
+let _campTrendChart=null, _campTypeChart=null, _campDealChart=null;
+const CAMP_COLORS=['#4285f4','#a78bfa','#00d68f','#f59e0b','#f43f5e','#34d399','#60a5fa','#e879f9','#fb923c','#38bdf8'];
 
-const ADS_STATUS_COLOR = { ACTIVE:'#00d68f', DELIVERING:'#00d68f', COMPLETED:'#60a5fa', PAUSED:'#f59e0b', CANCELED:'#f43f5e', DRAFT:'#8080a8', UNKNOWN:'#48486a' };
-const ADS_STATUS_BADGE = { ACTIVE:'b-green', DELIVERING:'b-green', COMPLETED:'b-blue', PAUSED:'b-amber', CANCELED:'b-red', DRAFT:'b-gray', UNKNOWN:'b-gray' };
-function adsFmtImpr(n) {
-  n=parseInt(n)||0;
-  if(n>=1e9) return (n/1e9).toFixed(1)+'B';
-  if(n>=1e6) return (n/1e6).toFixed(1)+'M';
-  if(n>=1e3) return (n/1e3).toFixed(1)+'K';
-  return String(n);
+function campFmt(n){ n=parseFloat(n)||0; if(n>=1e6) return 'RM '+(n/1e6).toFixed(2)+'M'; if(n>=1e3) return 'RM '+(n/1e3).toFixed(1)+'K'; return 'RM '+n.toFixed(0); }
+function campFmtShort(n){ n=parseFloat(n)||0; if(n>=1e6) return (n/1e6).toFixed(1)+'M'; if(n>=1e3) return (n/1e3).toFixed(1)+'K'; return n.toFixed(0); }
+function campG(r,keys){ for(const k of keys) if(r[k]!==undefined) return r[k]; return ''; }
+
+async function loadCampData(){
+  const src=document.getElementById('camp-src-status');
+  if(src) src.innerHTML='<i class="fas fa-spinner fa-spin" style="color:#4285f4;font-size:11px"></i> Loading…';
+  try{
+    const r=await fetch('/api/data/campaign').then(x=>x.json());
+    if(!r.ok){ if(src) src.innerHTML='<span style="color:#f59e0b;font-size:11px"><i class="fas fa-triangle-exclamation"></i> '+(r.error||'Not connected')+'</span>'; campShowEmpty(); return; }
+    _campRows=r.rows||[];
+    if(src) src.innerHTML='<span style="color:#00d68f;font-size:11px"><i class="fas fa-circle-check"></i> '+_campRows.length+' rows loaded</span>';
+    campPopulateFilters();
+    campApplyFilters();
+  }catch(e){
+    if(src) src.innerHTML='<span style="color:#f43f5e;font-size:11px"><i class="fas fa-xmark"></i> '+e.message+'</span>';
+    campShowEmpty();
+  }
 }
-function adsFmtDate(s) {
-  if(!s) return '—';
-  try { return new Date(s).toLocaleDateString('en-MY',{day:'2-digit',month:'short',year:'numeric'}); } catch { return s.slice(0,10); }
+
+function campShowEmpty(){
+  document.getElementById('campTbody').innerHTML='<tr><td colspan="9" class="text-muted" style="text-align:center;padding:32px"><i class="fas fa-plug" style="color:#f59e0b;font-size:16px"></i><br><span style="font-size:11px;display:block;margin-top:8px">Connect Google Sheets in <a href="#" onclick="navigate(\'api\')" style="color:#60a5fa">API Connections</a></span></td></tr>';
 }
-function adsStatusBadge(s) { return '<span class="b '+(ADS_STATUS_BADGE[s]||'b-gray')+'" style="font-size:9px">'+(s||'UNKNOWN')+'</span>'; }
 
-// ── Loader ────────────────────────────────────────────────────────────────────
-async function loadAdsData() {
-  const icon = document.getElementById('adsBannerIcon');
-  const text = document.getElementById('adsBannerText');
-  icon.className = 'fas fa-spinner fa-spin'; icon.style.color = '#4285f4';
-  text.textContent = 'Loading ad performance data from Google Ad Manager…'; text.style.color = '#60a5fa';
+function campPopulateFilters(){
+  const fys=[...new Set(_campRows.map(r=>campG(r,['Financial Year','FinancialYear','FY'])).filter(Boolean))].sort().reverse();
+  const advs=[...new Set(_campRows.map(r=>campG(r,['AdvertiserCompany','Advertiser'])).filter(Boolean))].sort();
+  const types=[...new Set(_campRows.map(r=>campG(r,['campaignType','Campaign Type','CampaignType'])).filter(Boolean))].sort();
+  const plats=[...new Set(_campRows.map(r=>campG(r,['Platform'])).filter(Boolean))].sort();
+  const fill=(id,arr,cur)=>{ const el=document.getElementById(id); if(!el) return; const first=el.options[0].text; el.innerHTML='<option value="">'+first+'</option>'+arr.map(v=>'<option value="'+v+'"'+(v===cur?' selected':'')+'">'+v+'</option>').join(''); };
+  fill('camp-fy',fys,document.getElementById('camp-fy').value);
+  fill('camp-adv',advs,document.getElementById('camp-adv').value);
+  fill('camp-type',types,document.getElementById('camp-type').value);
+  fill('camp-platform',plats,document.getElementById('camp-platform').value);
+}
 
-  try {
-    const [sumRes, liRes, ordRes] = await Promise.all([
+function campApplyFilters(){
+  const fy=document.getElementById('camp-fy').value;
+  const adv=document.getElementById('camp-adv').value;
+  const type=document.getElementById('camp-type').value;
+  const plat=document.getElementById('camp-platform').value;
+  const q=(document.getElementById('camp-search')?.value||'').toLowerCase();
+  _campFiltered=_campRows.filter(r=>{
+    const mFy=!fy||campG(r,['Financial Year','FinancialYear','FY'])===fy;
+    const mAdv=!adv||campG(r,['AdvertiserCompany','Advertiser'])===adv;
+    const mType=!type||campG(r,['campaignType','Campaign Type','CampaignType'])===type;
+    const mPlat=!plat||campG(r,['Platform'])===plat;
+    const mQ=!q||Object.values(r).some(v=>String(v).toLowerCase().includes(q));
+    return mFy&&mAdv&&mType&&mPlat&&mQ;
+  });
+  _campFiltered.sort((a,b)=>{
+    const va=parseFloat(campG(a,[_campSortKey]))||campG(a,[_campSortKey])||'';
+    const vb=parseFloat(campG(b,[_campSortKey]))||campG(b,[_campSortKey])||'';
+    if(va<vb) return _campSortAsc?-1:1; if(va>vb) return _campSortAsc?1:-1; return 0;
+  });
+  _campPageNum=1;
+  campRenderKPIs();
+  campRenderCharts();
+  campRenderAdvBars();
+  campRenderDealBars();
+  campRenderPage();
+}
+
+function campReset(){ ['camp-fy','camp-adv','camp-type','camp-platform'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';}); document.getElementById('camp-search').value=''; campApplyFilters(); }
+
+function campRenderKPIs(){
+  const totalRev=_campFiltered.reduce((s,r)=>s+parseFloat(campG(r,['Total','Revenue','Total Revenue'])||'0'),0);
+  const count=_campFiltered.length;
+  const avg=count>0?totalRev/count:0;
+  // top advertiser
+  const byAdv={};
+  _campFiltered.forEach(r=>{ const a=campG(r,['AdvertiserCompany','Advertiser'])||'—'; byAdv[a]=(byAdv[a]||0)+parseFloat(campG(r,['Total','Revenue'])||'0'); });
+  const topAdv=Object.entries(byAdv).sort((a,b)=>b[1]-a[1])[0]||['—',0];
+  document.getElementById('camp-kv-rev').textContent=campFmt(totalRev);
+  document.getElementById('camp-ks-rev').innerHTML='<span class="text-muted">'+count+' campaigns</span>';
+  document.getElementById('camp-kv-count').textContent=count.toLocaleString();
+  document.getElementById('camp-ks-count').innerHTML='<span class="text-muted">direct campaigns</span>';
+  document.getElementById('camp-kv-avg').textContent=campFmt(avg);
+  document.getElementById('camp-ks-avg').innerHTML='<span class="text-muted">per campaign</span>';
+  document.getElementById('camp-kv-adv').textContent=topAdv[0];
+  document.getElementById('camp-ks-adv').innerHTML='<span class="text-muted">'+campFmt(topAdv[1])+'</span>';
+}
+
+function campRenderCharts(){
+  // Trend
+  const byMonth={};
+  _campFiltered.forEach(r=>{ const m=campG(r,['Month','Revenue Month'])||'Unknown'; byMonth[m]=(byMonth[m]||0)+parseFloat(campG(r,['Total','Revenue'])||'0'); });
+  const mL=Object.keys(byMonth); const mV=mL.map(k=>byMonth[k]);
+  const tCtx=document.getElementById('campTrendChart');
+  const tlbl=document.getElementById('camp-trend-lbl');
+  if(tlbl) tlbl.textContent=mL.length+' months';
+  if(tCtx){
+    if(_campTrendChart){_campTrendChart.destroy();_campTrendChart=null;}
+    _campTrendChart=new Chart(tCtx,{type:'bar',data:{labels:mL,datasets:[{label:'Revenue',data:mV,backgroundColor:'rgba(66,133,244,0.7)',borderRadius:5,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#48486a',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#48486a',font:{size:9},callback:v=>campFmtShort(v)}}}}});
+  }
+  // Type donut
+  const byType={};
+  _campFiltered.forEach(r=>{ const t=campG(r,['campaignType','Campaign Type'])||'Other'; byType[t]=(byType[t]||0)+parseFloat(campG(r,['Total','Revenue'])||'0'); });
+  const tLabels=Object.keys(byType); const tVals=tLabels.map(k=>byType[k]);
+  const tColors=tLabels.map((_,i)=>CAMP_COLORS[i%CAMP_COLORS.length]);
+  const ttCtx=document.getElementById('campTypeChart');
+  if(ttCtx){
+    if(_campTypeChart){_campTypeChart.destroy();_campTypeChart=null;}
+    _campTypeChart=new Chart(ttCtx,{type:'doughnut',data:{labels:tLabels,datasets:[{data:tVals,backgroundColor:tColors,borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'right',labels:{color:'#8080a8',font:{size:10},boxWidth:9,padding:8}},tooltip:{callbacks:{label:c=>' '+c.label+': '+campFmt(c.parsed)}}}}});
+  }
+  const tot=tVals.reduce((s,v)=>s+v,0)||1;
+  const tbEl=document.getElementById('campTypeBars');
+  if(tbEl) tbEl.innerHTML=tLabels.map((l,i)=>{const pct=Math.round(tVals[i]/tot*100);return '<div><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="fs11">'+l+'</span><span class="fs11 fw7" style="color:'+tColors[i]+'">'+campFmt(tVals[i])+'</span></div><div class="ps-prog-wrap"><div class="ps-prog-fill" style="width:'+pct+'%;background:'+tColors[i]+'"></div></div></div>';}).join('');
+}
+
+function campRenderAdvBars(){
+  const el=document.getElementById('campAdvBars');
+  const cntEl=document.getElementById('camp-adv-count');
+  const byAdv={};
+  _campFiltered.forEach(r=>{ const a=campG(r,['AdvertiserCompany','Advertiser'])||'—'; byAdv[a]=(byAdv[a]||0)+parseFloat(campG(r,['Total','Revenue'])||'0'); });
+  const sorted=Object.entries(byAdv).sort((a,b)=>b[1]-a[1]).slice(0,12);
+  if(cntEl) cntEl.textContent=Object.keys(byAdv).length+' advertisers';
+  if(!sorted.length){el.innerHTML='<div class="text-muted fs12" style="text-align:center;padding:16px">No data</div>';return;}
+  const mx=sorted[0][1]||1;
+  el.innerHTML=sorted.map(([name,val],i)=>{const pct=Math.round(val/mx*100);const col=CAMP_COLORS[i%CAMP_COLORS.length];return '<div class="ps-hbar-item"><span class="ps-hbar-name" title="'+name+'">'+name+'</span><div class="ps-hbar-track"><div class="ps-hbar-fill" style="width:'+pct+'%;background:'+col+'"></div></div><span class="ps-hbar-val">'+campFmt(val)+'</span></div>';}).join('');
+}
+
+function campRenderDealBars(){
+  const el=document.getElementById('campDealBars');
+  const byDeal={};
+  _campFiltered.forEach(r=>{ const d=campG(r,['DealType','Deal Type'])||'—'; byDeal[d]=(byDeal[d]||0)+parseFloat(campG(r,['Total','Revenue'])||'0'); });
+  const sorted=Object.entries(byDeal).sort((a,b)=>b[1]-a[1]);
+  const tot=sorted.reduce((s,[,v])=>s+v,0)||1;
+  el.innerHTML=sorted.map(([name,val],i)=>{const pct=Math.round(val/tot*100);const col=CAMP_COLORS[i%CAMP_COLORS.length];return '<div><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="fs11">'+name+'</span><span class="fs11 fw7" style="color:'+col+'">'+campFmt(val)+' <span class="text-muted">('+pct+'%)</span></span></div><div class="ps-prog-wrap"><div class="ps-prog-fill" style="width:'+pct+'%;background:'+col+'"></div></div></div>';}).join('');
+  const dCtx=document.getElementById('campDealChart');
+  if(dCtx){
+    if(_campDealChart){_campDealChart.destroy();_campDealChart=null;}
+    _campDealChart=new Chart(dCtx,{type:'doughnut',data:{labels:sorted.map(([l])=>l),datasets:[{data:sorted.map(([,v])=>v),backgroundColor:sorted.map((_,i)=>CAMP_COLORS[i%CAMP_COLORS.length]),borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'right',labels:{color:'#8080a8',font:{size:10},boxWidth:9,padding:8}},tooltip:{callbacks:{label:c=>' '+c.label+': '+campFmt(c.parsed)}}}}});
+  }
+}
+
+function campRenderPage(){
+  const tbody=document.getElementById('campTbody');
+  const start=(_campPageNum-1)*_campPageSz;
+  const page=_campFiltered.slice(start,start+_campPageSz);
+  const total=_campFiltered.length;
+  const pages=Math.max(1,Math.ceil(total/_campPageSz));
+  document.getElementById('camp-pag-info').textContent=(start+1)+'–'+Math.min(start+_campPageSz,total)+' of '+total;
+  document.getElementById('camp-pag-lbl').textContent='Page '+_campPageNum+' / '+pages;
+  document.getElementById('campPrevBtn').disabled=_campPageNum<=1;
+  document.getElementById('campNextBtn').disabled=_campPageNum>=pages;
+  document.getElementById('camp-count').textContent=total+' campaigns';
+  if(!page.length){tbody.innerHTML='<tr><td colspan="9" class="text-muted" style="text-align:center;padding:24px">No records match</td></tr>';return;}
+  tbody.innerHTML=page.map(r=>{
+    const rev=parseFloat(campG(r,['Total','Revenue','Total Revenue'])||'0');
+    return '<tr>'+
+      '<td class="fw6" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+(campG(r,['Campaign Name','CampaignName'])||'—')+'">'+(campG(r,['Campaign Name','CampaignName'])||'—')+'</td>'+
+      '<td class="muted">'+(campG(r,['AdvertiserCompany','Advertiser'])||'—')+'</td>'+
+      '<td><span style="font-size:9px;padding:2px 6px;border-radius:5px;background:rgba(66,133,244,0.12);color:#4285f4;white-space:nowrap">'+(campG(r,['campaignType','Campaign Type'])||'—')+'</span></td>'+
+      '<td class="muted fs11">'+(campG(r,['Platform'])||'—')+'</td>'+
+      '<td class="muted fs11">'+(campG(r,['DealType','Deal Type'])||'—')+'</td>'+
+      '<td class="muted fs11">'+(campG(r,['ProductCategory','Product Category'])||'—')+'</td>'+
+      '<td class="muted fs11">'+(campG(r,['Financial Year','FinancialYear','FY'])||'—')+'</td>'+
+      '<td class="muted fs11">'+(campG(r,['Month','Revenue Month'])||'—')+'</td>'+
+      '<td class="num fw7" style="color:#4285f4">'+campFmt(rev)+'</td>'+
+    '</tr>';
+  }).join('');
+}
+
+function campSort(key){
+  const safeKey=key;
+  if(_campSortKey===safeKey) _campSortAsc=!_campSortAsc; else {_campSortKey=safeKey;_campSortAsc=false;}
+  campApplyFilters();
+}
+function campPage(dir){ const pages=Math.max(1,Math.ceil(_campFiltered.length/_campPageSz)); _campPageNum=Math.max(1,Math.min(pages,_campPageNum+dir)); campRenderPage(); }
+function campExportCSV(){
+  if(!_campFiltered.length) return;
+  const keys=Object.keys(_campFiltered[0]||{});
+  const csv=[keys.join(','),..._campFiltered.map(r=>keys.map(k=>'"'+(String(r[k]||'').replace(/"/g,'""'))+'"').join(','))].join('\\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='campaigns.csv';a.click();
+}
+
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',loadCampData);
+else setTimeout(loadCampData,80);
+</script>
+`;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  3. ADS PERFORMANCE (Cross-Platform: GAM + TikTok + Facebook)
+// ═══════════════════════════════════════════════════════════════════════════
+export function adsScreen(): string {
+  return `
+${PS_CSS}
+<div class="content fade-in">
+
+<!-- ── Data source ─────────────────────────────────────────────────────── -->
+<div class="ps-src">
+  <i class="fas fa-layer-group" style="color:#a78bfa"></i>
+  <strong>Cross-Platform</strong>
+  <span class="ps-plat ps-plat-gam">GAM · API</span>
+  <span class="ps-plat ps-plat-tiktok"><i class="fab fa-tiktok" style="font-size:9px"></i> TikTok · BigQuery</span>
+  <span class="ps-plat ps-plat-fb"><i class="fab fa-facebook-f" style="font-size:9px"></i> Facebook · BigQuery</span>
+  <span id="ads-src-status" style="margin-left:auto"></span>
+</div>
+
+<!-- ── Banner ──────────────────────────────────────────────────────────── -->
+<div id="adsBanner" class="ps-banner">
+  <i class="fas fa-spinner fa-spin" id="adsBannerIcon" style="color:#4285f4;font-size:13px"></i>
+  <span id="adsBannerText" style="flex:1;color:#60a5fa">Loading cross-platform ad performance…</span>
+  <button class="btn-ghost" style="height:26px;font-size:11px;padding:0 10px" onclick="loadAdsData()"><i class="fas fa-rotate"></i>Refresh</button>
+</div>
+
+<!-- ── Filters ─────────────────────────────────────────────────────────── -->
+<div class="ps-filter-bar">
+  <label>Platform</label>
+  <select id="ads-platform-filter" onchange="adsApplyFilters()">
+    <option value="">All Platforms</option>
+    <option value="GAM">GAM</option>
+    <option value="TikTok">TikTok</option>
+    <option value="Facebook">Facebook</option>
+  </select>
+  <div class="ps-filter-sep"></div>
+  <label>Status</label>
+  <select id="ads-status-filter" onchange="adsApplyFilters()">
+    <option value="ACTIVE_DELIVERING">Active &amp; Delivering</option>
+    <option value="">All Statuses</option>
+    <option value="ACTIVE">Active</option>
+    <option value="DELIVERING">Delivering</option>
+    <option value="COMPLETED">Completed</option>
+    <option value="PAUSED">Paused</option>
+  </select>
+  <div class="ps-filter-sep"></div>
+  <label>Type</label>
+  <select id="ads-type-filter" onchange="adsApplyFilters()"><option value="">All Types</option></select>
+  <input id="ads-search" type="text" placeholder="Search…" style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:5px 10px;color:var(--text-primary);font-size:11px;width:140px;outline:none;height:30px" oninput="adsApplyFilters()">
+  <button class="btn-ghost" style="margin-left:auto;height:28px;font-size:11px;padding:0 10px" onclick="adsExportCSV()"><i class="fas fa-download"></i>CSV</button>
+</div>
+
+<!-- ── KPIs ────────────────────────────────────────────────────────────── -->
+<div class="ps-kpi-row">
+  ${_psKpi(true,  '#4285f4','eye',           'Total Impressions', 'ads-kv-impr',  'ads-ks-impr')}
+  ${_psKpi(false, '#a78bfa','arrow-pointer', 'Total Clicks',      'ads-kv-clicks','ads-ks-clicks')}
+  ${_psKpi(false, '#00d68f','percent',       'Avg CTR',           'ads-kv-ctr',   'ads-ks-ctr')}
+  ${_psKpi(false, '#f59e0b','rectangle-ad',  'Active Line Items',  'ads-kv-active','ads-ks-active')}
+</div>
+
+<!-- ── Row 2: Platform Comparison Table ────────────────────────────────── -->
+<div class="card">
+  <div class="card-hd">
+    <div class="card-title"><i class="fas fa-table" style="color:#4285f4;margin-right:6px"></i>Platform Comparison</div>
+    <span class="fs11 text-muted">Normalized across all connected platforms</span>
+  </div>
+  <div class="ps-tbl-wrap">
+    <table class="ps-tbl">
+      <thead>
+        <tr>
+          <th>Platform</th>
+          <th class="num">Impressions</th>
+          <th class="num">Clicks</th>
+          <th class="num">CTR</th>
+          <th class="num">Active Items</th>
+          <th class="num">Total Items</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="adsPlatformTbody">
+        <tr><td colspan="7" class="text-muted" style="text-align:center;padding:24px"><i class="fas fa-spinner fa-spin"></i></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── Row 3: Breakdown Charts ─────────────────────────────────────────── -->
+<div class="ps-g2">
+  <div class="card">
+    <div class="card-hd">
+      <div class="card-title"><i class="fas fa-layer-group" style="color:#a78bfa;margin-right:6px"></i>Performance by Type</div>
+      <span class="b b-gray fs10" id="ads-source-badge">GAM · Line Items</span>
+    </div>
+    <div style="height:160px"><canvas id="adsTypeChart"></canvas></div>
+    <div id="adsTypeBars" style="display:flex;flex-direction:column;gap:7px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)"></div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <div class="card">
+      <div class="card-hd"><div class="card-title"><i class="fas fa-signal" style="color:#00d68f;margin-right:6px"></i>Status Distribution</div></div>
+      <div id="adsStatusBars" style="display:flex;flex-direction:column;gap:7px;min-height:60px">
+        <div class="text-muted fs12" style="text-align:center;padding:14px"><i class="fas fa-spinner fa-spin"></i></div>
+      </div>
+    </div>
+    <div class="card card-sm">
+      <div class="card-hd"><div class="card-title"><i class="fas fa-trophy" style="color:#f59e0b;margin-right:6px"></i>Top Performers</div><span class="b b-gray fs10">by impressions</span></div>
+      <div id="adsTopPerformers" style="display:flex;flex-direction:column;gap:4px">
+        <div class="text-muted fs12" style="text-align:center;padding:10px"><i class="fas fa-spinner fa-spin"></i></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Row 4: Line Items Table ──────────────────────────────────────────── -->
+<div class="card">
+  <div class="card-hd">
+    <div class="card-title"><i class="fas fa-table-list" style="color:#60a5fa;margin-right:6px"></i>Line Items — Ad Performance</div>
+    <span id="ads-count" class="fs11 text-muted"></span>
+  </div>
+  <div class="ps-tbl-wrap">
+    <table class="ps-tbl">
+      <thead>
+        <tr>
+          <th onclick="sortAdsBy('displayName')">Line Item</th>
+          <th onclick="sortAdsBy('status')">Status</th>
+          <th onclick="sortAdsBy('lineItemType')">Type</th>
+          <th class="num" onclick="sortAdsBy('impressionsDelivered')">Impressions</th>
+          <th class="num" onclick="sortAdsBy('clicksDelivered')">Clicks</th>
+          <th class="num">CTR</th>
+          <th onclick="sortAdsBy('startTime')">Start</th>
+          <th onclick="sortAdsBy('endTime')">End</th>
+        </tr>
+      </thead>
+      <tbody id="adsTbody">
+        <tr><td colspan="8" class="text-muted" style="text-align:center;padding:28px"><i class="fas fa-spinner fa-spin"></i></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="ps-pag">
+    <span id="ads-pag-info" class="fs11 text-muted">—</span>
+    <div style="display:flex;gap:6px">
+      <button class="btn-ghost" style="height:26px;font-size:11px;padding:0 10px" id="adsPrevBtn" onclick="adsPage(-1)" disabled>← Prev</button>
+      <span id="ads-pag-lbl" class="fs11 text-muted" style="padding:0 6px;line-height:26px">Page 1</span>
+      <button class="btn-ghost" style="height:26px;font-size:11px;padding:0 10px" id="adsNextBtn" onclick="adsPage(1)">Next →</button>
+    </div>
+  </div>
+</div>
+
+</div>
+<script>
+let _adsLineItems=[], _adsOrders=[], _adsFiltered=[], _adsPageNum=1, _adsPageSz=25;
+let _adsSortKey='impressionsDelivered', _adsSortAsc=false;
+let _adsTypeChart=null;
+const ADS_STATUS_COLOR={ACTIVE:'#00d68f',DELIVERING:'#00d68f',COMPLETED:'#60a5fa',PAUSED:'#f59e0b',CANCELED:'#f43f5e',DRAFT:'#8080a8'};
+const ADS_STATUS_BADGE={ACTIVE:'b-green',DELIVERING:'b-green',COMPLETED:'b-blue',PAUSED:'b-amber',CANCELED:'b-red',DRAFT:'b-gray'};
+const ADS_COLORS=['#4285f4','#a78bfa','#00d68f','#f59e0b','#f43f5e','#34d399','#60a5fa','#e879f9'];
+
+function adsFmtN(n){n=parseInt(n)||0;if(n>=1e9)return(n/1e9).toFixed(1)+'B';if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return n===0?'—':String(n);}
+function adsFmtD(s){if(!s)return'—';try{return new Date(s).toLocaleDateString('en-MY',{day:'2-digit',month:'short',year:'2-digit'});}catch{return s.slice(0,10);}}
+function adsStatusBadge(s){return'<span class="b '+(ADS_STATUS_BADGE[s]||'b-gray')+'" style="font-size:9px">'+(s||'—')+'</span>';}
+
+async function loadAdsData(){
+  const icon=document.getElementById('adsBannerIcon');
+  const text=document.getElementById('adsBannerText');
+  const srcSt=document.getElementById('ads-src-status');
+  icon.className='fas fa-spinner fa-spin';icon.style.color='#4285f4';
+  text.textContent='Loading cross-platform ad performance…';text.style.color='#60a5fa';
+  document.getElementById('adsBanner').style.background='rgba(66,133,244,0.07)';
+  document.getElementById('adsBanner').style.borderColor='rgba(66,133,244,0.2)';
+
+  try{
+    const[sumRes,liRes,ordRes]=await Promise.all([
       fetch('/api/gam/summary').then(r=>r.json()),
-      fetch('/api/gam/lineitems?pageSize=200').then(r=>r.json()),
-      fetch('/api/gam/orders?pageSize=200').then(r=>r.json()),
+      fetch('/api/gam/lineitems?pageSize=500').then(r=>r.json()),
+      fetch('/api/gam/orders?pageSize=500').then(r=>r.json()),
     ]);
-
-    if (!sumRes.ok) {
-      icon.className = 'fas fa-triangle-exclamation'; icon.style.color = '#f59e0b';
-      text.textContent = 'GAM not connected: '+(sumRes.error||'Go to API Connections → Config to set up.'); text.style.color = '#f59e0b';
-      document.getElementById('adsTbody').innerHTML = '<tr><td colspan="9" class="text-muted" style="text-align:center;padding:28px"><i class="fas fa-plug" style="color:#f59e0b"></i> GAM not configured.</td></tr>';
-      return;
+    if(!sumRes.ok){
+      icon.className='fas fa-triangle-exclamation';icon.style.color='#f59e0b';
+      text.textContent='GAM not connected: '+(sumRes.error||'Set up in API Connections');text.style.color='#f59e0b';
+      document.getElementById('adsBanner').style.background='rgba(245,158,11,0.07)';
+      document.getElementById('adsBanner').style.borderColor='rgba(245,158,11,0.2)';
+      document.getElementById('adsTbody').innerHTML='<tr><td colspan="8" class="text-muted" style="text-align:center;padding:28px"><i class="fas fa-plug" style="color:#f59e0b"></i> GAM not configured — <a href="#" onclick="navigate(\'api\')" style="color:#60a5fa">Set up in API Connections</a></td></tr>';
+      adsPlatformTable([]);return;
     }
-
-    // Filter out UNKNOWN status line items
-    _adsLineItems = (liRes.lineItems || []).filter(li=>li.status!=='UNKNOWN'&&li.status!=='DRAFT');
-    _adsOrders    = ordRes.orders    || [];
-
-    icon.className = 'fas fa-circle-check'; icon.style.color = '#00d68f';
-    text.textContent = 'Connected · '+_adsLineItems.length+' line items loaded from '+(sumRes.networkName||sumRes.networkCode)+' · Fetching delivery metrics…';
-    text.style.color = '#00d68f';
-    document.getElementById('ads-source-badge').textContent = (sumRes.networkName||sumRes.networkCode)+' · GAM Line Items';
-
+    _adsLineItems=(liRes.lineItems||[]).filter(li=>li.status!=='UNKNOWN'&&li.status!=='DRAFT');
+    _adsOrders=ordRes.orders||[];
+    icon.className='fas fa-circle-check';icon.style.color='#00d68f';
+    text.textContent='GAM connected · '+_adsLineItems.length+' line items · Fetching delivery metrics…';text.style.color='#00d68f';
+    document.getElementById('adsBanner').style.background='rgba(0,214,143,0.06)';
+    document.getElementById('adsBanner').style.borderColor='rgba(0,214,143,0.18)';
+    if(srcSt) srcSt.innerHTML='<span style="font-size:11px;color:#00d68f"><i class="fas fa-circle-check"></i> '+_adsLineItems.length+' items</span>';
+    document.getElementById('ads-source-badge').textContent=(sumRes.networkName||sumRes.networkCode)+' · GAM';
     // Populate type filter
-    const types = [...new Set(_adsLineItems.map(li=>li.lineItemType).filter(Boolean))].sort();
-    const sel = document.getElementById('adsTypeFilter');
-    types.forEach(t => { const opt=document.createElement('option'); opt.value=t; opt.textContent=t; sel.appendChild(opt); });
-
+    const types=[...new Set(_adsLineItems.map(li=>li.lineItemType).filter(Boolean))].sort();
+    const sel=document.getElementById('ads-type-filter');
+    sel.innerHTML='<option value="">All Types</option>'+types.map(t=>'<option value="'+t+'">'+t+'</option>').join('');
+    // Render immediately
+    adsPlatformTable([{platform:'GAM',impressions:sumRes.lineItems?.totalImpressions||0,clicks:sumRes.lineItems?.totalClicks||0,active:(sumRes.lineItems?.byStatus?.ACTIVE||0)+(sumRes.lineItems?.byStatus?.DELIVERING||0),total:sumRes.lineItems?.total||0,connected:true},{platform:'TikTok',impressions:0,clicks:0,active:0,total:0,connected:false},{platform:'Facebook',impressions:0,clicks:0,active:0,total:0,connected:false}]);
     renderAdsKPIs(sumRes);
     renderAdsTypeBars();
     renderAdsStatusBars(sumRes.lineItems?.byStatus||{});
     renderAdsTopPerformers();
-    renderAdsTable();
-
-    // Fetch delivery metrics asynchronously
+    adsApplyFilters();
+    // Fetch real metrics
     try{
       const metricsRes=await fetch('/api/gam/metrics').then(r=>r.json());
       if(metricsRes.ok&&metricsRes.lineItemMetrics){
         for(const li of _adsLineItems){
           const liNum=li.name?li.name.split('/').pop():'';
           const m=metricsRes.lineItemMetrics[liNum]||metricsRes.lineItemMetrics[li.name]||null;
-          if(m){
-            li.impressionsDelivered=String(m.impressions||0);
-            li.clicksDelivered=String(m.clicks||0);
-          }
+          if(m){li.impressionsDelivered=String(m.impressions||0);li.clicksDelivered=String(m.clicks||0);}
         }
         let totalImpr=0,totalClk=0;
-        for(const li of _adsLineItems){
-          totalImpr+=parseInt(li.impressionsDelivered||'0');
-          totalClk+=parseInt(li.clicksDelivered||'0');
-        }
-        const enrichedSumRes={...sumRes,lineItems:{...sumRes.lineItems,totalImpressions:totalImpr,totalClicks:totalClk}};
-        renderAdsKPIs(enrichedSumRes);
+        for(const li of _adsLineItems){totalImpr+=parseInt(li.impressionsDelivered||'0');totalClk+=parseInt(li.clicksDelivered||'0');}
+        const enriched={...sumRes,lineItems:{...sumRes.lineItems,totalImpressions:totalImpr,totalClicks:totalClk}};
+        renderAdsKPIs(enriched);
         renderAdsTypeBars();
         renderAdsTopPerformers();
-        renderAdsTable();
-        text.textContent='Connected · '+_adsLineItems.length+' line items · Metrics updated from '+(sumRes.networkName||sumRes.networkCode)+' · Live';
+        const active=(sumRes.lineItems?.byStatus?.ACTIVE||0)+(sumRes.lineItems?.byStatus?.DELIVERING||0);
+        const ctr=totalImpr>0?(totalClk/totalImpr*100).toFixed(2)+'%':'—';
+        adsPlatformTable([{platform:'GAM',impressions:totalImpr,clicks:totalClk,active,total:_adsLineItems.length,connected:true,ctr},{platform:'TikTok',impressions:0,clicks:0,active:0,total:0,connected:false},{platform:'Facebook',impressions:0,clicks:0,active:0,total:0,connected:false}]);
+        adsApplyFilters();
+        text.textContent='Connected · '+_adsLineItems.length+' line items · Metrics updated · GAM '+(sumRes.networkName||sumRes.networkCode);
       }else{
         text.textContent='Connected · '+_adsLineItems.length+' line items (metrics unavailable: '+(metricsRes.error||'unknown')+')';
+        icon.className='fas fa-circle-exclamation';icon.style.color='#f59e0b';
       }
     }catch(me){
-      text.textContent='Connected · '+_adsLineItems.length+' line items (metrics failed: '+me.message+')';
+      text.textContent='Connected · '+_adsLineItems.length+' line items (delivery metrics failed: '+me.message+')';
+      icon.className='fas fa-circle-exclamation';icon.style.color='#f59e0b';
     }
-  } catch(e) {
-    icon.className = 'fas fa-circle-xmark'; icon.style.color = '#f43f5e';
-    text.textContent = 'Failed to load: '+e.message; text.style.color = '#f43f5e';
+  }catch(e){
+    icon.className='fas fa-circle-xmark';icon.style.color='#f43f5e';
+    text.textContent='Failed to load: '+e.message;text.style.color='#f43f5e';
   }
 }
 
-// ── KPIs ──────────────────────────────────────────────────────────────────────
-function renderAdsKPIs(s) {
-  const active = (s.lineItems?.byStatus?.ACTIVE||0)+(s.lineItems?.byStatus?.DELIVERING||0);
-  const total  = s.lineItems?.total||0;
-  const impr   = s.lineItems?.totalImpressions||0;
-  const clk    = s.lineItems?.totalClicks||0;
-  const ctr    = impr>0?(clk/impr*100).toFixed(2)+'%':'—';
-
-  document.getElementById('ads-kv-active').textContent  = active;
-  document.getElementById('ads-kc-active').innerHTML    = '<span class="text-muted">of '+total+' total line items</span>';
-  document.getElementById('ads-kv-impr').innerHTML      = adsFmtImpr(impr)+'<sup style="font-size:12px;font-weight:600"> total</sup>';
-  document.getElementById('ads-kc-impr').innerHTML      = '<span class="text-muted">delivered</span>';
-  document.getElementById('ads-kv-clicks').innerHTML    = adsFmtImpr(clk)+'<sup style="font-size:12px;font-weight:600"> total</sup>';
-  document.getElementById('ads-kc-clicks').innerHTML    = '<span class="text-muted">across all line items</span>';
-  document.getElementById('ads-kv-ctr').innerHTML       = (ctr!=='—'?ctr:'<span class="text-muted fs13">—</span>');
-  document.getElementById('ads-kc-ctr').innerHTML       = impr>0?'<span class="text-muted">blended CTR</span>':'';
-}
-
-// ── Type bars + doughnut chart ────────────────────────────────────────────────
-function renderAdsTypeBars() {
-  const el = document.getElementById('adsTypeBars');
-  const byType = {};
-  let totalImpr = 0;
-  for (const li of _adsLineItems) {
-    const t = li.lineItemType||'UNKNOWN';
-    const impr = parseInt(li.impressionsDelivered||'0');
-    byType[t] = (byType[t]||0) + impr;
-    totalImpr += impr;
-  }
-  const sorted = Object.entries(byType).sort((a,b)=>b[1]-a[1]).slice(0,8);
-  const typeColors = ['#4285f4','#a78bfa','#00d68f','#f59e0b','#f43f5e','#60a5fa','#e2007a','#34d399'];
-  const colorMap = {};
-  sorted.forEach(([t],i)=>{ colorMap[t]=typeColors[i%typeColors.length]; });
-
-  if (!sorted.length || totalImpr===0) {
-    el.innerHTML = '<div class="text-muted fs12" style="text-align:center;padding:10px">No impression data</div>';
-  } else {
-    el.innerHTML = sorted.map(([t,v]) => {
-      const pct = Math.round(v/totalImpr*100); const col = colorMap[t];
-      return '<div><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="fs11">'+t+'</span><span class="fs11 fw7">'+adsFmtImpr(v)+' <span class="text-muted">('+pct+'%)</span></span></div><div class="prog-wrap"><div class="prog-fill" style="width:'+pct+'%;background:'+col+';border-radius:3px;height:5px;transition:width 0.6s"></div></div></div>';
-    }).join('');
-  }
-
-  // Doughnut chart
-  const ctx = document.getElementById('adsTypeChart');
-  if (!ctx) return;
-  if (_adsTypeChart) { _adsTypeChart.destroy(); _adsTypeChart = null; }
-  const labels = sorted.map(([t])=>t); const values = sorted.map(([,v])=>v);
-  if (!labels.length) return;
-  _adsTypeChart = new Chart(ctx, {
-    type:'doughnut',
-    data:{ labels, datasets:[{ data:values, backgroundColor:labels.map((_,i)=>typeColors[i%typeColors.length]), borderWidth:0, hoverOffset:4 }] },
-    options:{ responsive:true, maintainAspectRatio:false, cutout:'68%',
-      plugins:{ legend:{ position:'right', labels:{ color:'#8080a8', font:{size:10}, boxWidth:9, padding:7 } },
-        tooltip:{ callbacks:{ label:ctx=>' '+ctx.label+': '+adsFmtImpr(ctx.parsed) } } } }
-  });
-}
-
-// ── Status Bars ───────────────────────────────────────────────────────────────
-function renderAdsStatusBars(byStatus) {
-  const el = document.getElementById('adsStatusBars');
-  // Filter out DRAFT and UNKNOWN
-  const filtered = Object.entries(byStatus).filter(([s])=>s!=='DRAFT'&&s!=='UNKNOWN');
-  const total = filtered.reduce((a,[,b])=>a+b,0)||1;
-  const sorted = [...filtered].sort((a,b)=>b[1]-a[1]);
-  if (!sorted.length) { el.innerHTML = '<div class="text-muted fs12" style="text-align:center;padding:10px">No data</div>'; return; }
-  el.innerHTML = sorted.map(([st,cnt]) => {
-    const pct = Math.round(cnt/total*100); const col = ADS_STATUS_COLOR[st]||'#48486a';
-    return '<div style="display:flex;align-items:center;gap:8px"><span class="fs11 text-muted" style="width:90px;flex-shrink:0">'+st+'</span><div class="prog-wrap" style="flex:1"><div class="prog-fill" style="width:'+pct+'%;background:'+col+';border-radius:3px;height:5px"></div></div><span class="fs11 fw7" style="width:30px;text-align:right">'+cnt+'</span></div>';
-  }).join('');
-}
-
-// ── Top Performers ────────────────────────────────────────────────────────────
-function renderAdsTopPerformers() {
-  const el = document.getElementById('adsTopPerformers');
-  const top = [..._adsLineItems]
-    .filter(li=>parseInt(li.impressionsDelivered||'0')>0&&li.status!=='UNKNOWN')
-    .sort((a,b)=>parseInt(b.impressionsDelivered||'0')-parseInt(a.impressionsDelivered||'0'))
-    .slice(0,5);
-  if (!top.length) { el.innerHTML = '<div class="text-muted fs12" style="text-align:center;padding:10px">No delivery data</div>'; return; }
-  el.innerHTML = top.map((li,i) => {
-    const impr = parseInt(li.impressionsDelivered||'0');
-    const clk  = parseInt(li.clicksDelivered||'0');
-    const ctr  = impr>0?(clk/impr*100).toFixed(2)+'%':'—';
-    return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">'+
-      '<span style="width:16px;height:16px;border-radius:50%;background:rgba(66,133,244,0.15);display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#4285f4;flex-shrink:0">'+(i+1)+'</span>'+
-      '<div style="flex:1;min-width:0"><div class="fs11 fw6" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+(li.displayName||'')+'">'+( li.displayName||li.name||'—')+'</div>'+
-        '<div class="fs10 text-muted">'+adsFmtImpr(impr)+' impr · '+ctr+' CTR</div></div>'+
-      adsStatusBadge(li.status)+'</div>';
-  }).join('');
-}
-
-// ── Ads Table ─────────────────────────────────────────────────────────────────
-function filterAds(query) {
-  const sf  = document.getElementById('adsStatusFilter').value;
-  const tf  = document.getElementById('adsTypeFilter').value;
-  const q   = (query||'').toLowerCase();
-  _adsFiltered = _adsLineItems.filter(li => {
-    const mQ = !q || (li.displayName||'').toLowerCase().includes(q);
-    let mS;
-    if (sf==='ACTIVE_DELIVERING') { mS = li.status==='ACTIVE'||li.status==='DELIVERING'; }
-    else { mS = !sf || (li.status===sf && li.status!=='UNKNOWN'); }
-    const mT = !tf || li.lineItemType===tf;
-    // Always exclude UNKNOWN
-    return mQ && mS && mT && li.status!=='UNKNOWN';
-  });
-  _adsFiltered.sort((a,b) => {
-    let va = a[_adsSortKey]||0, vb = b[_adsSortKey]||0;
-    if (_adsSortKey==='impressionsDelivered'||_adsSortKey==='clicksDelivered') { va=parseInt(va)||0; vb=parseInt(vb)||0; }
-    if (va<vb) return _adsSortAsc?-1:1; if (va>vb) return _adsSortAsc?1:-1; return 0;
-  });
-  _adsPageNum = 1;
-  renderAdsPage();
-}
-function sortAdsBy(key) {
-  if (_adsSortKey===key) _adsSortAsc=!_adsSortAsc; else { _adsSortKey=key; _adsSortAsc=(key!=='impressionsDelivered'&&key!=='clicksDelivered'); }
-  filterAds(document.getElementById('adsSearch')?.value||'');
-}
-function renderAdsTable() {
-  _adsFiltered = [..._adsLineItems];
-  const sel = document.getElementById('adsStatusFilter');
-  if (sel) sel.value = 'ACTIVE_DELIVERING';
-  filterAds('');
-}
-
-// Build order name lookup: orderId/name -> displayName
-function buildOrderNameMap() {
-  const map = {};
-  for (const o of _adsOrders) {
-    const name = o.name||''; const num = name.split('/').pop();
-    map[name] = o.displayName||o.name||'—';
-    if (num) map[num] = o.displayName||o.name||'—';
-  }
-  return map;
-}
-
-function renderAdsPage() {
-  const tbody = document.getElementById('adsTbody');
-  const start = (_adsPageNum-1)*ADS_PAGE;
-  const page  = _adsFiltered.slice(start, start+ADS_PAGE);
-  const total = _adsFiltered.length;
-  const pages = Math.ceil(total/ADS_PAGE);
-
-  document.getElementById('adsCount').textContent = total+' line items'+(total!==_adsLineItems.length?' (filtered from '+_adsLineItems.length+')':'');
-  document.getElementById('adsPageLabel').textContent = 'Page '+_adsPageNum+' / '+(pages||1);
-  document.getElementById('adsPrevBtn').disabled = _adsPageNum<=1;
-  document.getElementById('adsNextBtn').disabled = _adsPageNum>=pages;
-
-  if (!page.length) {
-    tbody.innerHTML = '<tr><td colspan="9" class="text-muted" style="text-align:center;padding:24px">No line items match.</td></tr>';
-    return;
-  }
-  const orderMap = buildOrderNameMap();
-  tbody.innerHTML = page.map(li => {
-    const impr = parseInt(li.impressionsDelivered||'0');
-    const clk  = parseInt(li.clicksDelivered||'0');
-    const ctr  = impr>0?(clk/impr*100).toFixed(2)+'%':'—';
-    const oid  = (li.orderId||'').split('/').pop();
-    const oName = orderMap[li.orderId||'']||orderMap[oid]||oid||'—';
+function adsPlatformTable(platforms){
+  const tbody=document.getElementById('adsPlatformTbody');
+  tbody.innerHTML=platforms.map(p=>{
+    const ctr=p.ctr||(p.impressions>0?(p.clicks/p.impressions*100).toFixed(2)+'%':'—');
+    const platHtml=p.platform==='GAM'?'<span class="ps-plat ps-plat-gam"><i class="fas fa-rectangle-ad" style="font-size:9px"></i> GAM</span>':
+      p.platform==='TikTok'?'<span class="ps-plat ps-plat-tiktok"><i class="fab fa-tiktok" style="font-size:9px"></i> TikTok</span>':
+      '<span class="ps-plat ps-plat-fb"><i class="fab fa-facebook-f" style="font-size:9px"></i> Facebook</span>';
+    const statusHtml=p.connected?'<span class="b b-green" style="font-size:9px">Connected</span>':'<span class="b b-gray" style="font-size:9px">Not Connected</span>';
     return '<tr>'+
-      '<td style="max-width:200px"><div class="fw6" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+(li.displayName||'')+'">'+( li.displayName||li.name||'—')+'</div></td>'+
-      '<td>'+adsStatusBadge(li.status)+'</td>'+
-      '<td class="dim fs11">'+(li.lineItemType||'—')+'</td>'+
-      '<td class="fw6" style="color:#f59e0b">'+adsFmtImpr(impr)+'</td>'+
-      '<td class="dim">'+adsFmtImpr(clk)+'</td>'+
-      '<td class="fw6">'+(ctr)+'</td>'+
-      '<td class="dim fs11">'+adsFmtDate(li.startTime)+'</td>'+
-      '<td class="dim fs11">'+adsFmtDate(li.endTime)+'</td>'+
-      '<td class="fs11 text-muted" style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+oName+'">'+oName+'</td>'+
+      '<td>'+platHtml+'</td>'+
+      '<td class="num fw7" style="color:'+(p.impressions>0?'#f59e0b':'var(--text-muted)')+'">'+adsFmtN(p.impressions)+'</td>'+
+      '<td class="num">'+adsFmtN(p.clicks)+'</td>'+
+      '<td class="num fw6" style="color:#00d68f">'+ctr+'</td>'+
+      '<td class="num"><span style="color:#00d68f">'+p.active+'</span></td>'+
+      '<td class="num muted">'+p.total+'</td>'+
+      '<td>'+statusHtml+'</td>'+
     '</tr>';
   }).join('');
 }
-function adsPage(dir) {
-  const pages = Math.ceil(_adsFiltered.length/ADS_PAGE);
-  _adsPageNum = Math.max(1,Math.min(pages,_adsPageNum+dir));
-  renderAdsPage();
-}
-function exportAdsCSV() {
-  const data = _adsFiltered.length?_adsFiltered:_adsLineItems;
-  if (!data.length) return;
-  const orderMap = buildOrderNameMap();
-  const headers = ['Line Item','Status','Type','Impressions','Clicks','CTR','Start','End','Order'];
-  const rows = data.map(li => {
-    const impr=parseInt(li.impressionsDelivered||'0');
-    const clk=parseInt(li.clicksDelivered||'0');
-    const ctr=impr>0?(clk/impr*100).toFixed(2)+'%':'';
-    const oid=(li.orderId||'').split('/').pop();
-    const oName=orderMap[li.orderId||'']||orderMap[oid]||oid||'';
-    return ['"'+(li.displayName||li.name||'').replace(/"/g,'""')+'"',li.status||'',li.lineItemType||'',impr,clk,ctr,li.startTime?.slice(0,10)||'',li.endTime?.slice(0,10)||'','"'+oName.replace(/"/g,'""')+'"'].join(',');
-  });
-  const csv=[headers.join(','),...rows].join('\\n');
-  const a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv); a.download='ads-performance.csv'; a.click();
+
+function renderAdsKPIs(s){
+  const active=(s.lineItems?.byStatus?.ACTIVE||0)+(s.lineItems?.byStatus?.DELIVERING||0);
+  const total=s.lineItems?.total||_adsLineItems.length;
+  const impr=s.lineItems?.totalImpressions||0;
+  const clk=s.lineItems?.totalClicks||0;
+  const ctr=impr>0?(clk/impr*100).toFixed(2)+'%':'—';
+  document.getElementById('ads-kv-impr').innerHTML=adsFmtN(impr);
+  document.getElementById('ads-ks-impr').innerHTML='<span class="text-muted">total ad impressions</span>';
+  document.getElementById('ads-kv-clicks').innerHTML=adsFmtN(clk);
+  document.getElementById('ads-ks-clicks').innerHTML='<span class="text-muted">total clicks</span>';
+  document.getElementById('ads-kv-ctr').innerHTML=ctr;
+  document.getElementById('ads-ks-ctr').innerHTML=impr>0?'<span class="up">blended CTR</span>':'';
+  document.getElementById('ads-kv-active').innerHTML=active;
+  document.getElementById('ads-ks-active').innerHTML='<span class="text-muted">of '+total+' total</span>';
 }
 
-// ── Auto-load ─────────────────────────────────────────────────────────────────
-if (document.readyState==='loading') document.addEventListener('DOMContentLoaded',loadAdsData);
+function renderAdsTypeBars(){
+  const el=document.getElementById('adsTypeBars');
+  const byType={};
+  let totalImpr=0;
+  for(const li of _adsLineItems){const t=li.lineItemType||'UNKNOWN';const impr=parseInt(li.impressionsDelivered||'0');byType[t]=(byType[t]||0)+impr;totalImpr+=impr;}
+  const sorted=Object.entries(byType).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const typeColors=ADS_COLORS;
+  const colorMap={};sorted.forEach(([t],i)=>{colorMap[t]=typeColors[i%typeColors.length];});
+  if(!sorted.length||totalImpr===0){el.innerHTML='<div class="text-muted fs12" style="text-align:center;padding:10px">No impression data yet<br><span style="font-size:10px">Metrics load after ~20s</span></div>';} else{
+    el.innerHTML=sorted.map(([t,v])=>{const pct=Math.round(v/totalImpr*100);const col=colorMap[t];return '<div><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="fs11">'+t+'</span><span class="fs11 fw7">'+adsFmtN(v)+' <span class="text-muted">('+pct+'%)</span></span></div><div class="ps-prog-wrap"><div class="ps-prog-fill" style="width:'+pct+'%;background:'+col+'"></div></div></div>';}).join('');
+  }
+  const ctx=document.getElementById('adsTypeChart');
+  if(!ctx) return;
+  if(_adsTypeChart){_adsTypeChart.destroy();_adsTypeChart=null;}
+  const labels=sorted.map(([t])=>t);const values=sorted.map(([,v])=>v);
+  if(!labels.length) return;
+  _adsTypeChart=new Chart(ctx,{type:'doughnut',data:{labels,datasets:[{data:values,backgroundColor:labels.map((_,i)=>typeColors[i%typeColors.length]),borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{position:'right',labels:{color:'#8080a8',font:{size:10},boxWidth:9,padding:7}},tooltip:{callbacks:{label:c=>' '+c.label+': '+adsFmtN(c.parsed)}}}}});
+}
+
+function renderAdsStatusBars(byStatus){
+  const el=document.getElementById('adsStatusBars');
+  const filtered=Object.entries(byStatus).filter(([s])=>s!=='DRAFT'&&s!=='UNKNOWN');
+  const total=filtered.reduce((a,[,b])=>a+b,0)||1;
+  const sorted=[...filtered].sort((a,b)=>b[1]-a[1]);
+  if(!sorted.length){el.innerHTML='<div class="text-muted fs12" style="text-align:center;padding:10px">No data</div>';return;}
+  el.innerHTML=sorted.map(([st,cnt])=>{const pct=Math.round(cnt/total*100);const col=ADS_STATUS_COLOR[st]||'#48486a';return '<div style="display:flex;align-items:center;gap:8px"><span class="fs11 text-muted" style="width:90px;flex-shrink:0">'+st+'</span><div class="ps-prog-wrap" style="flex:1"><div class="ps-prog-fill" style="width:'+pct+'%;background:'+col+'"></div></div><span class="fs11 fw7" style="width:30px;text-align:right">'+cnt+'</span></div>';}).join('');
+}
+
+function renderAdsTopPerformers(){
+  const el=document.getElementById('adsTopPerformers');
+  const top=[..._adsLineItems].filter(li=>parseInt(li.impressionsDelivered||'0')>0&&li.status!=='UNKNOWN').sort((a,b)=>parseInt(b.impressionsDelivered||'0')-parseInt(a.impressionsDelivered||'0')).slice(0,6);
+  if(!top.length){el.innerHTML='<div class="text-muted fs12" style="text-align:center;padding:10px">No delivery data yet</div>';return;}
+  el.innerHTML=top.map((li,i)=>{
+    const impr=parseInt(li.impressionsDelivered||'0');const clk=parseInt(li.clicksDelivered||'0');const ctr=impr>0?(clk/impr*100).toFixed(2)+'%':'—';
+    return '<div style="display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid var(--border)">'+
+      '<span style="min-width:16px;height:16px;border-radius:50%;background:rgba(0,214,143,0.15);display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#00d68f">'+(i+1)+'</span>'+
+      '<div style="flex:1;min-width:0"><div class="fs11 fw6" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+(li.displayName||'')+'">'+(li.displayName||'—')+'</div></div>'+
+      '<div style="text-align:right"><div class="fs10 fw7" style="color:#f59e0b">'+adsFmtN(impr)+'</div><div class="fs10 text-muted">'+ctr+'</div></div></div>';
+  }).join('');
+}
+
+function adsApplyFilters(){
+  const sf=document.getElementById('ads-status-filter').value;
+  const tf=document.getElementById('ads-type-filter').value;
+  const pf=document.getElementById('ads-platform-filter').value;
+  const q=(document.getElementById('ads-search')?.value||'').toLowerCase();
+  _adsFiltered=_adsLineItems.filter(li=>{
+    const mQ=!q||(li.displayName||'').toLowerCase().includes(q)||(li.name||'').toLowerCase().includes(q);
+    let mS;if(sf==='ACTIVE_DELIVERING')mS=li.status==='ACTIVE'||li.status==='DELIVERING';else mS=!sf||li.status===sf;
+    const mT=!tf||li.lineItemType===tf;
+    const mP=!pf||pf==='GAM'; // only GAM for now
+    return mQ&&mS&&mT&&mP&&li.status!=='UNKNOWN';
+  });
+  _adsFiltered.sort((a,b)=>{
+    let va=a[_adsSortKey]||0,vb=b[_adsSortKey]||0;
+    if(_adsSortKey==='impressionsDelivered'||_adsSortKey==='clicksDelivered'){va=parseInt(va)||0;vb=parseInt(vb)||0;}
+    if(va<vb)return _adsSortAsc?-1:1;if(va>vb)return _adsSortAsc?1:-1;return 0;
+  });
+  _adsPageNum=1;adsRenderPage();
+}
+
+function sortAdsBy(key){if(_adsSortKey===key)_adsSortAsc=!_adsSortAsc;else{_adsSortKey=key;_adsSortAsc=(key!=='impressionsDelivered'&&key!=='clicksDelivered');}adsApplyFilters();}
+
+function adsRenderPage(){
+  const tbody=document.getElementById('adsTbody');
+  const start=(_adsPageNum-1)*_adsPageSz;
+  const page=_adsFiltered.slice(start,start+_adsPageSz);
+  const total=_adsFiltered.length;
+  const pages=Math.max(1,Math.ceil(total/_adsPageSz));
+  document.getElementById('ads-pag-info').textContent=(start+1)+'–'+Math.min(start+_adsPageSz,total)+' of '+total;
+  document.getElementById('ads-pag-lbl').textContent='Page '+_adsPageNum+' / '+pages;
+  document.getElementById('adsPrevBtn').disabled=_adsPageNum<=1;
+  document.getElementById('adsNextBtn').disabled=_adsPageNum>=pages;
+  document.getElementById('ads-count').textContent=total+' line items';
+  if(!page.length){tbody.innerHTML='<tr><td colspan="8" class="text-muted" style="text-align:center;padding:24px">No line items match</td></tr>';return;}
+  tbody.innerHTML=page.map(li=>{
+    const impr=parseInt(li.impressionsDelivered||'0');const clk=parseInt(li.clicksDelivered||'0');const ctr=impr>0?(clk/impr*100).toFixed(2)+'%':'—';
+    return '<tr>'+
+      '<td style="max-width:220px"><div class="fw6 fs12" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+(li.displayName||'')+'">'+(li.displayName||'—')+'</div><div class="fs10 text-muted">'+(li.name?li.name.split('/').pop():'')+'</div></td>'+
+      '<td>'+adsStatusBadge(li.status)+'</td>'+
+      '<td class="muted fs11">'+(li.lineItemType||'—').replace(/_/g,' ')+'</td>'+
+      '<td class="num fw7" style="color:'+(impr>0?'#f59e0b':'var(--text-muted)')+'">'+adsFmtN(impr)+'</td>'+
+      '<td class="num">'+adsFmtN(clk)+'</td>'+
+      '<td class="num fw6" style="color:#00d68f">'+ctr+'</td>'+
+      '<td class="muted fs11">'+adsFmtD(li.startTime)+'</td>'+
+      '<td class="muted fs11">'+adsFmtD(li.endTime)+'</td>'+
+    '</tr>';
+  }).join('');
+}
+
+function adsPage(dir){const pages=Math.max(1,Math.ceil(_adsFiltered.length/_adsPageSz));_adsPageNum=Math.max(1,Math.min(pages,_adsPageNum+dir));adsRenderPage();}
+
+function adsExportCSV(){
+  if(!_adsFiltered.length) return;
+  const hdrs=['Line Item','Status','Type','Impressions','Clicks','CTR','Start','End'];
+  const rows=_adsFiltered.map(li=>{const im=parseInt(li.impressionsDelivered||'0');const cl=parseInt(li.clicksDelivered||'0');const ctr=im>0?(cl/im*100).toFixed(2)+'%':'';return['"'+(li.displayName||'').replace(/"/g,'""')+'"',li.status||'',li.lineItemType||'',im,cl,ctr,li.startTime?li.startTime.slice(0,10):'',li.endTime?li.endTime.slice(0,10):''].join(',');});
+  const csv=[hdrs.join(','),...rows].join('\\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='ads-performance.csv';a.click();
+}
+
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',loadAdsData);
 else setTimeout(loadAdsData,80);
 </script>
 `;
@@ -1011,252 +1127,187 @@ else setTimeout(loadAdsData,80);
 
 
 // ═══════════════════════════════════════════════════════════════════════════
-//   GAM ANALYTICS — live data from Google Ad Manager API
+//  4. GAM ANALYTICS
 // ═══════════════════════════════════════════════════════════════════════════
 export function gamAnalyticsScreen(): string {
   return `
+${PS_CSS}
+<style>
+.gam-li-indent{padding-left:44px!important}
+</style>
 <div class="content fade-in">
 
-  <!-- ── DATA SOURCE INDICATOR ───────────────────────────────────────────── -->
-  <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(66,133,244,0.07);border:1px solid rgba(66,133,244,0.15);border-radius:9px;margin-bottom:14px;flex-wrap:wrap">
-    <i class="fas fa-rectangle-ad" style="color:#4285f4;font-size:10px"></i>
-    <span style="font-size:11px;color:var(--text-muted);font-weight:600">DATA SOURCE</span>
-    <span style="font-size:11px;color:var(--text-primary)">Google Ad Manager <span class="text-muted">·</span> Orders &amp; Line Items</span>
-    <span class="b b-blue" style="font-size:10px;margin-left:4px">GAM API · Live</span>
-    <span class="b b-gray" style="font-size:10px">Network: <span id="gam-ds-network" style="color:#60a5fa">—</span></span>
-    <span style="margin-left:auto;font-size:10.5px;color:var(--text-muted)"><i class="fas fa-satellite-dish" style="margin-right:4px"></i>Real-time · Refreshes on page load</span>
+<!-- ── Data source ─────────────────────────────────────────────────────── -->
+<div class="ps-src">
+  <i class="fab fa-google" style="color:#4285f4"></i>
+  <strong>Google Ad Manager</strong> <span class="text-muted">·</span> Orders &amp; Line Items
+  <span class="ps-plat ps-plat-gam">GAM API · Live</span>
+  <span class="b b-gray fs10">Network: <span id="gam-ds-network" style="color:#60a5fa">—</span></span>
+  <span style="margin-left:auto;font-size:10.5px;color:var(--text-muted)"><i class="fas fa-satellite-dish" style="margin-right:4px"></i>Real-time · auto-loads on open</span>
+</div>
+
+<!-- ── Status Banner ───────────────────────────────────────────────────── -->
+<div id="gamBanner" class="ps-banner">
+  <i class="fas fa-spinner fa-spin" id="gamBannerIcon" style="color:#4285f4;font-size:14px"></i>
+  <span id="gamBannerText" style="flex:1;color:#60a5fa;font-size:12px">Loading live data from Google Ad Manager…</span>
+  <span id="gamLastRefresh" style="font-size:10px;color:var(--text-muted)"></span>
+  <button class="btn-ghost" style="height:26px;font-size:11px;padding:0 10px" onclick="loadGAMAnalytics()">
+    <i class="fas fa-rotate" id="gamRefreshIcon"></i>Refresh
+  </button>
+</div>
+
+<!-- ── KPI Strip ───────────────────────────────────────────────────────── -->
+<div class="ps-kpi-row" id="gamKpiStrip">
+  ${_psKpi(true,  '#4285f4','file-invoice',  'Total Orders',        'kv-orders',  'kc-orders')}
+  ${_psKpi(false, '#00d68f','circle-play',   'Active / Delivering',  'kv-active',  'kc-active')}
+  ${_psKpi(false, '#f59e0b','eye',           'Impressions Delivered','kv-impr',    'kc-impr')}
+  ${_psKpi(false, '#a78bfa','layer-group',   'Total Line Items',     'kv-li',      'kc-li')}
+</div>
+
+<!-- ── Row 2: Status Overview + Delivery Health ────────────────────────── -->
+<div class="ps-g62">
+
+  <!-- Order Status Overview -->
+  <div class="card">
+    <div class="card-hd">
+      <div class="card-title"><i class="fas fa-circle-dot" style="color:#4285f4;margin-right:7px"></i>Order Status Overview</div>
+      <span class="b b-gray fs10" id="networkStatusBadge">—</span>
+    </div>
+    <div id="orderStatusBars" style="display:flex;flex-direction:column;gap:10px;min-height:100px">
+      <div class="text-muted fs12" style="padding:20px 0;text-align:center"><i class="fas fa-spinner fa-spin"></i> Loading…</div>
+    </div>
+    <div style="height:150px;margin-top:14px"><canvas id="orderStatusChart"></canvas></div>
   </div>
 
-  <!-- ── STATUS BANNER ─────────────────────────────────────────────────── -->
-  <div id="gamBanner" style="display:flex;align-items:center;gap:10px;background:rgba(66,133,244,0.08);border:1px solid rgba(66,133,244,0.2);border-radius:12px;padding:11px 16px;margin-bottom:16px">
-    <i class="fas fa-spinner fa-spin" id="gamBannerIcon" style="color:#4285f4;font-size:14px"></i>
-    <span id="gamBannerText" style="font-size:12px;color:#60a5fa;flex:1">Loading live data from Google Ad Manager…</span>
-    <span id="gamLastRefresh" style="font-size:10px;color:var(--text-muted)"></span>
-    <button class="btn-ghost" style="height:26px;font-size:11px;padding:0 10px" onclick="loadGAMAnalytics()" id="gamRefreshBtn">
-      <i class="fas fa-rotate" id="gamRefreshIcon"></i>Refresh
-    </button>
-  </div>
-
-  <!-- ── KPI STRIP ────────────────────────────────────────────────────────── -->
-  <div class="kpi-grid-4" id="gamKpiStrip">
-    <div class="kpi accent" id="kpi-orders">
-      <div class="kpi-icon" style="background:rgba(66,133,244,0.15);color:#4285f4"><i class="fas fa-file-invoice"></i></div>
-      <div class="kpi-lbl">Total Orders</div>
-      <div class="kpi-val" id="kv-orders"><span class="text-muted fs12">—</span></div>
-      <div class="kpi-chg" id="kc-orders"></div>
-    </div>
-    <div class="kpi" id="kpi-active">
-      <div class="kpi-icon green"><i class="fas fa-circle-play"></i></div>
-      <div class="kpi-lbl">Active / Delivering</div>
-      <div class="kpi-val" id="kv-active"><span class="text-muted fs12">—</span></div>
-      <div class="kpi-chg" id="kc-active"></div>
-    </div>
-    <div class="kpi" id="kpi-impr">
-      <div class="kpi-icon amber"><i class="fas fa-eye"></i></div>
-      <div class="kpi-lbl">Impressions Delivered</div>
-      <div class="kpi-val" id="kv-impr"><span class="text-muted fs12">—</span></div>
-      <div class="kpi-chg" id="kc-impr"></div>
-    </div>
-    <div class="kpi" id="kpi-li">
-      <div class="kpi-icon" style="background:rgba(167,139,250,0.15);color:#a78bfa"><i class="fas fa-layer-group"></i></div>
-      <div class="kpi-lbl">Total Line Items</div>
-      <div class="kpi-val" id="kv-li"><span class="text-muted fs12">—</span></div>
-      <div class="kpi-chg" id="kc-li"></div>
-    </div>
-  </div>
-
-  <!-- ── ROW 2: STATUS OVERVIEW + DELIVERY HEALTH ──────────────────────── -->
-  <div class="g62">
-
+  <!-- Right column: LI Health + Top LIs -->
+  <div style="display:flex;flex-direction:column;gap:12px">
     <div class="card">
       <div class="card-hd">
-        <div class="card-title"><i class="fas fa-circle-dot" style="color:#4285f4;margin-right:7px"></i>Order Status Overview</div>
-        <span class="b b-gray fs10" id="networkStatusBadge">—</span>
+        <div class="card-title"><i class="fas fa-signal" style="color:#00d68f;margin-right:7px"></i>Line Item Status</div>
       </div>
-      <div id="orderStatusBars" style="display:flex;flex-direction:column;gap:10px;min-height:100px">
-        <div class="text-muted fs12" style="padding:20px 0;text-align:center"><i class="fas fa-spinner fa-spin"></i> Loading…</div>
-      </div>
-      <div style="height:150px;margin-top:14px"><canvas id="orderStatusChart"></canvas></div>
-    </div>
-
-    <div style="display:flex;flex-direction:column;gap:14px">
-
-      <div class="card">
-        <div class="card-hd">
-          <div class="card-title"><i class="fas fa-layer-group" style="color:#a78bfa;margin-right:7px"></i>Line Item Health</div>
-          <span class="b b-gray fs10">Excl. Drafts</span>
-        </div>
-        <div id="liStatusBars" style="display:flex;flex-direction:column;gap:9px;min-height:60px">
-          <div class="text-muted fs12" style="padding:10px 0;text-align:center"><i class="fas fa-spinner fa-spin"></i> Loading…</div>
-        </div>
-      </div>
-
-      <div class="card card-sm">
-        <div class="card-hd">
-          <div class="card-title"><i class="fas fa-trophy" style="color:#f59e0b;margin-right:7px"></i>Top Delivering Line Items</div>
-          <span class="b b-gray fs10">by impr.</span>
-        </div>
-        <div id="gamTopLI" style="display:flex;flex-direction:column;gap:5px;min-height:50px">
-          <div class="text-muted fs12" style="padding:10px 0;text-align:center"><i class="fas fa-spinner fa-spin"></i></div>
-        </div>
-      </div>
-
-      <div class="card card-sm" id="networkInfoCard">
-        <div class="card-hd">
-          <div class="card-title"><i class="fas fa-network-wired" style="color:#00d68f;margin-right:7px"></i>Network</div>
-        </div>
-        <div id="networkInfoBody" style="display:flex;flex-direction:column;gap:5px">
-          <div class="text-muted fs12" style="padding:8px 0;text-align:center"><i class="fas fa-spinner fa-spin"></i></div>
-        </div>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- ── ROW 3: ORDERS + LINE ITEMS ─────────────────────────────────────── -->
-  <div class="card" id="ordersTableCard">
-    <div class="card-hd" style="flex-wrap:wrap;gap:10px">
-      <div class="card-title">
-        <i class="fas fa-list-check" style="color:#4285f4;margin-right:7px"></i>Orders &amp; Line Items
-        <span id="ordersCountBadge" style="font-size:10px;font-weight:600;padding:2px 8px;background:rgba(66,133,244,0.12);color:#4285f4;border-radius:10px;margin-left:8px">—</span>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto">
-        <div style="position:relative">
-          <i class="fas fa-search" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--text-muted)"></i>
-          <input id="orderSearch" type="text" placeholder="Search orders, advertiser…"
-            style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:5px 10px 5px 26px;color:var(--text-primary);font-size:11px;width:190px;outline:none"
-            oninput="filterOrders(this.value)">
-        </div>
-        <select id="orderStatusFilter"
-          style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:5px 8px;color:var(--text-primary);font-size:11px;outline:none"
-          onchange="filterOrders(document.getElementById('orderSearch').value)">
-          <option value="ACTIVE_DELIVERING">Active &amp; Delivering</option>
-          <option value="ACTIVE">Active</option>
-          <option value="DELIVERING">Delivering</option>
-          <option value="PAUSED">Paused</option>
-          <option value="COMPLETED">Completed</option>
-          <option value="CANCELED">Canceled</option>
-          <option value="">All (excl. Draft)</option>
-          <option value="ALL_INCL_DRAFT">All (incl. Draft)</option>
-        </select>
-        <select id="orderPageSize"
-          style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:5px 8px;color:var(--text-primary);font-size:11px;outline:none"
-          onchange="_ordersPageSize=parseInt(this.value);_ordersPageNum=1;renderOrdersPage()">
-          <option value="15">15 / page</option>
-          <option value="25" selected>25 / page</option>
-          <option value="50">50 / page</option>
-          <option value="100">100 / page</option>
-        </select>
-        <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 10px" onclick="toggleExpandAll()" id="expandAllBtn">
-          <i class="fas fa-expand-alt"></i>Expand All
-        </button>
-        <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 10px" onclick="exportOrdersCSV()">
-          <i class="fas fa-download"></i>CSV
-        </button>
+      <div id="liStatusBars" style="display:flex;flex-direction:column;gap:7px;min-height:60px">
+        <div class="text-muted fs12" style="text-align:center;padding:10px"><i class="fas fa-spinner fa-spin"></i></div>
       </div>
     </div>
-
-    <style>
-      #ordersTable { border-collapse:collapse; width:100%; }
-      #ordersTable th { white-space:nowrap; }
-      .order-row { cursor:pointer; transition:background 0.1s; }
-      .order-row:hover td { background:rgba(66,133,244,0.06) !important; }
-      .order-row.order-expanded > td { background:rgba(66,133,244,0.04); }
-      .li-child-row td { font-size:11px; background:rgba(66,133,244,0.025); }
-      .li-child-row:hover td { background:rgba(167,139,250,0.07) !important; }
-      .li-child-row td:nth-child(2) { padding-left:44px; }
-      .expand-icon { display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:5px;background:rgba(66,133,244,0.12);color:#4285f4;font-size:9px;transition:transform 0.18s;flex-shrink:0; }
-      .expand-icon.open { transform:rotate(90deg);background:rgba(66,133,244,0.25); }
-      .li-count-badge { display:inline-flex;align-items:center;background:rgba(167,139,250,0.15);color:#a78bfa;font-size:9px;font-weight:700;padding:1px 7px;border-radius:10px;white-space:nowrap; }
-      .li-subhdr td { background:rgba(66,133,244,0.08) !important;font-size:10px;font-weight:700;color:#a78bfa;text-transform:uppercase;letter-spacing:0.04em;padding-top:5px !important;padding-bottom:5px !important; }
-      .li-subhdr td:nth-child(2) { padding-left:44px; }
-      @keyframes liSlide { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:translateY(0)} }
-      .li-child-row { animation:liSlide 0.12s ease; }
-      .sort-active { color:#60a5fa !important; }
-      .tbl-th-sort { cursor:pointer;user-select:none; }
-      .tbl-th-sort:hover { color:#d0d0e8; }
-    </style>
-
-    <div id="ordersTableWrap" style="overflow-x:auto;margin-top:2px">
-      <table class="tbl" id="ordersTable">
-        <thead>
-          <tr>
-            <th style="width:36px"></th>
-            <th class="tbl-th-sort" onclick="sortOrdersBy('displayName')" id="th-displayName">Order Name <i class="fas fa-sort" id="si-displayName" style="opacity:0.35;font-size:9px;margin-left:3px"></i></th>
-            <th class="tbl-th-sort" onclick="sortOrdersBy('advertiserId')" id="th-advertiserId">Advertiser <i class="fas fa-sort" id="si-advertiserId" style="opacity:0.35;font-size:9px;margin-left:3px"></i></th>
-            <th class="tbl-th-sort" onclick="sortOrdersBy('status')" id="th-status">Status <i class="fas fa-sort" id="si-status" style="opacity:0.35;font-size:9px;margin-left:3px"></i></th>
-            <th class="tbl-th-sort" onclick="sortOrdersBy('startTime')" id="th-startTime">Start <i class="fas fa-sort" id="si-startTime" style="opacity:0.35;font-size:9px;margin-left:3px"></i></th>
-            <th class="tbl-th-sort" onclick="sortOrdersBy('endTime')" id="th-endTime">End <i class="fas fa-sort" id="si-endTime" style="opacity:0.35;font-size:9px;margin-left:3px"></i></th>
-            <th class="tbl-th-sort" onclick="sortOrdersBy('totalBudget')" id="th-totalBudget">Budget <i class="fas fa-sort" id="si-totalBudget" style="opacity:0.35;font-size:9px;margin-left:3px"></i></th>
-            <th>Line Items</th>
-            <th class="tbl-th-sort" onclick="sortOrdersBy('impressions')" id="th-impressions">Impressions <i class="fas fa-sort" id="si-impressions" style="opacity:0.35;font-size:9px;margin-left:3px"></i></th>
-            <th>Clicks / CTR</th>
-          </tr>
-        </thead>
-        <tbody id="ordersTbody">
-          <tr><td colspan="10" class="text-muted" style="text-align:center;padding:32px">
-            <i class="fas fa-spinner fa-spin" style="font-size:18px"></i>
-            <br><span style="font-size:11px;display:block;margin-top:8px">Loading orders from Google Ad Manager…</span>
-          </td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div id="ordersPagination" style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
-      <span class="fs11 text-muted" id="ordersCount">—</span>
-      <div style="display:flex;gap:6px;align-items:center">
-        <button class="btn-ghost" style="height:26px;font-size:11px;padding:0 10px" id="ordersPrevBtn" onclick="ordersPage(-1)" disabled>← Prev</button>
-        <span class="fs11 text-muted" id="ordersPageLabel" style="padding:0 6px;line-height:26px;min-width:80px;text-align:center">Page 1 / 1</span>
-        <button class="btn-ghost" style="height:26px;font-size:11px;padding:0 10px" id="ordersNextBtn" onclick="ordersPage(1)">Next →</button>
+    <div class="card card-sm">
+      <div class="card-hd">
+        <div class="card-title"><i class="fas fa-trophy" style="color:#f59e0b;margin-right:7px"></i>Top Delivering Line Items</div>
+        <span class="b b-gray fs10">by impressions</span>
+      </div>
+      <div id="gamTopLI" style="display:flex;flex-direction:column;gap:4px;min-height:60px">
+        <div class="text-muted fs12" style="text-align:center;padding:10px"><i class="fas fa-spinner fa-spin"></i></div>
       </div>
     </div>
   </div>
 
 </div>
 
-<script>
-// ── State ──────────────────────────────────────────────────────────────────
-let _gamOrders      = [];
-let _gamLineItems   = [];
-let _gamNetwork     = null;
-let _ordersFiltered = [];
-let _ordersPageNum  = 1;
-let _ordersPageSize = 25;
-let _ordersSortKey  = 'status';
-let _ordersSortAsc  = true;
-let _orderStatusChart = null;
-let _expandedOrders = new Set();
-let _allExpanded    = false;
-let _orderMetaCache = {};
+<!-- ── Row 3: Top Orders Bar Chart ─────────────────────────────────────── -->
+<div class="card" style="margin-bottom:14px">
+  <div class="card-hd">
+    <div class="card-title"><i class="fas fa-chart-bar" style="color:#4285f4;margin-right:7px"></i>Top Orders by Impressions</div>
+    <span class="fs11 text-muted" id="gamTopOrdersLbl"></span>
+  </div>
+  <div id="gamTopOrdersBars" style="display:flex;flex-direction:column;gap:6px;min-height:80px">
+    <div class="text-muted fs12" style="text-align:center;padding:20px"><i class="fas fa-spinner fa-spin"></i></div>
+  </div>
+</div>
 
-// ── Utilities ──────────────────────────────────────────────────────────────
-function fmtImpr(n) {
-  n = parseInt(n)||0;
-  if(n>=1_000_000_000) return (n/1_000_000_000).toFixed(1)+'B';
-  if(n>=1_000_000)     return (n/1_000_000).toFixed(1)+'M';
-  if(n>=1_000)         return (n/1_000).toFixed(1)+'K';
-  return n===0?'—':n.toLocaleString();
-}
-function fmtDateShort(s){
-  if(!s) return '—';
-  try{ const d=new Date(s); return d.toLocaleDateString('en-MY',{day:'2-digit',month:'short',year:'2-digit'}); }catch{ return s.slice(0,10); }
-}
-function fmtBudget(b){
-  if(!b) return '—';
-  const u=parseFloat(b.units||'0'); if(u===0) return '—';
-  const c=b.currencyCode||'';
-  if(u>=1_000_000) return c+'\u00a0'+(u/1_000_000).toFixed(2)+'M';
-  if(u>=1_000)     return c+'\u00a0'+(u/1_000).toFixed(1)+'K';
-  return c+'\u00a0'+u.toFixed(0);
-}
-function advShort(id){ if(!id) return '—'; const n=id.split('/').pop(); return n?'#'+n:id; }
+<!-- ── Row 4: Orders + Line Items Table ────────────────────────────────── -->
+<div class="card">
+  <div class="card-hd">
+    <div class="card-title"><i class="fas fa-sitemap" style="color:#4285f4;margin-right:7px"></i>Orders &amp; Line Items</div>
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+      <span id="ordersCountBadge" class="b b-gray fs10">—</span>
+      <input id="orderSearch" type="text" placeholder="Search orders…"
+        style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:4px 10px;color:var(--text-primary);font-size:11px;width:160px;outline:none;height:28px"
+        oninput="filterOrders(this.value)">
+      <select id="orderStatusFilter"
+        style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:4px 8px;color:var(--text-primary);font-size:11px;outline:none;height:28px"
+        onchange="filterOrders(document.getElementById('orderSearch').value)">
+        <option value="ACTIVE_DELIVERING">Active &amp; Delivering</option>
+        <option value="PAUSED">Paused</option>
+        <option value="COMPLETED">Completed</option>
+        <option value="CANCELED">Canceled</option>
+        <option value="">All (excl. Draft)</option>
+      </select>
+      <select id="orderPageSize"
+        style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:4px 8px;color:var(--text-primary);font-size:11px;outline:none;height:28px"
+        onchange="_ordersPageSize=parseInt(this.value);filterOrders(document.getElementById('orderSearch').value)">
+        <option value="15">15/page</option>
+        <option value="25" selected>25/page</option>
+        <option value="50">50/page</option>
+        <option value="100">100/page</option>
+      </select>
+      <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 10px" id="expandAllBtn" onclick="toggleExpandAll()"><i class="fas fa-expand-alt"></i>Expand All</button>
+      <button class="btn-ghost" style="height:28px;font-size:11px;padding:0 10px" onclick="exportOrdersCSV()"><i class="fas fa-download"></i>CSV</button>
+    </div>
+  </div>
+
+  <div class="ps-tbl-wrap">
+    <table class="ps-tbl" style="min-width:900px">
+      <thead>
+        <tr>
+          <th style="width:30px"></th>
+          <th id="th-displayName" onclick="sortOrdersBy('displayName')" style="min-width:180px">Order Name <i class="fas fa-sort" id="si-displayName" style="opacity:0.3;font-size:9px"></i></th>
+          <th id="th-advertiserId" onclick="sortOrdersBy('advertiserId')">Advertiser <i class="fas fa-sort" id="si-advertiserId" style="opacity:0.3;font-size:9px"></i></th>
+          <th id="th-status" onclick="sortOrdersBy('status')">Status <i class="fas fa-sort" id="si-status" style="opacity:0.3;font-size:9px"></i></th>
+          <th id="th-startTime" onclick="sortOrdersBy('startTime')">Start <i class="fas fa-sort" id="si-startTime" style="opacity:0.3;font-size:9px"></i></th>
+          <th id="th-endTime" onclick="sortOrdersBy('endTime')">End <i class="fas fa-sort" id="si-endTime" style="opacity:0.3;font-size:9px"></i></th>
+          <th id="th-totalBudget" onclick="sortOrdersBy('totalBudget')">Budget <i class="fas fa-sort" id="si-totalBudget" style="opacity:0.3;font-size:9px"></i></th>
+          <th>Line Items</th>
+          <th id="th-impressions" onclick="sortOrdersBy('impressions')" class="num">Impressions <i class="fas fa-sort" id="si-impressions" style="opacity:0.3;font-size:9px"></i></th>
+          <th class="num">Clicks / CTR</th>
+        </tr>
+      </thead>
+      <tbody id="ordersTbody">
+        <tr><td colspan="10" class="text-muted" style="text-align:center;padding:32px"><i class="fas fa-spinner fa-spin" style="font-size:18px"></i><br><span style="font-size:11px;display:block;margin-top:8px">Fetching orders…</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="ps-pag">
+    <span id="ordersCount" class="fs11 text-muted">—</span>
+    <div style="display:flex;gap:6px;align-items:center">
+      <button class="btn-ghost" style="height:26px;font-size:11px;padding:0 10px" id="ordersPrevBtn" onclick="ordersPage(-1)" disabled>← Prev</button>
+      <span id="ordersPageLabel" class="fs11 text-muted" style="padding:0 6px;line-height:26px">Page 1</span>
+      <button class="btn-ghost" style="height:26px;font-size:11px;padding:0 10px" id="ordersNextBtn" onclick="ordersPage(1)">Next →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Row 5: Network Info ──────────────────────────────────────────────── -->
+<div class="card card-sm" style="margin-top:14px">
+  <div class="card-hd">
+    <div class="card-title"><i class="fas fa-network-wired" style="color:#4285f4;margin-right:7px"></i>Network Information</div>
+    <span class="b b-gray fs10" id="networkStatusBadge2">—</span>
+  </div>
+  <table class="ps-tbl">
+    <tbody id="networkInfoBody">
+      <tr><td colspan="2" class="text-muted fs12" style="text-align:center;padding:12px"><i class="fas fa-spinner fa-spin"></i></td></tr>
+    </tbody>
+  </table>
+</div>
+
+</div><!-- /content -->
+
+<script>
+// ── GAM Analytics state ────────────────────────────────────────────────────
+let _gamOrders=[], _gamLineItems=[], _gamNetwork=null;
+let _ordersFiltered=[], _ordersPageNum=1, _ordersPageSize=25;
+let _ordersSortKey='impressions', _ordersSortAsc=false;
+let _expandedOrders=new Set(), _allExpanded=false;
+let _orderMetaCache={};
+let _orderStatusChart=null;
+
+// ── Utilities ─────────────────────────────────────────────────────────────
+function fmtImpr(n){n=parseInt(n)||0;if(n>=1e9)return(n/1e9).toFixed(1)+'B';if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return n===0?'—':n.toLocaleString();}
+function fmtDateShort(s){if(!s)return'—';try{const d=new Date(s);return d.toLocaleDateString('en-MY',{day:'2-digit',month:'short',year:'2-digit'});}catch{return s.slice(0,10);}}
+function fmtBudget(b){if(!b)return'—';const u=parseFloat(b.units||'0');if(u===0)return'—';const c=b.currencyCode||'';if(u>=1e6)return c+'\u00a0'+(u/1e6).toFixed(2)+'M';if(u>=1e3)return c+'\u00a0'+(u/1e3).toFixed(1)+'K';return c+'\u00a0'+u.toFixed(0);}
+function advShort(id){if(!id)return'—';const n=id.split('/').pop();return n?'#'+n:id;}
 const STATUS_COLOR={ACTIVE:'#00d68f',DELIVERING:'#00c07f',COMPLETED:'#60a5fa',PAUSED:'#f59e0b',CANCELED:'#f43f5e',DRAFT:'#8080a8',PENDING_APPROVAL:'#a78bfa',UNKNOWN:'#48486a'};
 const STATUS_BADGE={ACTIVE:'b-green',DELIVERING:'b-green',COMPLETED:'b-blue',PAUSED:'b-amber',CANCELED:'b-red',DRAFT:'b-gray',PENDING_APPROVAL:'b-purple',UNKNOWN:'b-gray'};
-function statusBadge(s){
-  const cls=STATUS_BADGE[s]||'b-gray';
-  const lbl=(s||'UNKNOWN').replace(/_/g,'\u00a0');
-  return \`<span class="b \${cls}" style="font-size:9px;white-space:nowrap">\${lbl}</span>\`;
-}
+function statusBadge(s){const cls=STATUS_BADGE[s]||'b-gray';const lbl=(s||'UNKNOWN').replace(/_/g,'\u00a0');return \`<span class="b \${cls}" style="font-size:9px;white-space:nowrap">\${lbl}</span>\`;}
 
 // ── Main Loader ────────────────────────────────────────────────────────────
 async function loadGAMAnalytics(){
@@ -1264,172 +1315,122 @@ async function loadGAMAnalytics(){
   const txt=document.getElementById('gamBannerText');
   const ri=document.getElementById('gamRefreshIcon');
   const banner=document.getElementById('gamBanner');
-  icon.className='fas fa-spinner fa-spin'; icon.style.color='#4285f4';
-  txt.textContent='Loading live data from Google Ad Manager…'; txt.style.color='#60a5fa';
-  banner.style.background='rgba(66,133,244,0.08)'; banner.style.borderColor='rgba(66,133,244,0.2)';
+  icon.className='fas fa-spinner fa-spin';icon.style.color='#4285f4';
+  txt.textContent='Loading live data from Google Ad Manager…';txt.style.color='#60a5fa';
+  banner.style.background='rgba(66,133,244,0.08)';banner.style.borderColor='rgba(66,133,244,0.2)';
   if(ri) ri.className='fas fa-spinner fa-spin';
   const tb=document.getElementById('ordersTbody');
   if(tb) tb.innerHTML='<tr><td colspan="10" class="text-muted" style="text-align:center;padding:32px"><i class="fas fa-spinner fa-spin" style="font-size:18px"></i><br><span style="font-size:11px;display:block;margin-top:8px">Fetching orders…</span></td></tr>';
 
   try{
-    const [sumRes,ordRes,liRes]=await Promise.all([
+    const[sumRes,ordRes,liRes]=await Promise.all([
       fetch('/api/gam/summary').then(r=>r.json()),
       fetch('/api/gam/orders?pageSize=500').then(r=>r.json()),
       fetch('/api/gam/lineitems?pageSize=500').then(r=>r.json()),
     ]);
     if(!sumRes.ok){
       const em=sumRes.error||'Unknown error. Set up GAM in API Connections.';
-      icon.className='fas fa-triangle-exclamation'; icon.style.color='#f59e0b';
-      txt.textContent='GAM not connected — '+em; txt.style.color='#f59e0b';
-      banner.style.background='rgba(245,158,11,0.07)'; banner.style.borderColor='rgba(245,158,11,0.2)';
+      icon.className='fas fa-triangle-exclamation';icon.style.color='#f59e0b';
+      txt.textContent='GAM not connected — '+em;txt.style.color='#f59e0b';
+      banner.style.background='rgba(245,158,11,0.07)';banner.style.borderColor='rgba(245,158,11,0.2)';
       const noConf='<div class="text-muted fs12" style="padding:14px 0;text-align:center"><i class="fas fa-plug" style="color:#f59e0b;margin-right:6px"></i>GAM not configured — <a href="#" onclick="navigate(\'api\')" style="color:#60a5fa">Set up in API Connections</a></div>';
-      ['ordersTbody','gamTopLI','orderStatusBars','liStatusBars','networkInfoBody'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=noConf;});
-      if(ri) ri.className='fas fa-rotate';
-      return;
+      ['ordersTbody','gamTopLI','orderStatusBars','liStatusBars','networkInfoBody','gamTopOrdersBars'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=noConf;});
+      if(ri)ri.className='fas fa-rotate';return;
     }
-
-    // Filter out UNKNOWN and DRAFT status line items and orders
-    const rawOrders=(ordRes.ok?ordRes.orders:[])||[];
-    const rawLineItems=(liRes.ok?liRes.lineItems:[])||[];
-    _gamOrders   = rawOrders.filter(o=>o.status!=='UNKNOWN'&&o.status!=='DRAFT');
-    _gamLineItems= rawLineItems.filter(li=>li.status!=='UNKNOWN'&&li.status!=='DRAFT');
-
-    _gamNetwork  =sumRes;
-    _orderMetaCache={};
-    _buildOrderMetaCache();
+    _gamOrders=(ordRes.ok?ordRes.orders:[])||[];
+    _gamLineItems=(liRes.ok?liRes.lineItems:[])||[];
+    // Filter UNKNOWN/DRAFT
+    _gamOrders=_gamOrders.filter(o=>o.status!=='UNKNOWN'&&o.status!=='DRAFT');
+    _gamLineItems=_gamLineItems.filter(li=>li.status!=='UNKNOWN'&&li.status!=='DRAFT');
+    _gamNetwork=sumRes;
+    _orderMetaCache={};_buildOrderMetaCache();
     const now=new Date().toLocaleTimeString('en-MY',{hour:'2-digit',minute:'2-digit'});
-    icon.className='fas fa-circle-check'; icon.style.color='#00d68f';
+    icon.className='fas fa-circle-check';icon.style.color='#00d68f';
     txt.textContent='Connected to '+(sumRes.networkName||sumRes.networkCode)+' · '+_gamOrders.length+' orders · '+_gamLineItems.length+' line items · Fetching delivery metrics…';
-    txt.style.color='#00d68f';
-    banner.style.background='rgba(0,214,143,0.06)'; banner.style.borderColor='rgba(0,214,143,0.18)';
-    const lr=document.getElementById('gamLastRefresh'); if(lr) lr.textContent='Last refresh: '+now;
-    if(ri) ri.className='fas fa-rotate';
+    txt.style.color='#00d68f';banner.style.background='rgba(0,214,143,0.06)';banner.style.borderColor='rgba(0,214,143,0.18)';
+    const lr=document.getElementById('gamLastRefresh');if(lr)lr.textContent='Last refresh: '+now;
+    if(ri)ri.className='fas fa-rotate';
+    renderKPIs(sumRes);renderOrderStatusBars(sumRes.orders?.byStatus||{});renderLIStatusBars(sumRes.lineItems?.byStatus||{});renderNetworkInfo(sumRes);renderTopLI();renderOrdersTable();renderCharts(sumRes);renderTopOrdersBars();
 
-    // Render initial view immediately with structural data
-    renderKPIs(sumRes);
-    renderOrderStatusBars(sumRes.orders?.byStatus||{});
-    renderLIStatusBars(sumRes.lineItems?.byStatus||{});
-    renderNetworkInfo(sumRes);
-    renderTopLI();
-    renderOrdersTable();
-    renderCharts(sumRes);
-
-    // Now fetch delivery metrics asynchronously (via Reports API — takes ~10-30s)
-    // This enriches the table with real impressions/clicks without blocking the UI
-    txt.textContent='Connected to '+(sumRes.networkName||sumRes.networkCode)+' · Fetching delivery metrics (this may take 15-30s)…';
+    // Async metrics fetch
+    txt.textContent='Connected to '+(sumRes.networkName||sumRes.networkCode)+' · Fetching delivery metrics (15-30s)…';
     try{
       const metricsRes=await fetch('/api/gam/metrics').then(r=>r.json());
       if(metricsRes.ok&&metricsRes.lineItemMetrics){
-        // Merge metrics into _gamLineItems by line item numeric ID
-        for(const li of _gamLineItems){
-          const liNum=li.name?li.name.split('/').pop():'';
-          const m=metricsRes.lineItemMetrics[liNum]||metricsRes.lineItemMetrics[li.name]||null;
-          if(m){
-            li.impressionsDelivered=String(m.impressions||0);
-            li.clicksDelivered=String(m.clicks||0);
-          }
-        }
-        // Rebuild meta cache with real data
-        _orderMetaCache={};
-        _buildOrderMetaCache();
-        // Update KPIs with real metrics totals
+        for(const li of _gamLineItems){const liNum=li.name?li.name.split('/').pop():'';const m=metricsRes.lineItemMetrics[liNum]||metricsRes.lineItemMetrics[li.name]||null;if(m){li.impressionsDelivered=String(m.impressions||0);li.clicksDelivered=String(m.clicks||0);}}
+        _orderMetaCache={};_buildOrderMetaCache();
         let totalImpr=0,totalClk=0;
-        for(const li of _gamLineItems){
-          totalImpr+=parseInt(li.impressionsDelivered||'0');
-          totalClk+=parseInt(li.clicksDelivered||'0');
-        }
-        const enrichedSumRes={...sumRes,lineItems:{...sumRes.lineItems,totalImpressions:totalImpr,totalClicks:totalClk}};
-        renderKPIs(enrichedSumRes);
-        renderTopLI();
-        renderOrdersPage(); // re-render table with metrics
+        for(const li of _gamLineItems){totalImpr+=parseInt(li.impressionsDelivered||'0');totalClk+=parseInt(li.clicksDelivered||'0');}
+        const enriched={...sumRes,lineItems:{...sumRes.lineItems,totalImpressions:totalImpr,totalClicks:totalClk}};
+        renderKPIs(enriched);renderTopLI();renderTopOrdersBars();renderOrdersPage();
         txt.textContent='Connected to '+(sumRes.networkName||sumRes.networkCode)+' · '+_gamOrders.length+' orders · '+_gamLineItems.length+' line items · Metrics updated';
       }else{
-        txt.textContent='Connected to '+(sumRes.networkName||sumRes.networkCode)+' · '+_gamOrders.length+' orders (metrics unavailable: '+(metricsRes.error||'unknown')+')';
-        icon.className='fas fa-circle-exclamation'; icon.style.color='#f59e0b';
+        txt.textContent='Connected · '+_gamOrders.length+' orders (metrics unavailable: '+(metricsRes.error||'unknown')+')';
+        icon.className='fas fa-circle-exclamation';icon.style.color='#f59e0b';
       }
     }catch(me){
-      // Metrics fetch failed — still show structural data
-      txt.textContent='Connected to '+(sumRes.networkName||sumRes.networkCode)+' · '+_gamOrders.length+' orders (delivery metrics failed: '+me.message+')';
-      icon.className='fas fa-circle-exclamation'; icon.style.color='#f59e0b';
+      txt.textContent='Connected · '+_gamOrders.length+' orders (delivery metrics failed: '+me.message+')';
+      icon.className='fas fa-circle-exclamation';icon.style.color='#f59e0b';
     }
   }catch(e){
-    icon.className='fas fa-circle-xmark'; icon.style.color='#f43f5e';
-    txt.textContent='Failed to load GAM data: '+e.message; txt.style.color='#f43f5e';
-    banner.style.background='rgba(244,63,94,0.07)'; banner.style.borderColor='rgba(244,63,94,0.2)';
-    if(ri) ri.className='fas fa-rotate';
+    icon.className='fas fa-circle-xmark';icon.style.color='#f43f5e';
+    txt.textContent='Failed to load GAM data: '+e.message;txt.style.color='#f43f5e';
+    banner.style.background='rgba(244,63,94,0.07)';banner.style.borderColor='rgba(244,63,94,0.2)';
+    if(ri)ri.className='fas fa-rotate';
   }
 }
 
-// ── Build per-order metrics cache ──────────────────────────────────────────
+// ── Per-order metrics cache ────────────────────────────────────────────────
 function _buildOrderMetaCache(){
   const map={};
   for(const li of _gamLineItems){
-    // Skip UNKNOWN/DRAFT line items
     if(li.status==='UNKNOWN'||li.status==='DRAFT') continue;
     const oid=li.orderId||(li.name?li.name.split('/lineItems/')[0]:'');
     if(!oid) continue;
     if(!map[oid]) map[oid]={impr:0,clicks:0,lis:[],activeCount:0};
     const im=parseInt(li.impressionsDelivered||'0');
     const cl=parseInt(li.clicksDelivered||'0');
-    map[oid].impr+=im; map[oid].clicks+=cl; map[oid].lis.push(li);
+    map[oid].impr+=im;map[oid].clicks+=cl;map[oid].lis.push(li);
     if(li.status==='ACTIVE'||li.status==='DELIVERING') map[oid].activeCount++;
   }
-  for(const key of Object.keys(map)){
-    const num=key.split('/').pop();
-    if(num&&num!==key) map[num]=map[key];
-  }
+  for(const key of Object.keys(map)){const num=key.split('/').pop();if(num&&num!==key) map[num]=map[key];}
   _orderMetaCache=map;
 }
-function _getOrderMeta(o){
-  const oid=o.name||o.id||'';
-  const num=oid.split('/').pop();
-  return _orderMetaCache[oid]||_orderMetaCache[num]||{impr:0,clicks:0,lis:[],activeCount:0};
-}
+function _getOrderMeta(o){const oid=o.name||o.id||'';const num=oid.split('/').pop();return _orderMetaCache[oid]||_orderMetaCache[num]||{impr:0,clicks:0,lis:[],activeCount:0};}
 
 // ── KPIs ───────────────────────────────────────────────────────────────────
 function renderKPIs(s){
-  const tot=s.orders?.total||0;
+  const tot=s.orders?.total||_gamOrders.length;
   const act=(s.orders?.byStatus?.ACTIVE||0)+(s.orders?.byStatus?.DELIVERING||0);
   const impr=s.lineItems?.totalImpressions||0;
-  const li=s.lineItems?.total||0;
+  const li=s.lineItems?.total||_gamLineItems.length;
   const ali=(s.lineItems?.byStatus?.ACTIVE||0)+(s.lineItems?.byStatus?.DELIVERING||0);
   const clk=s.lineItems?.totalClicks||0;
   const ctr=impr>0?(clk/impr*100).toFixed(2)+'%':'—';
   document.getElementById('kv-orders').textContent=tot.toLocaleString();
-  document.getElementById('kc-orders').innerHTML='<span class="text-muted">'+li+' line items total</span>';
+  document.getElementById('kc-orders').innerHTML='<span class="text-muted">'+li+' line items</span>';
   document.getElementById('kv-active').textContent=act.toLocaleString();
   document.getElementById('kc-active').innerHTML='<span class="up"><i class="fas fa-circle" style="font-size:7px;margin-right:4px;color:#00d68f"></i>'+ali+' active LIs</span>';
   document.getElementById('kv-impr').innerHTML=fmtImpr(impr);
-  document.getElementById('kc-impr').innerHTML='<span class="text-muted">'+fmtImpr(clk)+' clicks · '+ctr+' CTR</span>';
+  document.getElementById('kc-impr').innerHTML='<span class="text-muted">'+fmtImpr(clk)+' clicks · '+ctr+'</span>';
   document.getElementById('kv-li').textContent=li.toLocaleString();
   document.getElementById('kc-li').innerHTML='<span class="up">'+ali+' active</span>';
 }
 
-// ── Order Status Bars ──────────────────────────────────────────────────────
+// ── Status bars ────────────────────────────────────────────────────────────
 function renderOrderStatusBars(by){
   const el=document.getElementById('orderStatusBars');
-  const order=['ACTIVE','DELIVERING','PAUSED','COMPLETED','CANCELED','PENDING_APPROVAL','UNKNOWN'];
+  const order=['ACTIVE','DELIVERING','PAUSED','COMPLETED','CANCELED','PENDING_APPROVAL'];
   const all=Object.entries(by).filter(([s])=>s!=='DRAFT'&&s!=='UNKNOWN');
   const tot=all.reduce((a,[,v])=>a+v,0)||1;
   all.sort((a,b)=>{const ia=order.indexOf(a[0]),ib=order.indexOf(b[0]);if(ia!==-1&&ib!==-1)return ia-ib;if(ia!==-1)return -1;if(ib!==-1)return 1;return b[1]-a[1];});
   if(!all.length){el.innerHTML='<div class="text-muted fs12" style="text-align:center;padding:16px">No order data</div>';return;}
   el.innerHTML=all.map(([st,cnt])=>{
-    const pct=Math.round(cnt/tot*100);
-    const col=STATUS_COLOR[st]||'#48486a';
-    return \`<div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-        <span class="fs12" style="display:flex;align-items:center;gap:5px">
-          <span style="width:8px;height:8px;border-radius:50%;background:\${col};display:inline-block"></span>
-          \${st.replace(/_/g,' ')}
-        </span>
-        <span class="fs12 fw7">\${cnt} <span class="text-muted">(\${pct}%)</span></span>
-      </div>
-      <div class="prog-wrap"><div class="prog-fill" style="width:\${pct}%;background:\${col};border-radius:4px;height:6px;transition:width 0.6s"></div></div>
-    </div>\`;
+    const pct=Math.round(cnt/tot*100);const col=STATUS_COLOR[st]||'#48486a';
+    return \`<div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span class="fs12" style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:\${col};display:inline-block"></span>\${st.replace(/_/g,' ')}</span><span class="fs12 fw7">\${cnt} <span class="text-muted">(\${pct}%)</span></span></div><div class="ps-prog-wrap"><div class="ps-prog-fill" style="width:\${pct}%;background:\${col}"></div></div></div>\`;
   }).join('');
 }
 
-// ── LI Status Bars ─────────────────────────────────────────────────────────
 function renderLIStatusBars(by){
   const el=document.getElementById('liStatusBars');
   const filt=Object.entries(by).filter(([s])=>s!=='DRAFT'&&s!=='UNKNOWN');
@@ -1437,52 +1438,27 @@ function renderLIStatusBars(by){
   const srt=[...filt].sort((a,b)=>b[1]-a[1]).slice(0,7);
   if(!srt.length){el.innerHTML='<div class="text-muted fs12" style="text-align:center;padding:10px">No line item data</div>';return;}
   el.innerHTML=srt.map(([st,cnt])=>{
-    const pct=Math.round(cnt/tot*100);
-    const col=STATUS_COLOR[st]||'#48486a';
-    return \`<div style="display:flex;align-items:center;gap:8px">
-      <span class="fs11 text-muted" style="width:90px;flex-shrink:0">\${st.replace(/_/g,' ')}</span>
-      <div class="prog-wrap" style="flex:1"><div class="prog-fill" style="width:\${pct}%;background:\${col};border-radius:3px;height:5px"></div></div>
-      <span class="fs11 fw7" style="width:32px;text-align:right">\${cnt}</span>
-    </div>\`;
+    const pct=Math.round(cnt/tot*100);const col=STATUS_COLOR[st]||'#48486a';
+    return \`<div style="display:flex;align-items:center;gap:8px"><span class="fs11 text-muted" style="width:90px;flex-shrink:0">\${st.replace(/_/g,' ')}</span><div class="ps-prog-wrap" style="flex:1"><div class="ps-prog-fill" style="width:\${pct}%;background:\${col}"></div></div><span class="fs11 fw7" style="width:32px;text-align:right">\${cnt}</span></div>\`;
   }).join('');
 }
 
 // ── Network Info ───────────────────────────────────────────────────────────
 function renderNetworkInfo(s){
-  const b=document.getElementById('networkStatusBadge');
-  if(b){b.textContent='Live';b.className='b b-green';}
-  const dn=document.getElementById('gam-ds-network');
-  if(dn) dn.textContent=s.networkName||s.networkCode||'—';
-  const body=document.getElementById('networkInfoBody');
-  if(!body) return;
-  body.innerHTML=[
-    ['Network',s.networkName||s.networkCode||'—'],
-    ['Code',s.networkCode||'—'],
-    ['Currency',s.currency||'—'],
-    ['Time Zone',s.timeZone||'—'],
-    ['Orders',(s.orders?.total||0)+' total'],
-    ['Line Items',(s.lineItems?.total||0)+' total'],
-  ].map(([k,v])=>\`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)">
-    <span class="fs12 text-muted">\${k}</span><span class="fs12 fw6">\${v}</span>
-  </div>\`).join('');
+  ['networkStatusBadge','networkStatusBadge2'].forEach(id=>{const b=document.getElementById(id);if(b){b.textContent='Live';b.className='b b-green';}});
+  const dn=document.getElementById('gam-ds-network');if(dn) dn.textContent=s.networkName||s.networkCode||'—';
+  const body=document.getElementById('networkInfoBody');if(!body) return;
+  body.innerHTML=[['Network',s.networkName||s.networkCode||'—'],['Code',s.networkCode||'—'],['Currency',s.currency||'—'],['Time Zone',s.timeZone||'—'],['Orders',(s.orders?.total||0)+' total'],['Line Items',(s.lineItems?.total||0)+' total']].map(([k,v])=>'<tr><td class="muted fs12">'+k+'</td><td class="fs12 fw6">'+v+'</td></tr>').join('');
 }
 
-// ── Top Delivering LIs ──────────────────────────────────────────────────────
+// ── Top Delivering LIs ─────────────────────────────────────────────────────
 function renderTopLI(){
-  const el=document.getElementById('gamTopLI');
-  if(!el) return;
-  const act=_gamLineItems
-    .filter(li=>(li.status==='ACTIVE'||li.status==='DELIVERING')&&li.status!=='UNKNOWN'&&parseInt(li.impressionsDelivered||'0')>0)
-    .sort((a,b)=>parseInt(b.impressionsDelivered||'0')-parseInt(a.impressionsDelivered||'0'))
-    .slice(0,6);
+  const el=document.getElementById('gamTopLI');if(!el) return;
+  const act=_gamLineItems.filter(li=>(li.status==='ACTIVE'||li.status==='DELIVERING')&&li.status!=='UNKNOWN'&&parseInt(li.impressionsDelivered||'0')>0).sort((a,b)=>parseInt(b.impressionsDelivered||'0')-parseInt(a.impressionsDelivered||'0')).slice(0,6);
   if(!act.length){el.innerHTML='<div class="text-muted fs12" style="text-align:center;padding:12px 0">No active deliveries</div>';return;}
   const mx=parseInt(act[0].impressionsDelivered||'0')||1;
   el.innerHTML=act.map((li,i)=>{
-    const im=parseInt(li.impressionsDelivered||'0');
-    const cl=parseInt(li.clicksDelivered||'0');
-    const ctr=im>0?(cl/im*100).toFixed(2)+'%':'—';
-    const pct=Math.round(im/mx*100);
-    const nm=li.displayName||li.name||'—';
+    const im=parseInt(li.impressionsDelivered||'0');const cl=parseInt(li.clicksDelivered||'0');const ctr=im>0?(cl/im*100).toFixed(2)+'%':'—';const pct=Math.round(im/mx*100);const nm=li.displayName||li.name||'—';
     return '<div style="padding:5px 0;border-bottom:1px solid var(--border)">'+
       '<div style="display:flex;align-items:center;gap:7px;margin-bottom:3px">'+
         '<span style="min-width:16px;height:16px;border-radius:50%;background:rgba(0,214,143,0.15);display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#00d68f">'+(i+1)+'</span>'+
@@ -1490,44 +1466,43 @@ function renderTopLI(){
         '<span class="b b-green" style="font-size:9px;flex-shrink:0">LIVE</span>'+
       '</div>'+
       '<div style="display:flex;align-items:center;gap:8px;padding-left:23px">'+
-        '<div style="flex:1;height:3px;background:rgba(66,133,244,0.12);border-radius:2px">'+
-          '<div style="width:'+pct+'%;height:3px;background:#4285f4;border-radius:2px;transition:width 0.5s"></div>'+
-        '</div>'+
+        '<div style="flex:1;height:3px;background:rgba(66,133,244,0.12);border-radius:2px"><div style="width:'+pct+'%;height:3px;background:#4285f4;border-radius:2px;transition:width 0.5s"></div></div>'+
         '<span class="fs10 text-muted" style="white-space:nowrap">'+fmtImpr(im)+' impr · '+ctr+'</span>'+
       '</div>'+
     '</div>';
   }).join('');
 }
 
+// ── Top Orders Bars ────────────────────────────────────────────────────────
+function renderTopOrdersBars(){
+  const el=document.getElementById('gamTopOrdersBars');
+  const lbl=document.getElementById('gamTopOrdersLbl');
+  const ordersWithImpr=_gamOrders.map(o=>{const m=_getOrderMeta(o);return{name:o.displayName||o.name||'—',impr:m.impr,clicks:m.clicks,lis:m.lis.length};}).filter(o=>o.impr>0).sort((a,b)=>b.impr-a.impr).slice(0,10);
+  if(lbl) lbl.textContent=ordersWithImpr.length+' orders with impressions';
+  if(!ordersWithImpr.length){el.innerHTML='<div class="text-muted fs12" style="text-align:center;padding:20px">No impression data yet — metrics load after ~20s</div>';return;}
+  const mx=ordersWithImpr[0].impr||1;
+  el.innerHTML=ordersWithImpr.map((o,i)=>{
+    const pct=Math.round(o.impr/mx*100);const col=['#4285f4','#a78bfa','#00d68f','#f59e0b','#f43f5e','#34d399','#60a5fa','#e879f9','#fb923c','#38bdf8'][i%10];
+    const ctr=o.impr>0?(o.clicks/o.impr*100).toFixed(2)+'%':'—';
+    return '<div class="ps-hbar-item"><span class="ps-hbar-name" title="'+o.name+'">'+o.name+'</span><div class="ps-hbar-track"><div class="ps-hbar-fill" style="width:'+pct+'%;background:'+col+'"></div></div><span class="ps-hbar-val">'+fmtImpr(o.impr)+'</span><span style="font-size:10px;color:var(--text-muted);width:60px;text-align:right;flex-shrink:0">'+ctr+' CTR</span></div>';
+  }).join('');
+}
+
 // ── Charts ─────────────────────────────────────────────────────────────────
-function renderCharts(s){ renderOrderStatusChart(s.orders?.byStatus||{}); }
+function renderCharts(s){renderOrderStatusChart(s.orders?.byStatus||{});}
 function renderOrderStatusChart(by){
-  const ctx=document.getElementById('orderStatusChart');
-  if(!ctx) return;
+  const ctx=document.getElementById('orderStatusChart');if(!ctx) return;
   if(_orderStatusChart){_orderStatusChart.destroy();_orderStatusChart=null;}
   const ent=Object.entries(by).filter(([s])=>s!=='DRAFT'&&s!=='UNKNOWN');
   if(!ent.length) return;
-  const labels=ent.map(([l])=>l.replace(/_/g,' '));
-  const values=ent.map(([,v])=>v);
-  const colors=ent.map(([l])=>STATUS_COLOR[l]||'#48486a');
-  _orderStatusChart=new Chart(ctx,{
-    type:'doughnut',
-    data:{labels,datasets:[{data:values,backgroundColor:colors,borderWidth:0,hoverOffset:4}]},
-    options:{responsive:true,maintainAspectRatio:false,cutout:'68%',
-      plugins:{
-        legend:{position:'right',labels:{color:'#8080a8',font:{size:10},boxWidth:10,padding:8}},
-        tooltip:{callbacks:{label:c=>' '+c.label+': '+c.parsed}}
-      }
-    }
-  });
+  const labels=ent.map(([l])=>l.replace(/_/g,' '));const values=ent.map(([,v])=>v);const colors=ent.map(([l])=>STATUS_COLOR[l]||'#48486a');
+  _orderStatusChart=new Chart(ctx,{type:'doughnut',data:{labels,datasets:[{data:values,backgroundColor:colors,borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{position:'right',labels:{color:'#8080a8',font:{size:10},boxWidth:10,padding:8}},tooltip:{callbacks:{label:c=>' '+c.label+': '+c.parsed}}}}});
 }
 
 // ── Orders Table ───────────────────────────────────────────────────────────
 function renderOrdersTable(){
-  const sel=document.getElementById('orderStatusFilter');
-  if(sel) sel.value='ACTIVE_DELIVERING';
-  _ordersFiltered=[..._gamOrders];
-  filterOrders('');
+  const sel=document.getElementById('orderStatusFilter');if(sel) sel.value='ACTIVE_DELIVERING';
+  _ordersFiltered=[..._gamOrders];filterOrders('');
 }
 
 function filterOrders(query){
@@ -1537,7 +1512,6 @@ function filterOrders(query){
     const mq=!q||(o.displayName||'').toLowerCase().includes(q)||(o.name||'').toLowerCase().includes(q)||(o.advertiserId||'').toLowerCase().includes(q);
     let ms;
     if(sf==='ACTIVE_DELIVERING') ms=o.status==='ACTIVE'||o.status==='DELIVERING';
-    else if(sf==='ALL_INCL_DRAFT') ms=true;
     else if(sf==='') ms=o.status!=='DRAFT'&&o.status!=='UNKNOWN';
     else ms=o.status===sf;
     return mq&&ms;
@@ -1548,54 +1522,27 @@ function filterOrders(query){
     else if(_ordersSortKey==='impressions'){va=_getOrderMeta(a).impr;vb=_getOrderMeta(b).impr;}
     else if(_ordersSortKey==='advertiserId'){va=(a.advertiserId||'').split('/').pop()||'';vb=(b.advertiserId||'').split('/').pop()||'';}
     else{va=(a[_ordersSortKey]||'').toString().toLowerCase();vb=(b[_ordersSortKey]||'').toString().toLowerCase();}
-    if(va<vb) return _ordersSortAsc?-1:1;
-    if(va>vb) return _ordersSortAsc?1:-1;
-    return 0;
+    if(va<vb)return _ordersSortAsc?-1:1;if(va>vb)return _ordersSortAsc?1:-1;return 0;
   });
-  _ordersPageNum=1;
-  _updateSortIcons();
-  renderOrdersPage();
+  _ordersPageNum=1;_updateSortIcons();renderOrdersPage();
 }
 
 function _updateSortIcons(){
   const keys=['displayName','advertiserId','status','startTime','endTime','totalBudget','impressions'];
   for(const k of keys){
-    const ic=document.getElementById('si-'+k);
-    const th=document.getElementById('th-'+k);
+    const ic=document.getElementById('si-'+k);const th=document.getElementById('th-'+k);
     if(!ic||!th) continue;
-    if(k===_ordersSortKey){
-      ic.className=_ordersSortAsc?'fas fa-sort-up':'fas fa-sort-down';
-      ic.style.opacity='0.9';ic.style.color='#60a5fa';
-      th.classList.add('sort-active');
-    }else{
-      ic.className='fas fa-sort';ic.style.opacity='0.35';ic.style.color='';
-      th.classList.remove('sort-active');
-    }
+    if(k===_ordersSortKey){ic.className=_ordersSortAsc?'fas fa-sort-up':'fas fa-sort-down';ic.style.opacity='0.9';ic.style.color='#60a5fa';th.classList.add('sort-active');}
+    else{ic.className='fas fa-sort';ic.style.opacity='0.3';ic.style.color='';th.classList.remove('sort-active');}
   }
 }
 
-function sortOrdersBy(key){
-  if(_ordersSortKey===key) _ordersSortAsc=!_ordersSortAsc;
-  else{_ordersSortKey=key;_ordersSortAsc=true;}
-  filterOrders(document.getElementById('orderSearch')?.value||'');
-}
-
-function toggleOrder(oid){
-  if(_expandedOrders.has(oid)) _expandedOrders.delete(oid);
-  else _expandedOrders.add(oid);
-  renderOrdersPage();
-}
-
+function sortOrdersBy(key){if(_ordersSortKey===key)_ordersSortAsc=!_ordersSortAsc;else{_ordersSortKey=key;_ordersSortAsc=true;}filterOrders(document.getElementById('orderSearch')?.value||'');}
+function toggleOrder(oid){if(_expandedOrders.has(oid))_expandedOrders.delete(oid);else _expandedOrders.add(oid);renderOrdersPage();}
 function toggleExpandAll(){
-  _allExpanded=!_allExpanded;
-  const btn=document.getElementById('expandAllBtn');
-  if(_allExpanded){
-    _expandedOrders=new Set(_ordersFiltered.map(o=>o.name||o.id||o.displayName));
-    if(btn) btn.innerHTML='<i class="fas fa-compress-alt"></i>Collapse All';
-  }else{
-    _expandedOrders.clear();
-    if(btn) btn.innerHTML='<i class="fas fa-expand-alt"></i>Expand All';
-  }
+  _allExpanded=!_allExpanded;const btn=document.getElementById('expandAllBtn');
+  if(_allExpanded){_expandedOrders=new Set(_ordersFiltered.map(o=>o.name||o.id||o.displayName));if(btn) btn.innerHTML='<i class="fas fa-compress-alt"></i>Collapse All';}
+  else{_expandedOrders.clear();if(btn) btn.innerHTML='<i class="fas fa-expand-alt"></i>Expand All';}
   renderOrdersPage();
 }
 
@@ -1605,143 +1552,92 @@ function renderOrdersPage(){
   const page=_ordersFiltered.slice(start,start+_ordersPageSize);
   const total=_ordersFiltered.length;
   const pages=Math.max(1,Math.ceil(total/_ordersPageSize));
-  const cb=document.getElementById('ordersCountBadge');
-  if(cb) cb.textContent=total+' orders'+(total!==_gamOrders.length?' of '+_gamOrders.length:'');
+  const cb=document.getElementById('ordersCountBadge');if(cb) cb.textContent=total+' orders'+(total!==_gamOrders.length?' of '+_gamOrders.length:'');
   document.getElementById('ordersCount').textContent=(start+1)+'–'+Math.min(start+_ordersPageSize,total)+' of '+total.toLocaleString()+' orders';
   document.getElementById('ordersPageLabel').textContent='Page '+_ordersPageNum+' / '+pages;
   document.getElementById('ordersPrevBtn').disabled=_ordersPageNum<=1;
   document.getElementById('ordersNextBtn').disabled=_ordersPageNum>=pages;
-  if(!page.length){
-    tbody.innerHTML='<tr><td colspan="10" class="text-muted" style="text-align:center;padding:28px"><i class="fas fa-filter" style="margin-right:6px"></i>No orders match the current filter</td></tr>';
-    return;
-  }
+  if(!page.length){tbody.innerHTML='<tr><td colspan="10" class="text-muted" style="text-align:center;padding:28px"><i class="fas fa-filter" style="margin-right:6px"></i>No orders match</td></tr>';return;}
   const rows=[];
   for(const o of page){
     const oid=o.name||o.id||o.displayName;
     const isOpen=_expandedOrders.has(oid);
     const meta=_getOrderMeta(o);
-    const lis=meta.lis||[];
-    const liCount=lis.length;
+    const lis=meta.lis||[];const liCount=lis.length;
     const ctr=meta.impr>0?(meta.clicks/meta.impr*100).toFixed(2)+'%':'—';
     const adv=advShort(o.advertiserId);
-    rows.push(\`
-    <tr class="order-row\${isOpen?' order-expanded':''}" onclick="toggleOrder(\${JSON.stringify(oid)})">
-      <td style="text-align:center;vertical-align:middle;padding:8px 4px">
-        <span class="expand-icon\${isOpen?' open':''}"><i class="fas fa-chevron-right" style="font-size:8px"></i></span>
-      </td>
+    rows.push(\`<tr class="ps-order-row\${isOpen?' order-expanded':''}" onclick="toggleOrder(\${JSON.stringify(oid)})">
+      <td style="text-align:center;padding:8px 4px"><span class="ps-chevron\${isOpen?' open':''}"><i class="fas fa-chevron-right"></i></span></td>
       <td style="max-width:220px;padding:8px 10px">
         <div class="fw6 fs12" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="\${o.displayName||''}">\${o.displayName||o.name||'—'}</div>
         <div class="fs10 text-muted">\${oid?oid.split('/').pop():''}</div>
       </td>
-      <td class="fs11 text-muted" style="max-width:100px">
-        <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="\${o.advertiserId||''}">\${adv}</div>
-      </td>
+      <td class="fs11 text-muted" style="max-width:100px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">\${adv}</div></td>
       <td>\${statusBadge(o.status)}</td>
-      <td class="dim fs11">\${fmtDateShort(o.startTime)}</td>
-      <td class="dim fs11">\${fmtDateShort(o.endTime)}</td>
+      <td class="muted fs11">\${fmtDateShort(o.startTime)}</td>
+      <td class="muted fs11">\${fmtDateShort(o.endTime)}</td>
       <td class="fw6 fs11" style="color:#60a5fa;white-space:nowrap">\${fmtBudget(o.totalBudget)}</td>
       <td>
-        \${liCount>0
-          ? '<span class="li-count-badge">'+liCount+'</span>'+(meta.activeCount>0?'<span style="font-size:9px;color:#00d68f;display:block;margin-top:2px">'+meta.activeCount+' active</span>':'')
-          : '<span class="text-muted fs11">—</span>'}
+        \${liCount>0?'<span style="padding:2px 7px;border-radius:10px;background:rgba(167,139,250,0.15);color:#a78bfa;font-size:9px;font-weight:700">'+liCount+'</span>'+(meta.activeCount>0?'<span style="font-size:9px;color:#00d68f;margin-left:4px">'+meta.activeCount+' active</span>':''):'<span class="text-muted fs11">—</span>'}
       </td>
-      <td class="fw6 fs11" style="color:\${meta.impr>0?'#f59e0b':'var(--text-muted)'}">
+      <td class="num fw7 fs11" style="color:\${meta.impr>0?'#f59e0b':'var(--text-muted)'}">
         \${fmtImpr(meta.impr)}
       </td>
-      <td class="fs11" style="white-space:nowrap">
+      <td class="num fs11" style="white-space:nowrap">
         \${meta.impr>0?fmtImpr(meta.clicks)+' <span class="text-muted">('+ctr+')</span>':'<span class="text-muted">—</span>'}
       </td>
     </tr>\`);
 
     if(isOpen){
-      if(liCount>0){
-        rows.push(\`
-        <tr class="li-subhdr">
-          <td></td>
-          <td>Line Item Name</td><td>Advertiser</td><td>Status</td>
-          <td>Start</td><td>End</td><td>Budget</td><td>Type</td>
-          <td>Impressions</td><td>Clicks / CTR</td>
-        </tr>\`);
-        const slis=[...lis].filter(li=>li.status!=='UNKNOWN').sort((a,b)=>{
-          const aa=a.status==='ACTIVE'||a.status==='DELIVERING'?1:0;
-          const ba=b.status==='ACTIVE'||b.status==='DELIVERING'?1:0;
-          if(ba!==aa) return ba-aa;
-          return parseInt(b.impressionsDelivered||'0')-parseInt(a.impressionsDelivered||'0');
-        });
+      const validLIs=lis.filter(li=>li.status!=='UNKNOWN');
+      if(validLIs.length>0){
+        rows.push(\`<tr class="ps-li-hdr"><td></td><th>Line Item</th><th>Status</th><th>Type</th><th>Start</th><th>End</th><th>Budget</th><th></th><th class="num">Impressions</th><th class="num">Clicks / CTR</th></tr>\`);
+        const slis=[...validLIs].sort((a,b)=>{const aa=a.status==='ACTIVE'||a.status==='DELIVERING'?1:0;const ba=b.status==='ACTIVE'||b.status==='DELIVERING'?1:0;if(ba!==aa)return ba-aa;return parseInt(b.impressionsDelivered||'0')-parseInt(a.impressionsDelivered||'0');});
         for(const li of slis){
-          const lim=parseInt(li.impressionsDelivered||'0');
-          const lcl=parseInt(li.clicksDelivered||'0');
-          const lctr=lim>0?(lcl/lim*100).toFixed(2)+'%':'—';
-          const ladv=advShort(li.advertiserId||o.advertiserId);
-          const ltyp=(li.lineItemType||'—').replace(/_/g,' ');
-          rows.push(\`
-          <tr class="li-child-row">
-            <td style="text-align:center;vertical-align:middle">
-              <span style="display:inline-flex;width:16px;height:16px;border-radius:4px;background:rgba(167,139,250,0.14);align-items:center;justify-content:center;font-size:8px;color:#a78bfa"><i class="fas fa-minus"></i></span>
-            </td>
-            <td style="padding:6px 10px 6px 44px;max-width:200px">
-              <div class="fw6" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11.5px" title="\${li.displayName||''}">\${li.displayName||li.name||'—'}</div>
-              <div class="fs10 text-muted">\${li.name?li.name.split('/').pop():''}</div>
-            </td>
-            <td class="fs11 text-muted">\${ladv}</td>
+          const lim=parseInt(li.impressionsDelivered||'0');const lcl=parseInt(li.clicksDelivered||'0');const lctr=lim>0?(lcl/lim*100).toFixed(2)+'%':'—';const ltyp=(li.lineItemType||'—').replace(/_/g,' ');
+          rows.push(\`<tr class="ps-li-row">
+            <td style="text-align:center"><span style="display:inline-flex;width:14px;height:14px;border-radius:3px;background:rgba(167,139,250,0.15);align-items:center;justify-content:center;font-size:8px;color:#a78bfa"><i class="fas fa-minus"></i></span></td>
+            <td class="gam-li-indent" style="max-width:200px"><div class="fw6 fs11" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="\${li.displayName||''}">\${li.displayName||li.name||'—'}</div><div class="fs10 text-muted">\${li.name?li.name.split('/').pop():''}</div></td>
             <td>\${statusBadge(li.status)}</td>
-            <td class="dim fs10">\${fmtDateShort(li.startTime)}</td>
-            <td class="dim fs10">\${fmtDateShort(li.endTime)}</td>
+            <td class="fs10 muted" style="white-space:nowrap">\${ltyp}</td>
+            <td class="muted fs10">\${fmtDateShort(li.startTime)}</td>
+            <td class="muted fs10">\${fmtDateShort(li.endTime)}</td>
             <td class="fs10" style="color:#60a5fa">\${fmtBudget(li.budget)}</td>
-            <td class="fs10 text-muted" style="white-space:nowrap">\${ltyp}</td>
-            <td class="fw6 fs11" style="color:\${lim>0?'#f59e0b':'var(--text-muted)'}">
+            <td></td>
+            <td class="num fw6 fs11" style="color:\${lim>0?'#f59e0b':'var(--text-muted)'}">
               \${fmtImpr(lim)}
             </td>
-            <td class="fs11" style="white-space:nowrap">
+            <td class="num fs11" style="white-space:nowrap">
               \${lim>0?fmtImpr(lcl)+' <span class="text-muted">('+lctr+')</span>':'<span class="text-muted">—</span>'}
             </td>
           </tr>\`);
         }
       }else{
-        rows.push(\`
-        <tr class="li-child-row">
-          <td></td>
-          <td colspan="9" class="text-muted fs11" style="padding-left:44px;padding-top:8px;padding-bottom:8px">
-            <i class="fas fa-circle-info" style="margin-right:5px;color:#60a5fa"></i>No line items found for this order
-          </td>
-        </tr>\`);
+        rows.push(\`<tr class="ps-li-row"><td></td><td colspan="9" class="muted fs11" style="padding-left:44px;padding-top:8px;padding-bottom:8px"><i class="fas fa-circle-info" style="margin-right:5px;color:#60a5fa"></i>No line items found for this order</td></tr>\`);
       }
     }
   }
   tbody.innerHTML=rows.join('');
 }
 
-function ordersPage(dir){
-  const pages=Math.max(1,Math.ceil(_ordersFiltered.length/_ordersPageSize));
-  _ordersPageNum=Math.max(1,Math.min(pages,_ordersPageNum+dir));
-  renderOrdersPage();
-}
+function ordersPage(dir){const pages=Math.max(1,Math.ceil(_ordersFiltered.length/_ordersPageSize));_ordersPageNum=Math.max(1,Math.min(pages,_ordersPageNum+dir));renderOrdersPage();}
 
 // ── CSV Export ─────────────────────────────────────────────────────────────
 function exportOrdersCSV(){
-  const data=_ordersFiltered.length?_ordersFiltered:_gamOrders;
-  if(!data.length) return;
+  const data=_ordersFiltered.length?_ordersFiltered:_gamOrders;if(!data.length) return;
   const esc=s=>'"'+String(s||'').replace(/"/g,'""')+'"';
   const hdrs=['Order ID','Order Name','Advertiser ID','Status','Budget Currency','Budget Amount','Start','End','Line Items','Impressions','Clicks','CTR'];
   const rows=data.map(o=>{
-    const m=_getOrderMeta(o);
-    const ctr=m.impr>0?(m.clicks/m.impr*100).toFixed(2)+'%':'';
+    const m=_getOrderMeta(o);const ctr=m.impr>0?(m.clicks/m.impr*100).toFixed(2)+'%':'';
     return [esc(o.name?o.name.split('/').pop():''),esc(o.displayName||o.name||''),esc(o.advertiserId?o.advertiserId.split('/').pop():''),esc(o.status||''),esc(o.totalBudget?.currencyCode||''),esc(o.totalBudget?.units||''),esc(o.startTime?o.startTime.slice(0,10):''),esc(o.endTime?o.endTime.slice(0,10):''),m.lis.length,m.impr,m.clicks,esc(ctr)].join(',');
   });
-  const csv=[hdrs.join(','),...rows].join('\n');
-  const a=document.createElement('a');
-  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
-  a.download='gam-orders-'+new Date().toISOString().slice(0,10)+'.csv';
-  a.click();
+  const csv=[hdrs.join(','),...rows].join('\\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='gam-orders-'+new Date().toISOString().slice(0,10)+'.csv';a.click();
 }
 
 // ── Auto-load ──────────────────────────────────────────────────────────────
-if(document.readyState==='loading'){
-  document.addEventListener('DOMContentLoaded',loadGAMAnalytics);
-}else{
-  setTimeout(loadGAMAnalytics,80);
-}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',loadGAMAnalytics);
+else setTimeout(loadGAMAnalytics,80);
 </script>
 `;
 }
-
