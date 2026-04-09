@@ -260,5 +260,70 @@ export function homeScreen(): string {
     </div>
   </div>
 
-</div>`;
+</div>
+
+<script>
+// ── Load real KPI data from APIs ─────────────────────────────────────────
+let _homeData = {revenue: 0, pipeline: 0, gamOrders: 0, gamImpressions: 0};
+
+async function loadHomeKPIs(){
+  try {
+    // Fetch KPIs from API
+    const kpiRes = await fetch('/api/kpis').then(r=>r.json()).catch(()=>({ok:false}));
+    if(kpiRes.ok){
+      _homeData.revenue = kpiRes.totalRevenue || 0;
+      _homeData.pipeline = kpiRes.totalPipeline || 0;
+      console.log('Home KPIs loaded:', kpiRes);
+    }
+    
+    // Fetch GAM summary
+    const gamRes = await fetch('/api/gam/summary?cached=true').then(r=>r.json()).catch(()=>({ok:false}));
+    if(gamRes.ok){
+      _homeData.gamOrders = gamRes.orders?.total || 0;
+      _homeData.gamImpressions = gamRes.lineItems?.totalImpressions || 0;
+      console.log('Home GAM data loaded:', gamRes);
+    }
+    
+    updateHomeKPIs();
+  } catch(e){
+    console.error('Home data load error:', e);
+  }
+}
+
+function updateHomeKPIs(){
+  // Update YTD Revenue if we have real data
+  if(_homeData.revenue > 0){
+    const revKpi = document.querySelector('.kpi.accent .kpi-val');
+    if(revKpi){
+      const val = _homeData.revenue;
+      const fmt = val >= 1e6 ? 'RM ' + (val/1e6).toFixed(1) + '<sup>M</sup>' : 
+                  val >= 1e3 ? 'RM ' + (val/1e3).toFixed(1) + '<sup>K</sup>' :
+                  'RM ' + val.toFixed(0);
+      revKpi.innerHTML = fmt;
+    }
+  }
+  
+  // Update Pipeline if we have real data
+  if(_homeData.pipeline > 0){
+    const pipeKpis = document.querySelectorAll('.kpi');
+    if(pipeKpis[1]){
+      const pipeVal = pipeKpis[1].querySelector('.kpi-val');
+      if(pipeVal){
+        const val = _homeData.pipeline;
+        const fmt = val >= 1e6 ? 'RM ' + (val/1e6).toFixed(1) + '<sup>M</sup>' : 
+                    val >= 1e3 ? 'RM ' + (val/1e3).toFixed(1) + '<sup>K</sup>' :
+                    'RM ' + val.toFixed(0);
+        pipeVal.innerHTML = fmt;
+      }
+    }
+  }
+  
+  console.log('Home KPIs updated on screen');
+}
+
+// Auto-load when page ready
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',loadHomeKPIs);
+else setTimeout(loadHomeKPIs,80);
+</script>
+`;
 }

@@ -219,5 +219,70 @@ export function overviewScreen(): string {
     </div>
   </div>
 
-</div>`;
+</div>
+
+<script>
+// ── Load real data for Overview dashboard ────────────────────────────────
+let _ovData = {revenue: 0, pipeline: 0, gamOrders: 0, gamLineItems: 0};
+
+async function loadOverviewKPIs(){
+  try {
+    // Fetch KPIs
+    const kpiRes = await fetch('/api/kpis').then(r=>r.json()).catch(()=>({ok:false}));
+    if(kpiRes.ok){
+      _ovData.revenue = kpiRes.totalRevenue || 0;
+      _ovData.pipeline = kpiRes.totalPipeline || 0;
+      console.log('Overview KPIs loaded:', kpiRes);
+    }
+    
+    // Fetch GAM data
+    const gamRes = await fetch('/api/gam/summary?cached=true').then(r=>r.json()).catch(()=>({ok:false}));
+    if(gamRes.ok){
+      _ovData.gamOrders = gamRes.orders?.total || 0;
+      _ovData.gamLineItems = gamRes.lineItems?.total || 0;
+      console.log('Overview GAM loaded:', gamRes);
+    }
+    
+    updateOverviewKPIs();
+  } catch(e){
+    console.error('Overview data load error:', e);
+  }
+}
+
+function updateOverviewKPIs(){
+  // Update YTD Revenue
+  if(_ovData.revenue > 0){
+    const revKpi = document.querySelector('.kpi.accent .kpi-val');
+    if(revKpi){
+      const val = _ovData.revenue;
+      const fmt = val >= 1e6 ? 'RM ' + (val/1e6).toFixed(1) + '<sup>M</sup>' : 
+                  val >= 1e3 ? 'RM ' + (val/1e3).toFixed(1) + '<sup>K</sup>' :
+                  'RM ' + val.toFixed(0);
+      revKpi.innerHTML = fmt;
+    }
+  }
+  
+  // Update Pipeline
+  if(_ovData.pipeline > 0){
+    const kpis = document.querySelectorAll('.kpi');
+    if(kpis[1]){
+      const pipeVal = kpis[1].querySelector('.kpi-val');
+      if(pipeVal){
+        const val = _ovData.pipeline;
+        const fmt = val >= 1e6 ? 'RM ' + (val/1e6).toFixed(1) + '<sup>M</sup>' : 
+                    val >= 1e3 ? 'RM ' + (val/1e3).toFixed(1) + '<sup>K</sup>' :
+                    'RM ' + val.toFixed(0);
+        pipeVal.innerHTML = fmt;
+      }
+    }
+  }
+  
+  console.log('Overview KPIs updated on screen');
+}
+
+// Auto-load
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',loadOverviewKPIs);
+else setTimeout(loadOverviewKPIs,80);
+</script>
+`;
 }
