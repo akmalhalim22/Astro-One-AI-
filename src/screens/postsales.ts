@@ -228,12 +228,24 @@ async function loadRevenueData(){
   if(src) src.innerHTML = '<i class="fas fa-spinner fa-spin" style="color:#4285f4;font-size:11px"></i> Loading…';
   try{
     const r = await fetch('/api/data/revenue').then(x=>x.json());
-    if(!r.ok){ if(src) src.innerHTML='<span style="color:#f59e0b;font-size:11px"><i class="fas fa-triangle-exclamation"></i> '+( r.error||'Not connected')+'</span>'; revShowEmpty(); return; }
+    if(!r.ok){ 
+      console.error('Revenue API error:', r); 
+      if(src) src.innerHTML='<span style="color:#f59e0b;font-size:11px"><i class="fas fa-triangle-exclamation"></i> '+(r.error||'Not connected')+'</span>'; 
+      revShowEmpty(); 
+      return; 
+    }
     _revRows = r.rows||[];
+    console.log('Revenue data loaded:', {count: _revRows.length, debug: r.debug, sampleRow: _revRows[0]});
+    if(_revRows.length === 0){
+      if(src) src.innerHTML='<span style="color:#f59e0b;font-size:11px"><i class="fas fa-triangle-exclamation"></i> No data in Revenue tab</span>';
+      revShowEmpty();
+      return;
+    }
     if(src) src.innerHTML='<span style="color:#00d68f;font-size:11px"><i class="fas fa-circle-check"></i> '+_revRows.length+' rows loaded</span>';
     revPopulateFilters();
     revApplyFilters();
   }catch(e){
+    console.error('Revenue load error:', e);
     if(src) src.innerHTML='<span style="color:#f43f5e;font-size:11px"><i class="fas fa-xmark"></i> '+e.message+'</span>';
     revShowEmpty();
   }
@@ -573,12 +585,24 @@ async function loadCampData(){
   if(src) src.innerHTML='<i class="fas fa-spinner fa-spin" style="color:#4285f4;font-size:11px"></i> Loading…';
   try{
     const r=await fetch('/api/data/campaign').then(x=>x.json());
-    if(!r.ok){ if(src) src.innerHTML='<span style="color:#f59e0b;font-size:11px"><i class="fas fa-triangle-exclamation"></i> '+(r.error||'Not connected')+'</span>'; campShowEmpty(); return; }
+    if(!r.ok){ 
+      console.error('Campaign API error:', r);
+      if(src) src.innerHTML='<span style="color:#f59e0b;font-size:11px"><i class="fas fa-triangle-exclamation"></i> '+(r.error||'Not connected')+'</span>'; 
+      campShowEmpty(); 
+      return; 
+    }
     _campRows=r.rows||[];
+    console.log('Campaign data loaded:', {count: _campRows.length, debug: r.debug, sampleRow: _campRows[0]});
+    if(_campRows.length === 0){
+      if(src) src.innerHTML='<span style="color:#f59e0b;font-size:11px"><i class="fas fa-triangle-exclamation"></i> No data in Campaign tab</span>';
+      campShowEmpty();
+      return;
+    }
     if(src) src.innerHTML='<span style="color:#00d68f;font-size:11px"><i class="fas fa-circle-check"></i> '+_campRows.length+' rows loaded</span>';
     campPopulateFilters();
     campApplyFilters();
   }catch(e){
+    console.error('Campaign load error:', e);
     if(src) src.innerHTML='<span style="color:#f43f5e;font-size:11px"><i class="fas fa-xmark"></i> '+e.message+'</span>';
     campShowEmpty();
   }
@@ -980,6 +1004,7 @@ async function loadGAMAnalytics(force=false){
     
     if(!sumRes.ok){
       const em=sumRes.error||'Unknown error. Set up GAM in API Connections.';
+      console.error('GAM API error:', {sumRes, ordRes, liRes});
       icon.className='fas fa-triangle-exclamation';icon.style.color='#f59e0b';
       txt.textContent='GAM not connected — '+em;txt.style.color='#f59e0b';
       banner.style.background='rgba(245,158,11,0.07)';banner.style.borderColor='rgba(245,158,11,0.2)';
@@ -987,6 +1012,14 @@ async function loadGAMAnalytics(force=false){
       ['ordersTbody','gamTopLI','orderStatusBars','liStatusBars','networkInfoBody','gamTopOrdersBars'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=noConf;});
       if(ri)ri.className='fas fa-rotate';return;
     }
+    
+    console.log('GAM data loaded:', {
+      orders: _gamOrders.length,
+      lineItems: _gamLineItems.length,
+      network: sumRes.networkName,
+      sampleOrder: _gamOrders[0],
+      sampleLineItem: _gamLineItems[0]
+    });
     
     // Update with fresh data
     _gamOrders=(ordRes.ok?ordRes.orders:[])||[];

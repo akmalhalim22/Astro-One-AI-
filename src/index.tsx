@@ -733,9 +733,17 @@ app.get('/api/data/:section', requireAuth, async (c) => {
     if (!tabName) return c.json({ ok: false, error: 'Unknown section: ' + section })
 
     const rows = await readSheet(sheets.saJson, sheets.sheetId, `${tabName}!A:Z`)
-    return c.json({ ok: true, rows, count: rows.length, tab: tabName })
+    
+    // Add debug info for first row to help troubleshoot
+    const debugInfo = rows.length > 0 ? {
+      sampleRow: rows[0],
+      columns: Object.keys(rows[0] || {}),
+      columnCount: Object.keys(rows[0] || {}).length
+    } : null
+    
+    return c.json({ ok: true, rows, count: rows.length, tab: tabName, debug: debugInfo })
   } catch (e: any) {
-    return c.json({ ok: false, error: e.message })
+    return c.json({ ok: false, error: e.message, stack: e.stack })
   }
 })
 
