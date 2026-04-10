@@ -72,17 +72,34 @@ async function getGAMConfig(kv: KVNamespace): Promise<{ saJson: string; networkC
   return { saJson: cfg.gam_sa_json, networkCode: cfg.gam_network_code }
 }
 
-// Tab names configuration (with defaults)
+// Tab names — keys are section IDs, values are EXACT Google Sheet tab names
+// ⚠️  These must match the actual tab names in the spreadsheet character-for-character
 function getTabNames(): Record<string, string> {
   return {
-    pipeline: 'Pipeline',
-    revenue: 'Revenue',
-    campaign: 'Campaign',
-    ads: 'Ads',
-    traffic: 'Traffic',
-    social: 'Social',
-    clients: 'Clients'
+    pipeline:  'Pipeline',        // Pre-Sales (not yet available → handled gracefully)
+    revenue:   'revenue',         // Revenue Performance  — exact sheet tab name
+    campaign:  'direct campaign', // Campaign Performance — exact sheet tab name
+    ads:       'Ads',
+    traffic:   'Traffic',
+    social:    'Social',
+    clients:   'Clients'
   }
+}
+
+// Helper: find the first field from a list of candidate names in a row object
+function findField(row: Record<string,string>, candidates: string[]): string {
+  for (const k of candidates) {
+    if (row[k] !== undefined && row[k] !== '') return row[k]
+  }
+  return ''
+}
+
+// Helper: sum a numeric column — tries multiple candidate field names
+function sumColFlex(rows: Record<string,string>[], ...candidates: string[]): number {
+  return rows.reduce((s, r) => {
+    const v = parseFloat(findField(r, candidates)) || 0
+    return s + v
+  }, 0)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -725,25 +742,34 @@ app.get('/api/data/:section', requireAuth, async (c) => {
     const sheets = await getSheetsConfig(c.env.SESSIONS)
 
     if (!sheets) {
-      return c.json({ ok: false, error: 'Google Sheets not configured. Click Config on the Google Sheets card to set it up.' })
+      return c.json({ ok: false, error: 'Google Sheets not configured. Visit Data Management → API Connections to set it up.' })
     }
 
     const tabMap: Record<string, string> = getTabNames()
     const tabName = tabMap[section]
     if (!tabName) return c.json({ ok: false, error: 'Unknown section: ' + section })
 
-    const rows = await readSheet(sheets.saJson, sheets.sheetId, `${tabName}!A:Z`)
-    
-    // Add debug info for first row to help troubleshoot
+    let rows: Record<string,string>[] = []
+    let sheetError: string | null = null
+    try {
+      rows = await readSheet(sheets.saJson, sheets.sheetId, `${tabName}!A:Z`)
+    } catch (sheetErr: any) {
+      sheetError = sheetErr.message || String(sheetErr)
+    }
+
+    if (sheetError) {
+      return c.json({ ok: false, error: `Cannot read sheet tab "${tabName}": ${sheetError}` })
+    }
+
     const debugInfo = rows.length > 0 ? {
       sampleRow: rows[0],
       columns: Object.keys(rows[0] || {}),
       columnCount: Object.keys(rows[0] || {}).length
-    } : null
-    
+    } : { columns: [], columnCount: 0, sampleRow: null }
+
     return c.json({ ok: true, rows, count: rows.length, tab: tabName, debug: debugInfo })
   } catch (e: any) {
-    return c.json({ ok: false, error: e.message, stack: e.stack })
+    return c.json({ ok: false, error: e.message })
   }
 })
 
@@ -754,19 +780,68 @@ app.get('/api/kpis', requireAuth, async (c) => {
     if (!sheets) return c.json({ ok: false, error: 'Google Sheets not configured' })
 
     const tabs = getTabNames()
-    const [pipelineRows, revenueRows] = await Promise.all([
-      readSheet(sheets.saJson, sheets.sheetId, `${tabs.pipeline}!A:Z`).catch(() => []),
-      readSheet(sheets.saJson, sheets.sheetId, `${tabs.revenue}!A:Z`).catch(() => []),
-    ])
 
-    const pipelineTotal = sumCol(pipelineRows, 'deal_value')
-    const revenueTotal  = sumCol(revenueRows,  'amount')
+    // Pipeline is not yet available — catch silently
+    const pipelineRows = await readSheet(sheets.saJson, sheets.sheetId, `${tabs.pipeline}!A:Z`).catch(() => [])
+
+    // Revenue tab — exact tab name 'revenue'
+    const revenueRows  = await readSheet(sheets.saJson, sheets.sheetId, `${tabs.revenue}!A:Z`).catch(() => [])
+
+    // Campaign tab — exact tab name 'direct campaign'
+    const campaignRows = await readSheet(sheets.saJson, sheets.sheetId, `${tabs.campaign}!A:Z`).catch(() => [])
+
+    // Revenue: try all common field names for the revenue value
+    const revenueTotal   = sumColFlex(revenueRows,  'Revenue', 'revenue', 'Amount', 'amount', 'Total', 'total')
+    const revenueTarget  = sumColFlex(revenueRows,  'Target',  'target',  'Budget', 'budget')
+
+    // Pipeline: try common field names
+    const pipelineTotal  = sumColFlex(pipelineRows, 'deal_value', 'Deal Value', 'Value', 'value', 'Amount', 'amount')
+
+    // Campaign: try common revenue field names
+    const campaignTotal  = sumColFlex(campaignRows, 'Total', 'total', 'Revenue', 'revenue', 'Amount', 'amount', 'Total Revenue')
+
+    // Stage breakdown for pipeline
     const stageBreakdown = groupSum(pipelineRows, 'stage', 'deal_value')
+
+    // Revenue by month (for charts)
+    const revByMonth: Record<string, number> = {}
+    for (const r of revenueRows) {
+      const m = findField(r, ['Month', 'month', 'Revenue Month', 'revenue_month']) || 'Unknown'
+      const v = parseFloat(findField(r, ['Revenue', 'revenue', 'Amount', 'amount', 'Total', 'total'])) || 0
+      revByMonth[m] = (revByMonth[m] || 0) + v
+    }
+
+    // Revenue by portal/type
+    const revByPortal: Record<string, number> = {}
+    for (const r of revenueRows) {
+      const p = findField(r, ['Portal', 'portal', 'Channel', 'channel']) || 'Other'
+      const v = parseFloat(findField(r, ['Revenue', 'revenue', 'Amount', 'amount'])) || 0
+      revByPortal[p] = (revByPortal[p] || 0) + v
+    }
+
+    // Columns info for frontend debugging
+    const revColumns   = revenueRows.length  > 0 ? Object.keys(revenueRows[0])  : []
+    const campColumns  = campaignRows.length > 0 ? Object.keys(campaignRows[0]) : []
+    const pipeColumns  = pipelineRows.length > 0 ? Object.keys(pipelineRows[0]) : []
 
     return c.json({
       ok: true,
-      pipeline: { total: fmtRM(pipelineTotal), count: pipelineRows.length, stages: stageBreakdown },
-      revenue:  { total: fmtRM(revenueTotal),  count: revenueRows.length },
+      // Raw numeric totals (frontend formats them)
+      totalRevenue:   revenueTotal,
+      totalTarget:    revenueTarget,
+      totalPipeline:  pipelineTotal,
+      totalCampaign:  campaignTotal,
+      // Counts
+      revenueCount:   revenueRows.length,
+      campaignCount:  campaignRows.length,
+      pipelineCount:  pipelineRows.length,
+      // Chart data
+      revenueByMonth: revByMonth,
+      revenueByPortal: revByPortal,
+      // Stage breakdown
+      pipelineStages: stageBreakdown,
+      // Debug: actual column names from each tab
+      _debug: { revColumns, campColumns, pipeColumns }
     })
   } catch (e: any) {
     return c.json({ ok: false, error: e.message })

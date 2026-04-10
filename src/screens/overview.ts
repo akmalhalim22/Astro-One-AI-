@@ -9,7 +9,7 @@ export function overviewScreen(): string {
     <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;background:rgba(52,211,153,0.15);color:#34d399"><i class="fas fa-table-cells" style="font-size:9px"></i> Sheets</span>
     <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;background:rgba(66,133,244,0.15);color:#4285f4"><i class="fab fa-google" style="font-size:9px"></i> GAM</span>
     <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;background:rgba(45,212,191,0.15);color:#2dd4bf"><i class="fas fa-chart-line" style="font-size:9px"></i> Analytics</span>
-    <span style="margin-left:auto;font-size:10px;color:var(--text-muted)">Real-time dashboard</span>
+    <span style="margin-left:auto;font-size:10px;color:var(--text-muted)" id="ov-last-updated">Loading…</span>
   </div>
 
   <!-- ── ROW 1: 4 HEADLINE KPIs ─────────────────────────────── -->
@@ -17,102 +17,98 @@ export function overviewScreen(): string {
     <div class="kpi accent">
       <div class="kpi-icon pink"><i class="fas fa-sack-dollar"></i></div>
       <div class="kpi-lbl">YTD Revenue</div>
-      <div class="kpi-val">RM 63.7<sup>M</sup></div>
-      <div class="kpi-chg up"><i class="fas fa-arrow-trend-up"></i>+12.4% vs LY · 94% target</div>
+      <div class="kpi-val" id="ov-kpi-revenue"><i class="fas fa-spinner fa-spin" style="font-size:14px;color:var(--text-muted)"></i></div>
+      <div class="kpi-chg" id="ov-kpi-revenue-sub" style="color:var(--text-muted)">Loading…</div>
     </div>
     <div class="kpi">
-      <div class="kpi-icon amber"><i class="fas fa-filter"></i></div>
-      <div class="kpi-lbl">Pipeline Value</div>
-      <div class="kpi-val">RM 87.4<sup>M</sup></div>
-      <div class="kpi-chg down"><i class="fas fa-arrow-trend-down"></i>−2.1% vs last week</div>
+      <div class="kpi-icon amber"><i class="fas fa-bullhorn"></i></div>
+      <div class="kpi-lbl">Campaign Revenue</div>
+      <div class="kpi-val" id="ov-kpi-campaign"><i class="fas fa-spinner fa-spin" style="font-size:14px;color:var(--text-muted)"></i></div>
+      <div class="kpi-chg" id="ov-kpi-campaign-sub" style="color:var(--text-muted)">Loading…</div>
     </div>
     <div class="kpi">
-      <div class="kpi-icon blue"><i class="fas fa-users"></i></div>
-      <div class="kpi-lbl">Portal Sessions</div>
-      <div class="kpi-val">4.2<sup>M</sup></div>
-      <div class="kpi-chg up"><i class="fas fa-arrow-trend-up"></i>+8.3% MoM</div>
+      <div class="kpi-icon blue"><i class="fas fa-list-check"></i></div>
+      <div class="kpi-lbl">GAM Orders</div>
+      <div class="kpi-val" id="ov-kpi-orders"><i class="fas fa-spinner fa-spin" style="font-size:14px;color:var(--text-muted)"></i></div>
+      <div class="kpi-chg" id="ov-kpi-orders-sub" style="color:var(--text-muted)">Loading…</div>
     </div>
     <div class="kpi">
       <div class="kpi-icon green"><i class="fas fa-rectangle-ad"></i></div>
-      <div class="kpi-lbl">Blended ROAS</div>
-      <div class="kpi-val">3.4<sup>×</sup></div>
-      <div class="kpi-chg up"><i class="fas fa-arrow-trend-up"></i>+0.4 vs last month</div>
+      <div class="kpi-lbl">Impressions Delivered</div>
+      <div class="kpi-val" id="ov-kpi-impr"><i class="fas fa-spinner fa-spin" style="font-size:14px;color:var(--text-muted)"></i></div>
+      <div class="kpi-chg" id="ov-kpi-impr-sub" style="color:var(--text-muted)">Loading…</div>
     </div>
   </div>
 
   <!-- ── ROW 2: More KPIs ────────────────────────────────────── -->
   <div class="kpi-grid-4">
     <div class="kpi">
-      <div class="kpi-icon green"><i class="fas fa-handshake"></i></div>
-      <div class="kpi-lbl">Deals Won MTD</div>
-      <div class="kpi-val">17</div>
-      <div class="kpi-chg up">RM 18.4M booked</div>
+      <div class="kpi-icon purple"><i class="fas fa-layer-group"></i></div>
+      <div class="kpi-lbl">GAM Line Items</div>
+      <div class="kpi-val" id="ov-kpi-li"><i class="fas fa-spinner fa-spin" style="font-size:14px;color:var(--text-muted)"></i></div>
+      <div class="kpi-chg" id="ov-kpi-li-sub" style="color:var(--text-muted)">Loading…</div>
     </div>
     <div class="kpi">
-      <div class="kpi-icon red"><i class="fas fa-triangle-exclamation"></i></div>
-      <div class="kpi-lbl">At-Risk Deals</div>
-      <div class="kpi-val">3</div>
-      <div class="kpi-chg down">RM 8.7M combined</div>
+      <div class="kpi-icon teal"><i class="fas fa-mouse-pointer"></i></div>
+      <div class="kpi-lbl">GAM Clicks</div>
+      <div class="kpi-val" id="ov-kpi-clicks"><i class="fas fa-spinner fa-spin" style="font-size:14px;color:var(--text-muted)"></i></div>
+      <div class="kpi-chg" id="ov-kpi-clicks-sub" style="color:var(--text-muted)">Loading…</div>
     </div>
     <div class="kpi">
-      <div class="kpi-icon teal"><i class="fas fa-chart-bar"></i></div>
-      <div class="kpi-lbl">Engagement Rate</div>
-      <div class="kpi-val">64<sup>%</sup></div>
-      <div class="kpi-chg up">+3pp MoM · GA4</div>
+      <div class="kpi-icon green"><i class="fas fa-chart-bar"></i></div>
+      <div class="kpi-lbl">Revenue Records</div>
+      <div class="kpi-val" id="ov-kpi-rev-count"><i class="fas fa-spinner fa-spin" style="font-size:14px;color:var(--text-muted)"></i></div>
+      <div class="kpi-chg" id="ov-kpi-rev-count-sub" style="color:var(--text-muted)">Loading…</div>
     </div>
     <div class="kpi">
-      <div class="kpi-icon purple"><i class="fas fa-seedling"></i></div>
-      <div class="kpi-lbl">Social Reach</div>
-      <div class="kpi-val">2.1<sup>M</sup></div>
-      <div class="kpi-chg up">+22% MoM · Sprout</div>
+      <div class="kpi-icon red"><i class="fas fa-network-wired"></i></div>
+      <div class="kpi-lbl">GAM Network</div>
+      <div class="kpi-val" id="ov-kpi-network" style="font-size:13px;line-height:1.3"><i class="fas fa-spinner fa-spin" style="font-size:14px;color:var(--text-muted)"></i></div>
+      <div class="kpi-chg" id="ov-kpi-network-sub" style="color:var(--text-muted)">Loading…</div>
     </div>
   </div>
 
-  <!-- ── ROW 3: Revenue Chart + Platform Score ──────────────── -->
+  <!-- ── ROW 3: Revenue Chart + Platform breakdown ─────────── -->
   <div class="g62">
     <div class="card">
       <div class="card-hd">
         <div>
           <div class="card-title">Revenue vs Target — Monthly</div>
+          <div class="fs11 text-muted" id="ovRevSubTitle">from Google Sheets</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center">
-          <span class="b b-green"><i class="fas fa-circle" style="font-size:7px"></i>On Track</span>
+          <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-muted)">
+            <div style="width:8px;height:8px;border-radius:2px;background:#ec4899"></div>Revenue
+            <div style="width:8px;height:8px;border-radius:2px;background:#f59e0b;margin-left:4px"></div>Target
+          </div>
           <span class="card-action" onclick="navigate('revenue')">Full Report →</span>
         </div>
       </div>
       <div class="ch" style="height:165px"><canvas id="ovRevChart"></canvas></div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
-        ${[
-          ['Jan','RM 18.4M','var(--success)'],
-          ['Feb','RM 21.2M','var(--success)'],
-          ['Mar (est)','RM 24.1M','var(--magenta)'],
-          ['Run Rate','RM 190M/yr','var(--info)'],
-        ].map(([l,v,c]) => `
         <div style="padding:0 12px;border-right:1px solid var(--border)">
-          <div class="fs11 text-muted" style="margin-bottom:3px">${l}</div>
-          <div style="font-size:14px;font-weight:800;color:${c}">${v}</div>
-        </div>`).join('')}
+          <div class="fs11 text-muted" style="margin-bottom:3px">Total Revenue</div>
+          <div style="font-size:14px;font-weight:800;color:var(--success)" id="ovRevTotal">—</div>
+        </div>
+        <div style="padding:0 12px;border-right:1px solid var(--border)">
+          <div class="fs11 text-muted" style="margin-bottom:3px">Target</div>
+          <div style="font-size:14px;font-weight:800;color:var(--text-secondary)" id="ovRevTarget">—</div>
+        </div>
+        <div style="padding:0 12px;border-right:1px solid var(--border)">
+          <div class="fs11 text-muted" style="margin-bottom:3px">Attainment</div>
+          <div style="font-size:14px;font-weight:800;color:var(--magenta)" id="ovRevAtt">—</div>
+        </div>
+        <div style="padding:0 12px">
+          <div class="fs11 text-muted" style="margin-bottom:3px">Months Data</div>
+          <div style="font-size:14px;font-weight:800;color:var(--info)" id="ovRevMonths">—</div>
+        </div>
       </div>
     </div>
 
     <div class="card">
-      <div class="card-hd"><div class="card-title">Platform Health Score</div></div>
-      <div style="display:flex;flex-direction:column;gap:13px">
-        ${[
-          ['Revenue Attainment','94%',94,'pf-green'],
-          ['Pipeline Health','78%',78,'pf-amber'],
-          ['Ad Efficiency','86%',86,'pf-blue'],
-          ['Traffic Growth','71%',71,'pf-teal'],
-          ['Social Engagement','82%',82,'pf-purple'],
-          ['Client Health','76%',76,'pf-pink'],
-        ].map(([l,v,p,f]) => `
-        <div>
-          <div class="flex justify-between" style="margin-bottom:5px">
-            <span class="fs12 text-sec">${l}</span>
-            <span class="fs12 fw7">${v}</span>
-          </div>
-          <div class="prog-wrap"><div class="prog-fill ${f}" style="width:${p}%"></div></div>
-        </div>`).join('')}
+      <div class="card-hd"><div class="card-title">Revenue by Portal (Top 6)</div></div>
+      <div id="ovPortalBars" style="display:flex;flex-direction:column;gap:9px;min-height:80px">
+        <div class="text-muted fs12" style="text-align:center;padding:24px"><i class="fas fa-spinner fa-spin"></i></div>
       </div>
     </div>
   </div>
@@ -121,100 +117,31 @@ export function overviewScreen(): string {
   <div class="g3">
     <div class="card">
       <div class="card-hd">
-        <div class="card-title"><i class="fas fa-funnel" style="color:var(--warning);margin-right:5px"></i>Pre-Sales</div>
-        <span class="card-action" onclick="navigate('pipeline')">Detail →</span>
-      </div>
-      ${[
-        ['Pipeline','RM 87.4M','b-amber'],
-        ['Deals Closing Q1','24','b-green'],
-        ['Weighted Value','RM 41.2M','b-blue'],
-        ['At Risk','3 deals · RM 8.7M','b-red'],
-        ['Rep Attainment','94% avg','b-gray'],
-      ].map(([l,v,b]) => `
-      <div class="stat-row">
-        <span class="stat-lbl">${l}</span><span class="b ${b}">${v}</span>
-      </div>`).join('')}
-    </div>
-
-    <div class="card">
-      <div class="card-hd">
-        <div class="card-title"><i class="fas fa-rocket" style="color:var(--magenta);margin-right:5px"></i>Post-Sales</div>
+        <div class="card-title"><i class="fas fa-rocket" style="color:var(--magenta);margin-right:5px"></i>Revenue Breakdown</div>
         <span class="card-action" onclick="navigate('revenue')">Detail →</span>
       </div>
-      ${[
-        ['YTD Revenue','RM 63.7M','b-green'],
-        ['Q1 Target','RM 67.6M','b-blue'],
-        ['Gap Remaining','RM 3.9M','b-red'],
-        ['Best Campaign','Raya 2025 · 5.2×','b-pink'],
-        ['Avg Campaign ROI','4.2×','b-green'],
-      ].map(([l,v,b]) => `
-      <div class="stat-row">
-        <span class="stat-lbl">${l}</span><span class="b ${b}">${v}</span>
-      </div>`).join('')}
+      <div id="ovRevSnapshot" style="display:flex;flex-direction:column;gap:4px">
+        <div class="text-muted fs12" style="text-align:center;padding:16px"><i class="fas fa-spinner fa-spin"></i></div>
+      </div>
     </div>
 
     <div class="card">
       <div class="card-hd">
-        <div class="card-title"><i class="fas fa-signal" style="color:var(--teal);margin-right:5px"></i>Traffic & Social</div>
-        <span class="card-action" onclick="navigate('portals')">Detail →</span>
+        <div class="card-title"><i class="fas fa-bullhorn" style="color:var(--info);margin-right:5px"></i>Campaign Summary</div>
+        <span class="card-action" onclick="navigate('campaign')">Detail →</span>
       </div>
-      ${[
-        ['Sessions','4.2M','b-blue'],
-        ['Engagement Rate','64%','b-green'],
-        ['Fill Rate','88%','b-amber'],
-        ['Social Reach','2.1M','b-purple'],
-        ['Rev / User','RM 0.34','b-teal'],
-      ].map(([l,v,b]) => `
-      <div class="stat-row">
-        <span class="stat-lbl">${l}</span><span class="b ${b}">${v}</span>
-      </div>`).join('')}
+      <div id="ovCampSnapshot" style="display:flex;flex-direction:column;gap:4px">
+        <div class="text-muted fs12" style="text-align:center;padding:16px"><i class="fas fa-spinner fa-spin"></i></div>
+      </div>
     </div>
-  </div>
 
-  <!-- ── ROW 5: Ads table + Donut ──────────────────────────── -->
-  <div class="g2" style="margin-bottom:0">
     <div class="card">
       <div class="card-hd">
-        <div class="card-title">Ads Performance Summary</div>
-        <span class="card-action" onclick="navigate('ads')">Full Ads Report →</span>
+        <div class="card-title"><i class="fas fa-rectangle-ad" style="color:var(--teal);margin-right:5px"></i>GAM Summary</div>
+        <span class="card-action" onclick="navigate('gamanalytics')">Detail →</span>
       </div>
-      <table class="tbl">
-        <thead>
-          <tr><th>Platform</th><th>Spend</th><th>Impressions</th><th>CTR</th><th>ROAS</th><th>Status</th></tr>
-        </thead>
-        <tbody>
-          ${[
-            ['Google Ads','fa-google','#4285f4','RM 1.2M','8.4M','4.2%','3.8×','b-green','On Target'],
-            ['Meta Ads','fa-meta','#1877f2','RM 980K','12.1M','3.1%','2.9×','b-amber','Watch'],
-            ['TikTok Ads','fa-tiktok','#ff0050','RM 620K','18.6M','5.4%','3.1×','b-green','On Target'],
-          ].map(([p,ic,col,s,i,c,r,b,st]) => `
-          <tr>
-            <td>
-              <div class="flex items-center gap8">
-                <i class="fab ${ic}" style="color:${col};font-size:12px"></i>
-                <span class="fw6">${p}</span>
-              </div>
-            </td>
-            <td class="text-pink fw7">${s}</td>
-            <td class="dim">${i}</td>
-            <td class="fw6">${c}</td>
-            <td class="fw7">${r}</td>
-            <td><span class="b ${b}">${st}</span></td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
-    </div>
-
-    <div class="card">
-      <div class="card-hd"><div class="card-title">Ad Spend Channel Mix</div></div>
-      <div class="ch" style="height:145px"><canvas id="adsMixChart"></canvas></div>
-      <div class="flex justify-between" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
-        ${[['Google','43%','#4285f4'],['Meta','35%','#1877f2'],['TikTok','22%','#ff0050']].map(([p,v,c]) => `
-        <div style="text-align:center">
-          <div style="width:10px;height:10px;border-radius:50%;background:${c};margin:0 auto 5px"></div>
-          <div class="fs11 text-muted">${p}</div>
-          <div class="fw7 fs14">${v}</div>
-        </div>`).join('')}
+      <div id="ovGAMSnapshot" style="display:flex;flex-direction:column;gap:4px">
+        <div class="text-muted fs12" style="text-align:center;padding:16px"><i class="fas fa-spinner fa-spin"></i></div>
       </div>
     </div>
   </div>
@@ -222,62 +149,168 @@ export function overviewScreen(): string {
 </div>
 
 <script>
-// ── Load real data for Overview dashboard ────────────────────────────────
-let _ovData = {revenue: 0, pipeline: 0, gamOrders: 0, gamLineItems: 0};
+// ── Overview screen — live data loader ────────────────────────────────────
+let _ovRevChart = null;
+
+function ovFmt(n){
+  n=parseFloat(n)||0;
+  if(n>=1e9) return 'RM '+(n/1e9).toFixed(2)+'B';
+  if(n>=1e6) return 'RM '+(n/1e6).toFixed(2)+'M';
+  if(n>=1e3) return 'RM '+(n/1e3).toFixed(1)+'K';
+  return 'RM '+n.toFixed(0);
+}
+function ovFmtShort(n){
+  n=parseFloat(n)||0;
+  if(n>=1e9) return (n/1e9).toFixed(1)+'B';
+  if(n>=1e6) return (n/1e6).toFixed(1)+'M';
+  if(n>=1e3) return (n/1e3).toFixed(1)+'K';
+  return n===0?'—':n.toLocaleString();
+}
+function ovSetEl(id,val){ const el=document.getElementById(id); if(el) el.innerHTML=val; }
 
 async function loadOverviewKPIs(){
-  try {
-    // Fetch KPIs
-    const kpiRes = await fetch('/api/kpis').then(r=>r.json()).catch(()=>({ok:false}));
-    if(kpiRes.ok){
-      _ovData.revenue = kpiRes.totalRevenue || 0;
-      _ovData.pipeline = kpiRes.totalPipeline || 0;
-      console.log('Overview KPIs loaded:', kpiRes);
-    }
-    
-    // Fetch GAM data
-    const gamRes = await fetch('/api/gam/summary?cached=true').then(r=>r.json()).catch(()=>({ok:false}));
-    if(gamRes.ok){
-      _ovData.gamOrders = gamRes.orders?.total || 0;
-      _ovData.gamLineItems = gamRes.lineItems?.total || 0;
-      console.log('Overview GAM loaded:', gamRes);
-    }
-    
-    updateOverviewKPIs();
-  } catch(e){
-    console.error('Overview data load error:', e);
-  }
-}
+  const [kpiRes, gamRes] = await Promise.all([
+    fetch('/api/kpis').then(r=>r.json()).catch(e=>({ok:false,error:e.message})),
+    fetch('/api/gam/summary?cached=true').then(r=>r.json()).catch(e=>({ok:false,error:e.message}))
+  ]);
 
-function updateOverviewKPIs(){
-  // Update YTD Revenue
-  if(_ovData.revenue > 0){
-    const revKpi = document.querySelector('.kpi.accent .kpi-val');
-    if(revKpi){
-      const val = _ovData.revenue;
-      const fmt = val >= 1e6 ? 'RM ' + (val/1e6).toFixed(1) + '<sup>M</sup>' : 
-                  val >= 1e3 ? 'RM ' + (val/1e3).toFixed(1) + '<sup>K</sup>' :
-                  'RM ' + val.toFixed(0);
-      revKpi.innerHTML = fmt;
-    }
+  console.log('[Overview] KPI response:', kpiRes);
+  console.log('[Overview] GAM response:', gamRes);
+
+  const now = new Date().toLocaleTimeString('en-MY',{hour:'2-digit',minute:'2-digit'});
+  ovSetEl('ov-last-updated', 'Updated '+now);
+
+  // ── Revenue KPIs ───────────────────────────────────────────────
+  if(kpiRes.ok && kpiRes.totalRevenue > 0){
+    ovSetEl('ov-kpi-revenue', ovFmt(kpiRes.totalRevenue));
+    ovSetEl('ov-kpi-revenue-sub', '<span class="up"><i class="fas fa-circle-check" style="font-size:9px"></i> '+kpiRes.revenueCount+' records</span>');
+    ovSetEl('ovRevTotal', ovFmt(kpiRes.totalRevenue));
+    ovSetEl('ovRevTarget', kpiRes.totalTarget>0 ? ovFmt(kpiRes.totalTarget) : '—');
+    const att = kpiRes.totalTarget>0 ? (kpiRes.totalRevenue/kpiRes.totalTarget*100).toFixed(1)+'%' : '—';
+    ovSetEl('ovRevAtt', att);
+    ovSetEl('ov-kpi-rev-count', (kpiRes.revenueCount||0).toLocaleString());
+    ovSetEl('ov-kpi-rev-count-sub', '<span class="text-muted">revenue records</span>');
+    ovSetEl('ovRevSubTitle', kpiRes.revenueCount+' rows from Google Sheets');
+  } else {
+    ovSetEl('ov-kpi-revenue', '—');
+    ovSetEl('ov-kpi-revenue-sub', '<span style="color:'+(kpiRes.ok?'var(--text-muted)':'#f59e0b')+'"><i class="fas fa-'+(kpiRes.ok?'info-circle':'plug')+'"></i> '+(kpiRes.ok?'No revenue data':'Sheets not connected')+'</span>');
+    ovSetEl('ovRevTotal', '—'); ovSetEl('ovRevTarget', '—'); ovSetEl('ovRevAtt', '—');
+    ovSetEl('ov-kpi-rev-count', '—');
+    ovSetEl('ov-kpi-rev-count-sub', kpiRes.ok ? '<span class="text-muted">No data</span>' : '<span style="color:#f59e0b">Not connected</span>');
+    ovSetEl('ovRevSubTitle', kpiRes.ok ? 'No revenue data in sheet' : 'Connect Google Sheets');
   }
-  
-  // Update Pipeline
-  if(_ovData.pipeline > 0){
-    const kpis = document.querySelectorAll('.kpi');
-    if(kpis[1]){
-      const pipeVal = kpis[1].querySelector('.kpi-val');
-      if(pipeVal){
-        const val = _ovData.pipeline;
-        const fmt = val >= 1e6 ? 'RM ' + (val/1e6).toFixed(1) + '<sup>M</sup>' : 
-                    val >= 1e3 ? 'RM ' + (val/1e3).toFixed(1) + '<sup>K</sup>' :
-                    'RM ' + val.toFixed(0);
-        pipeVal.innerHTML = fmt;
-      }
-    }
+
+  // ── Campaign KPIs ──────────────────────────────────────────────
+  if(kpiRes.ok && kpiRes.totalCampaign > 0){
+    ovSetEl('ov-kpi-campaign', ovFmt(kpiRes.totalCampaign));
+    ovSetEl('ov-kpi-campaign-sub', '<span class="up">'+kpiRes.campaignCount+' records</span>');
+  } else {
+    ovSetEl('ov-kpi-campaign', '—');
+    ovSetEl('ov-kpi-campaign-sub', '<span style="color:var(--text-muted)">'+(kpiRes.ok?'No campaign data':'Not connected')+'</span>');
   }
-  
-  console.log('Overview KPIs updated on screen');
+
+  // ── GAM KPIs ───────────────────────────────────────────────────
+  if(gamRes.ok){
+    const orders=gamRes.orders?.total||0;
+    const active=(gamRes.orders?.byStatus?.ACTIVE||0)+(gamRes.orders?.byStatus?.DELIVERING||0);
+    const impr=gamRes.lineItems?.totalImpressions||0;
+    const clicks=gamRes.lineItems?.totalClicks||0;
+    const li=gamRes.lineItems?.total||0;
+    const ctr=impr>0?(clicks/impr*100).toFixed(2)+'%':'—';
+    ovSetEl('ov-kpi-orders', orders.toLocaleString());
+    ovSetEl('ov-kpi-orders-sub', '<span class="up">'+active+' active/delivering</span>');
+    ovSetEl('ov-kpi-impr', ovFmtShort(impr));
+    ovSetEl('ov-kpi-impr-sub', '<span class="text-muted">'+ovFmtShort(clicks)+' clicks · '+ctr+'</span>');
+    ovSetEl('ov-kpi-li', li.toLocaleString());
+    ovSetEl('ov-kpi-li-sub', '<span class="text-muted">total line items</span>');
+    ovSetEl('ov-kpi-clicks', ovFmtShort(clicks));
+    ovSetEl('ov-kpi-clicks-sub', '<span class="text-muted">CTR: '+ctr+'</span>');
+    ovSetEl('ov-kpi-network', gamRes.networkName||gamRes.networkCode||'—');
+    ovSetEl('ov-kpi-network-sub', '<span class="up"><i class="fas fa-circle-check" style="font-size:9px"></i> Connected</span>');
+  } else {
+    ['ov-kpi-orders','ov-kpi-impr','ov-kpi-li','ov-kpi-clicks','ov-kpi-network'].forEach(id=>ovSetEl(id,'—'));
+    const nc='<span style="color:#f59e0b"><i class="fas fa-plug"></i> GAM not connected</span>';
+    ['ov-kpi-orders-sub','ov-kpi-impr-sub','ov-kpi-li-sub','ov-kpi-clicks-sub','ov-kpi-network-sub'].forEach(id=>ovSetEl(id,nc));
+  }
+
+  // ── Revenue chart ──────────────────────────────────────────────
+  const ctx = document.getElementById('ovRevChart');
+  if(ctx && kpiRes.ok && kpiRes.revenueByMonth && Object.keys(kpiRes.revenueByMonth).length>0){
+    const months = Object.keys(kpiRes.revenueByMonth).sort();
+    const revVals = months.map(m=>kpiRes.revenueByMonth[m]||0);
+    ovSetEl('ovRevMonths', months.length+' months');
+    if(_ovRevChart){_ovRevChart.destroy();_ovRevChart=null;}
+    _ovRevChart = new Chart(ctx, {
+      type:'bar',
+      data:{
+        labels:months,
+        datasets:[{label:'Revenue',data:revVals,backgroundColor:'rgba(236,72,153,0.7)',borderRadius:4,borderWidth:0}]
+      },
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+        scales:{x:{grid:{display:false},ticks:{color:'#48486a',font:{size:9}}},
+          y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#48486a',font:{size:9},callback:v=>ovFmtShort(v)}}}}
+    });
+  } else if(ctx) {
+    const c2=ctx.getContext('2d');
+    c2.fillStyle='rgba(255,255,255,0.03)';c2.fillRect(0,0,ctx.width,ctx.height);
+    c2.fillStyle='#48486a';c2.font='11px sans-serif';c2.textAlign='center';
+    c2.fillText(kpiRes.ok?'No monthly data':'Connect Google Sheets to see chart',ctx.width/2,ctx.height/2);
+    ovSetEl('ovRevMonths','—');
+  }
+
+  // ── Portal bars ────────────────────────────────────────────────
+  const COLORS=['#4285f4','#a78bfa','#00d68f','#f59e0b','#f43f5e','#34d399'];
+  if(kpiRes.ok && kpiRes.revenueByPortal && Object.keys(kpiRes.revenueByPortal).length>0){
+    const portals=Object.entries(kpiRes.revenueByPortal).sort((a,b)=>b[1]-a[1]).slice(0,6);
+    const mx=portals[0][1]||1;
+    ovSetEl('ovPortalBars', portals.map(([p,v],i)=>{
+      const pct=Math.round(v/mx*100);const col=COLORS[i%6];
+      return '<div><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="fs11 fw6">'+p+'</span><span class="fs11 fw7" style="color:'+col+'">'+ovFmt(v)+'</span></div><div style="height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden"><div style="width:'+pct+'%;height:4px;background:'+col+';border-radius:2px;transition:width 0.5s"></div></div></div>';
+    }).join(''));
+  } else {
+    ovSetEl('ovPortalBars','<div class="text-muted fs12" style="text-align:center;padding:24px"><i class="fas fa-'+(kpiRes.ok?'info-circle':'plug')+'" style="color:'+(kpiRes.ok?'var(--text-muted)':'#f59e0b')+';margin-right:6px"></i>'+(kpiRes.ok?'No portal breakdown available — check column names in sheet':'Connect Google Sheets to see portal data')+'</div>');
+  }
+
+  // ── Revenue snapshot ─────────────────────────────────────────────
+  if(kpiRes.ok){
+    const rows=[];
+    if(kpiRes.totalRevenue>0) rows.push(['Total Revenue', ovFmt(kpiRes.totalRevenue), 'b-green']);
+    if(kpiRes.totalTarget>0) rows.push(['Target', ovFmt(kpiRes.totalTarget), 'b-blue']);
+    if(kpiRes.totalRevenue>0&&kpiRes.totalTarget>0) rows.push(['Attainment', (kpiRes.totalRevenue/kpiRes.totalTarget*100).toFixed(1)+'%', 'b-pink']);
+    rows.push(['Records', (kpiRes.revenueCount||0)+' rows', 'b-gray']);
+    ovSetEl('ovRevSnapshot', rows.length>1 ? rows.map(([l,v,b])=>'<div class="stat-row"><span class="stat-lbl">'+l+'</span><span class="b '+b+'">'+v+'</span></div>').join('') : '<div class="text-muted fs12" style="text-align:center;padding:12px"><i class="fas fa-info-circle" style="margin-right:5px"></i>No revenue data in sheet</div>');
+  } else {
+    ovSetEl('ovRevSnapshot','<div class="text-muted fs12" style="text-align:center;padding:12px"><i class="fas fa-plug" style="color:#f59e0b;margin-right:5px"></i>Connect Google Sheets<br><a href="#" onclick="navigate(\'apiconn\')" style="color:#60a5fa;font-size:10px">Set up in API Connections</a></div>');
+  }
+
+  // ── Campaign snapshot ─────────────────────────────────────────────
+  if(kpiRes.ok && kpiRes.campaignCount>0){
+    ovSetEl('ovCampSnapshot',[
+      ['Total', ovFmt(kpiRes.totalCampaign), 'b-green'],
+      ['Records', kpiRes.campaignCount+' campaigns', 'b-blue'],
+    ].map(([l,v,b])=>'<div class="stat-row"><span class="stat-lbl">'+l+'</span><span class="b '+b+'">'+v+'</span></div>').join(''));
+  } else {
+    ovSetEl('ovCampSnapshot','<div class="text-muted fs12" style="text-align:center;padding:12px"><i class="fas fa-'+(kpiRes.ok?'info-circle':'plug')+'" style="color:'+(kpiRes.ok?'var(--text-muted)':'#f59e0b')+';margin-right:5px"></i>'+(kpiRes.ok?'No campaign data in sheet':'Connect Google Sheets')+'</div>');
+  }
+
+  // ── GAM snapshot ─────────────────────────────────────────────────
+  if(gamRes.ok){
+    const orders=gamRes.orders?.total||0;
+    const active=(gamRes.orders?.byStatus?.ACTIVE||0)+(gamRes.orders?.byStatus?.DELIVERING||0);
+    const impr=gamRes.lineItems?.totalImpressions||0;
+    const li=gamRes.lineItems?.total||0;
+    ovSetEl('ovGAMSnapshot',[
+      ['Network', gamRes.networkName||gamRes.networkCode||'—', 'b-blue'],
+      ['Orders', orders+' total', 'b-green'],
+      ['Active', active+' delivering', 'b-green'],
+      ['Line Items', li+' total', 'b-purple'],
+      ['Impressions', ovFmtShort(impr), 'b-amber'],
+    ].map(([l,v,b])=>'<div class="stat-row"><span class="stat-lbl">'+l+'</span><span class="b '+b+'">'+v+'</span></div>').join(''));
+  } else {
+    ovSetEl('ovGAMSnapshot','<div class="text-muted fs12" style="text-align:center;padding:12px"><i class="fas fa-plug" style="color:#f59e0b;margin-right:5px"></i>Connect GAM API<br><a href="#" onclick="navigate(\'apiconn\')" style="color:#60a5fa;font-size:10px">Set up in API Connections</a></div>');
+  }
+
+  console.log('[Overview] KPIs updated on screen');
 }
 
 // Auto-load

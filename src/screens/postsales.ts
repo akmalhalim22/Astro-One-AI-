@@ -229,38 +229,44 @@ async function loadRevenueData(){
   try{
     const r = await fetch('/api/data/revenue').then(x=>x.json());
     if(!r.ok){ 
-      console.error('Revenue API error:', r); 
-      if(src) src.innerHTML='<span style="color:#f59e0b;font-size:11px"><i class="fas fa-triangle-exclamation"></i> '+(r.error||'Not connected')+'</span>'; 
-      revShowEmpty(); 
+      const msg = r.error || 'Not connected';
+      if(src) src.innerHTML='<span style="color:#f59e0b;font-size:11px"><i class="fas fa-triangle-exclamation"></i> '+msg+'</span>'; 
+      revShowEmpty(msg);
       return; 
     }
     _revRows = r.rows||[];
-    console.log('Revenue data loaded:', {count: _revRows.length, debug: r.debug, sampleRow: _revRows[0]});
+    // Sniff actual column names and log them so we can debug mapping issues
+    if(_revRows.length > 0){
+      const cols = Object.keys(_revRows[0]);
+      console.log('[Revenue] columns detected:', cols);
+      console.log('[Revenue] sample row:', _revRows[0]);
+    }
     if(_revRows.length === 0){
-      if(src) src.innerHTML='<span style="color:#f59e0b;font-size:11px"><i class="fas fa-triangle-exclamation"></i> No data in Revenue tab</span>';
-      revShowEmpty();
+      if(src) src.innerHTML='<span style="color:#f59e0b;font-size:11px"><i class="fas fa-triangle-exclamation"></i> Tab "'+r.tab+'" is empty — no data rows found</span>';
+      revShowEmpty('No data rows in sheet tab "'+r.tab+'"');
       return;
     }
-    if(src) src.innerHTML='<span style="color:#00d68f;font-size:11px"><i class="fas fa-circle-check"></i> '+_revRows.length+' rows loaded</span>';
+    if(src) src.innerHTML='<span style="color:#00d68f;font-size:11px"><i class="fas fa-circle-check"></i> '+_revRows.length+' rows loaded from "'+r.tab+'"</span>';
     revPopulateFilters();
     revApplyFilters();
   }catch(e){
-    console.error('Revenue load error:', e);
     if(src) src.innerHTML='<span style="color:#f43f5e;font-size:11px"><i class="fas fa-xmark"></i> '+e.message+'</span>';
-    revShowEmpty();
+    revShowEmpty(e.message);
   }
 }
 
-function revShowEmpty(){
-  document.getElementById('revTbody').innerHTML='<tr><td colspan="7" class="text-muted" style="text-align:center;padding:32px"><i class="fas fa-plug" style="color:#f59e0b;font-size:16px"></i><br><span style="font-size:11px;display:block;margin-top:8px">Connect Google Sheets in <a href="#" onclick="navigate(\'api\')" style="color:#60a5fa">API Connections</a></span></td></tr>';
+function revShowEmpty(reason=''){
+  const msg = reason ? '<br><span style="font-size:10px;color:#48486a;display:block;margin-top:4px">'+reason+'</span>' : '';
+  document.getElementById('revTbody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:32px"><i class="fas fa-plug" style="color:#f59e0b;font-size:16px"></i><br><span style="font-size:11px;color:var(--text-muted);display:block;margin-top:8px">No data available'+msg+'</span></td></tr>';
   document.getElementById('revPortalBars').innerHTML='<div class="text-muted fs12" style="text-align:center;padding:20px">No data</div>';
+  ['rev-kv-total','rev-kv-target','rev-kv-ach','rev-kv-portal'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='—';});
 }
 
 function revPopulateFilters(){
-  const fys=[...new Set(_revRows.map(r=>r['Financial Year']||r['FinancialYear']||r['FY']||'').filter(Boolean))].sort().reverse();
-  const portals=[...new Set(_revRows.map(r=>r['Portal']||'').filter(Boolean))].sort();
-  const types=[...new Set(_revRows.map(r=>r['Revenue Type']||r['RevenueType']||r['Type']||'').filter(Boolean))].sort();
-  const months=[...new Set(_revRows.map(r=>r['Month']||r['Revenue Month']||'').filter(Boolean))];
+  const fys=[...new Set(_revRows.map(r=>revGetFY(r)).filter(Boolean))].sort().reverse();
+  const portals=[...new Set(_revRows.map(r=>revGetPortal(r)).filter(Boolean))].sort();
+  const types=[...new Set(_revRows.map(r=>revGetType(r)).filter(Boolean))].sort();
+  const months=[...new Set(_revRows.map(r=>revGetMonth(r)).filter(Boolean))];
 
   const fyS=document.getElementById('rev-fy');
   const cur=fyS.value;
@@ -279,7 +285,17 @@ function revPopulateFilters(){
   mS.innerHTML='<option value="">All Months</option>'+months.map(v=>'<option value="'+v+'"'+(v===cm?' selected':'')+'">'+v+'</option>').join('');
 }
 
-function revGetField(row,keys){ for(const k of keys){ if(row[k]!==undefined) return row[k]; } return ''; }
+// revGetField — tries a list of candidate column names, returns first match
+// Covers camelCase, Title Case, snake_case and lowercase variants
+function revGetField(row,keys){ for(const k of keys){ if(row[k]!==undefined && row[k]!=='') return row[k]; } return ''; }
+
+// Numeric revenue field — tries all known column name variants
+function revGetRevenue(row){ return revGetField(row,['Revenue','revenue','Amount','amount','Total','total','Rev','rev','Revenue (RM)','Revenue(RM)','Revenue RM']); }
+function revGetTarget(row)  { return revGetField(row,['Target','target','Budget','budget','Target Revenue','target_revenue']); }
+function revGetPortal(row)  { return revGetField(row,['Portal','portal','Channel','channel','Publication','publication','Platform','platform','Brand','brand']); }
+function revGetFY(row)      { return revGetField(row,['Financial Year','FinancialYear','FY','fy','financial_year','Year','year','FY Year']); }
+function revGetMonth(row)   { return revGetField(row,['Month','month','Revenue Month','revenue_month','Period','period','Bulan']); }
+function revGetType(row)    { return revGetField(row,['Revenue Type','RevenueType','Type','type','revenue_type','Category','category','Rev Type']); }
 
 function revApplyFilters(){
   const fy=document.getElementById('rev-fy').value;
@@ -288,10 +304,10 @@ function revApplyFilters(){
   const month=document.getElementById('rev-month').value;
   const q=(document.getElementById('rev-search')?.value||'').toLowerCase();
   _revFiltered=_revRows.filter(r=>{
-    const rFy=revGetField(r,['Financial Year','FinancialYear','FY']);
-    const rPortal=revGetField(r,['Portal']);
-    const rType=revGetField(r,['Revenue Type','RevenueType','Type']);
-    const rMonth=revGetField(r,['Month','Revenue Month']);
+    const rFy=revGetFY(r);
+    const rPortal=revGetPortal(r);
+    const rType=revGetType(r);
+    const rMonth=revGetMonth(r);
     const mFy=!fy||rFy===fy;
     const mPortal=!portal||rPortal===portal;
     const mType=!type||rType===type;
@@ -314,12 +330,12 @@ function revApplyFilters(){
 function revReset(){ ['rev-fy','rev-portal','rev-type','rev-month'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';}); document.getElementById('rev-search').value=''; revApplyFilters(); }
 
 function revRenderKPIs(){
-  const totalRev=_revFiltered.reduce((s,r)=>s+parseFloat(revGetField(r,['Revenue'])||'0'),0);
-  const totalTgt=_revFiltered.reduce((s,r)=>s+parseFloat(revGetField(r,['Target'])||'0'),0);
+  const totalRev=_revFiltered.reduce((s,r)=>s+parseFloat(revGetRevenue(r)||'0'),0);
+  const totalTgt=_revFiltered.reduce((s,r)=>s+parseFloat(revGetTarget(r)||'0'),0);
   const ach=totalTgt>0?(totalRev/totalTgt*100).toFixed(1):'—';
   // top portal
   const byPortal={};
-  _revFiltered.forEach(r=>{ const p=revGetField(r,['Portal'])||'—'; byPortal[p]=(byPortal[p]||0)+parseFloat(revGetField(r,['Revenue'])||'0'); });
+  _revFiltered.forEach(r=>{ const p=revGetPortal(r)||'—'; byPortal[p]=(byPortal[p]||0)+parseFloat(revGetRevenue(r)||'0'); });
   const topPortal=Object.entries(byPortal).sort((a,b)=>b[1]-a[1])[0]||['—',0];
   document.getElementById('rev-kv-total').textContent=revFmt(totalRev);
   document.getElementById('rev-ks-total').innerHTML='<span class="text-muted">'+_revFiltered.length+' records</span>';
@@ -337,10 +353,10 @@ function revRenderCharts(){
   // Trend: group by Month
   const byMonth={};
   _revFiltered.forEach(r=>{
-    const m=revGetField(r,['Month','Revenue Month'])||'Unknown';
+    const m=revGetMonth(r)||'Unknown';
     byMonth[m]=(byMonth[m]||{rev:0,tgt:0});
-    byMonth[m].rev+=parseFloat(revGetField(r,['Revenue'])||'0');
-    byMonth[m].tgt+=parseFloat(revGetField(r,['Target'])||'0');
+    byMonth[m].rev+=parseFloat(revGetRevenue(r)||'0');
+    byMonth[m].tgt+=parseFloat(revGetTarget(r)||'0');
   });
   const mLabels=Object.keys(byMonth);
   const mRevs=mLabels.map(k=>byMonth[k].rev);
@@ -358,7 +374,7 @@ function revRenderCharts(){
 
   // Type donut
   const byType={};
-  _revFiltered.forEach(r=>{ const t=revGetField(r,['Revenue Type','RevenueType','Type'])||'Other'; byType[t]=(byType[t]||0)+parseFloat(revGetField(r,['Revenue'])||'0'); });
+  _revFiltered.forEach(r=>{ const t=revGetType(r)||'Other'; byType[t]=(byType[t]||0)+parseFloat(revGetRevenue(r)||'0'); });
   const tLabels=Object.keys(byType); const tVals=tLabels.map(k=>byType[k]);
   const tColors=tLabels.map(k=>TYPE_COLORS[k]||'#60a5fa');
   const ttCtx=document.getElementById('revTypeChart');
@@ -385,7 +401,7 @@ function revRenderPortalBars(){
   const el=document.getElementById('revPortalBars');
   const cntEl=document.getElementById('rev-portal-count');
   const byPortal={};
-  _revFiltered.forEach(r=>{ const p=revGetField(r,['Portal'])||'—'; byPortal[p]=(byPortal[p]||0)+parseFloat(revGetField(r,['Revenue'])||'0'); });
+  _revFiltered.forEach(r=>{ const p=revGetPortal(r)||'—'; byPortal[p]=(byPortal[p]||0)+parseFloat(revGetRevenue(r)||'0'); });
   const sorted=Object.entries(byPortal).sort((a,b)=>b[1]-a[1]);
   if(!sorted.length){el.innerHTML='<div class="text-muted fs12" style="text-align:center;padding:16px">No data</div>';return;}
   const mx=sorted[0][1]||1;
@@ -410,16 +426,16 @@ function revRenderPage(){
   document.getElementById('rev-count').textContent=total+' records';
   if(!page.length){tbody.innerHTML='<tr><td colspan="7" class="text-muted" style="text-align:center;padding:24px">No records match</td></tr>';return;}
   tbody.innerHTML=page.map(r=>{
-    const rev=parseFloat(revGetField(r,['Revenue'])||'0');
-    const tgt=parseFloat(revGetField(r,['Target'])||'0');
+    const rev=parseFloat(revGetRevenue(r)||'0');
+    const tgt=parseFloat(revGetTarget(r)||'0');
     const ach=tgt>0?(rev/tgt*100).toFixed(1)+'%':'—';
     const achN=parseFloat(ach)||0;
     const achCol=achN>=100?'#00d68f':achN>=80?'#f59e0b':'#f43f5e';
     return '<tr>'+
-      '<td class="fw6">'+( revGetField(r,['Portal'])||'—')+'</td>'+
-      '<td class="muted">'+( revGetField(r,['Financial Year','FinancialYear','FY'])||'—')+'</td>'+
-      '<td class="muted">'+( revGetField(r,['Month','Revenue Month'])||'—')+'</td>'+
-      '<td><span class="ps-plat ps-plat-sheets" style="font-size:9px">'+( revGetField(r,['Revenue Type','RevenueType','Type'])||'—')+'</span></td>'+
+      '<td class="fw6">'+(revGetPortal(r)||'—')+'</td>'+
+      '<td class="muted">'+(revGetFY(r)||'—')+'</td>'+
+      '<td class="muted">'+(revGetMonth(r)||'—')+'</td>'+
+      '<td><span class="ps-plat ps-plat-sheets" style="font-size:9px">'+(revGetType(r)||'—')+'</span></td>'+
       '<td class="num fw7" style="color:#4285f4">'+revFmt(rev)+'</td>'+
       '<td class="num muted">'+revFmt(tgt)+'</td>'+
       '<td class="num fw7" style="color:'+achCol+'">'+ach+'</td>'+
@@ -585,38 +601,53 @@ async function loadCampData(){
   if(src) src.innerHTML='<i class="fas fa-spinner fa-spin" style="color:#4285f4;font-size:11px"></i> Loading…';
   try{
     const r=await fetch('/api/data/campaign').then(x=>x.json());
-    if(!r.ok){ 
-      console.error('Campaign API error:', r);
-      if(src) src.innerHTML='<span style="color:#f59e0b;font-size:11px"><i class="fas fa-triangle-exclamation"></i> '+(r.error||'Not connected')+'</span>'; 
-      campShowEmpty(); 
-      return; 
-    }
-    _campRows=r.rows||[];
-    console.log('Campaign data loaded:', {count: _campRows.length, debug: r.debug, sampleRow: _campRows[0]});
-    if(_campRows.length === 0){
-      if(src) src.innerHTML='<span style="color:#f59e0b;font-size:11px"><i class="fas fa-triangle-exclamation"></i> No data in Campaign tab</span>';
-      campShowEmpty();
+    if(!r.ok){
+      const msg=r.error||'Not connected';
+      if(src) src.innerHTML='<span style="color:#f59e0b;font-size:11px"><i class="fas fa-triangle-exclamation"></i> '+msg+'</span>';
+      campShowEmpty(msg);
       return;
     }
-    if(src) src.innerHTML='<span style="color:#00d68f;font-size:11px"><i class="fas fa-circle-check"></i> '+_campRows.length+' rows loaded</span>';
+    _campRows=r.rows||[];
+    if(_campRows.length > 0){
+      const cols=Object.keys(_campRows[0]);
+      console.log('[Campaign] columns detected:', cols);
+      console.log('[Campaign] sample row:', _campRows[0]);
+    }
+    if(_campRows.length === 0){
+      if(src) src.innerHTML='<span style="color:#f59e0b;font-size:11px"><i class="fas fa-triangle-exclamation"></i> Tab "'+r.tab+'" is empty</span>';
+      campShowEmpty('No data rows in sheet tab "'+r.tab+'"');
+      return;
+    }
+    if(src) src.innerHTML='<span style="color:#00d68f;font-size:11px"><i class="fas fa-circle-check"></i> '+_campRows.length+' rows loaded from "'+r.tab+'"</span>';
     campPopulateFilters();
     campApplyFilters();
   }catch(e){
-    console.error('Campaign load error:', e);
     if(src) src.innerHTML='<span style="color:#f43f5e;font-size:11px"><i class="fas fa-xmark"></i> '+e.message+'</span>';
-    campShowEmpty();
+    campShowEmpty(e.message);
   }
 }
 
-function campShowEmpty(){
-  document.getElementById('campTbody').innerHTML='<tr><td colspan="9" class="text-muted" style="text-align:center;padding:32px"><i class="fas fa-plug" style="color:#f59e0b;font-size:16px"></i><br><span style="font-size:11px;display:block;margin-top:8px">Connect Google Sheets in <a href="#" onclick="navigate(\'api\')" style="color:#60a5fa">API Connections</a></span></td></tr>';
+function campShowEmpty(reason=''){
+  const msg=reason?'<br><span style="font-size:10px;color:#48486a;display:block;margin-top:4px">'+reason+'</span>':'';
+  document.getElementById('campTbody').innerHTML='<tr><td colspan="9" style="text-align:center;padding:32px"><i class="fas fa-plug" style="color:#f59e0b;font-size:16px"></i><br><span style="font-size:11px;color:var(--text-muted);display:block;margin-top:8px">No data available'+msg+'</span></td></tr>';
+  ['camp-kv-rev','camp-kv-count','camp-kv-avg','camp-kv-adv'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='—';});
 }
 
+// Campaign field helpers — tries many column name variants
+function campG(r,keys){ for(const k of keys){ if(r[k]!==undefined && r[k]!=='') return r[k]; } return ''; }
+function campGetRevenue(r){ return campG(r,['Total','total','Revenue','revenue','Amount','amount','Total Revenue','Total (RM)','Revenue (RM)','Nett','nett','Net Revenue']); }
+function campGetAdv(r)    { return campG(r,['AdvertiserCompany','Advertiser','advertiser','Client','client','Company','company','Pengiklan']); }
+function campGetFY(r)     { return campG(r,['Financial Year','FinancialYear','FY','fy','Year','year','financial_year']); }
+function campGetMonth(r)  { return campG(r,['Month','month','Period','period','Revenue Month','Bulan']); }
+function campGetType(r)   { return campG(r,['campaignType','Campaign Type','CampaignType','Type','type','Category','category','Jenis']); }
+function campGetPlat(r)   { return campG(r,['Platform','platform','Channel','channel','Media','media']); }
+function campGetDeal(r)   { return campG(r,['DealType','Deal Type','deal_type','Deal','deal','Package','package']); }
+
 function campPopulateFilters(){
-  const fys=[...new Set(_campRows.map(r=>campG(r,['Financial Year','FinancialYear','FY'])).filter(Boolean))].sort().reverse();
-  const advs=[...new Set(_campRows.map(r=>campG(r,['AdvertiserCompany','Advertiser'])).filter(Boolean))].sort();
-  const types=[...new Set(_campRows.map(r=>campG(r,['campaignType','Campaign Type','CampaignType'])).filter(Boolean))].sort();
-  const plats=[...new Set(_campRows.map(r=>campG(r,['Platform'])).filter(Boolean))].sort();
+  const fys=[...new Set(_campRows.map(r=>campGetFY(r)).filter(Boolean))].sort().reverse();
+  const advs=[...new Set(_campRows.map(r=>campGetAdv(r)).filter(Boolean))].sort();
+  const types=[...new Set(_campRows.map(r=>campGetType(r)).filter(Boolean))].sort();
+  const plats=[...new Set(_campRows.map(r=>campGetPlat(r)).filter(Boolean))].sort();
   const fill=(id,arr,cur)=>{ const el=document.getElementById(id); if(!el) return; const first=el.options[0].text; el.innerHTML='<option value="">'+first+'</option>'+arr.map(v=>'<option value="'+v+'"'+(v===cur?' selected':'')+'">'+v+'</option>').join(''); };
   fill('camp-fy',fys,document.getElementById('camp-fy').value);
   fill('camp-adv',advs,document.getElementById('camp-adv').value);
@@ -955,8 +986,12 @@ const STATUS_COLOR={ACTIVE:'#00d68f',DELIVERING:'#00c07f',COMPLETED:'#60a5fa',PA
 const STATUS_BADGE={ACTIVE:'b-green',DELIVERING:'b-green',COMPLETED:'b-blue',PAUSED:'b-amber',CANCELED:'b-red',DRAFT:'b-gray',PENDING_APPROVAL:'b-purple',UNKNOWN:'b-gray'};
 function statusBadge(s){const cls=STATUS_BADGE[s]||'b-gray';const lbl=(s||'UNKNOWN').replace(/_/g,'\u00a0');return \`<span class="b \${cls}" style="font-size:9px;white-space:nowrap">\${lbl}</span>\`;}
 
-// ── Main Loader (Progressive: cached first, then fresh) ──────────────────────
+// ── Main Loader — guard against concurrent fetches ────────────────────────────
 async function loadGAMAnalytics(force=false){
+  // Prevent double-loading (the main cause of the "reload loop")
+  if(window._gamLoading && !force) return;
+  window._gamLoading = true;
+
   const icon=document.getElementById('gamBannerIcon');
   const txt=document.getElementById('gamBannerText');
   const ri=document.getElementById('gamRefreshIcon');
@@ -990,7 +1025,7 @@ async function loadGAMAnalytics(force=false){
         const age=Math.round((cSumRes.cacheAge||0)/1000);
         txt.textContent='Cached data ('+age+'s old) · Refreshing live data…';txt.style.color='#a78bfa';
         
-        renderGAMKPIs();renderGAMCharts();applyOrderFilters();renderNetworkInfo();
+        renderKPIs(cSumRes);renderOrderStatusBars(cSumRes.orders?.byStatus||{});renderLIStatusBars(cSumRes.lineItems?.byStatus||{});renderNetworkInfo(cSumRes);renderTopLI();renderOrdersTable();renderCharts(cSumRes);renderTopOrdersBars();
         if(ri)ri.className='fas fa-spinner fa-spin';
       }
     }
@@ -1031,37 +1066,18 @@ async function loadGAMAnalytics(force=false){
     
     const now=new Date().toLocaleTimeString('en-MY',{hour:'2-digit',minute:'2-digit'});
     icon.className='fas fa-circle-check';icon.style.color='#00d68f';
-    txt.textContent='Connected to '+(sumRes.networkName||sumRes.networkCode)+' · '+_gamOrders.length+' orders · '+_gamLineItems.length+' line items · Fetching delivery metrics…';
+    txt.textContent='Connected to '+(sumRes.networkName||sumRes.networkCode)+' · '+_gamOrders.length+' orders · '+_gamLineItems.length+' line items · Updated '+now;
     txt.style.color='#00d68f';banner.style.background='rgba(0,214,143,0.06)';banner.style.borderColor='rgba(0,214,143,0.18)';
     const lr=document.getElementById('gamLastRefresh');if(lr)lr.textContent='Last refresh: '+now;
     if(ri)ri.className='fas fa-rotate';
     renderKPIs(sumRes);renderOrderStatusBars(sumRes.orders?.byStatus||{});renderLIStatusBars(sumRes.lineItems?.byStatus||{});renderNetworkInfo(sumRes);renderTopLI();renderOrdersTable();renderCharts(sumRes);renderTopOrdersBars();
-
-    // Async metrics fetch
-    txt.textContent='Connected to '+(sumRes.networkName||sumRes.networkCode)+' · Fetching delivery metrics (15-30s)…';
-    try{
-      const metricsRes=await fetch('/api/gam/metrics').then(r=>r.json());
-      if(metricsRes.ok&&metricsRes.lineItemMetrics){
-        for(const li of _gamLineItems){const liNum=li.name?li.name.split('/').pop():'';const m=metricsRes.lineItemMetrics[liNum]||metricsRes.lineItemMetrics[li.name]||null;if(m){li.impressionsDelivered=String(m.impressions||0);li.clicksDelivered=String(m.clicks||0);}}
-        _orderMetaCache={};_buildOrderMetaCache();
-        let totalImpr=0,totalClk=0;
-        for(const li of _gamLineItems){totalImpr+=parseInt(li.impressionsDelivered||'0');totalClk+=parseInt(li.clicksDelivered||'0');}
-        const enriched={...sumRes,lineItems:{...sumRes.lineItems,totalImpressions:totalImpr,totalClicks:totalClk}};
-        renderKPIs(enriched);renderTopLI();renderTopOrdersBars();renderOrdersPage();
-        txt.textContent='Connected to '+(sumRes.networkName||sumRes.networkCode)+' · '+_gamOrders.length+' orders · '+_gamLineItems.length+' line items · Metrics updated';
-      }else{
-        txt.textContent='Connected · '+_gamOrders.length+' orders (metrics unavailable: '+(metricsRes.error||'unknown')+')';
-        icon.className='fas fa-circle-exclamation';icon.style.color='#f59e0b';
-      }
-    }catch(me){
-      txt.textContent='Connected · '+_gamOrders.length+' orders (delivery metrics failed: '+me.message+')';
-      icon.className='fas fa-circle-exclamation';icon.style.color='#f59e0b';
-    }
+    window._gamLoading = false;
   }catch(e){
     icon.className='fas fa-circle-xmark';icon.style.color='#f43f5e';
     txt.textContent='Failed to load GAM data: '+e.message;txt.style.color='#f43f5e';
     banner.style.background='rgba(244,63,94,0.07)';banner.style.borderColor='rgba(244,63,94,0.2)';
     if(ri)ri.className='fas fa-rotate';
+    window._gamLoading = false;
   }
 }
 
