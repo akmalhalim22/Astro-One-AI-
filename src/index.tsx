@@ -79,9 +79,9 @@ function getTabNames(): Record<string, string> {
     pipeline:  'Pipeline',        // Pre-Sales (not yet available → handled gracefully)
     revenue:   'revenue',         // Revenue Performance  — exact sheet tab name
     campaign:  'direct campaign', // Campaign Performance — exact sheet tab name
+    social:    'Sprout Social',   // Social Performance   — Sprout Social dataset tab
     ads:       'Ads',
     traffic:   'Traffic',
-    social:    'Social',
     clients:   'Clients'
   }
 }
@@ -752,7 +752,7 @@ app.get('/api/data/:section', requireAuth, async (c) => {
     let rows: Record<string,string>[] = []
     let sheetError: string | null = null
     try {
-      rows = await readSheet(sheets.saJson, sheets.sheetId, `${tabName}!A:Z`)
+      rows = await readSheet(sheets.saJson, sheets.sheetId, `${tabName}!A:AM`)
     } catch (sheetErr: any) {
       sheetError = sheetErr.message || String(sheetErr)
     }
