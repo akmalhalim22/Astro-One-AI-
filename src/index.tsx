@@ -54,13 +54,30 @@ async function requireAuth(c: any, next: () => Promise<void>) {
 }
 
 // ── Config helpers ─────────────────────────────────────────────────────────
-// Google Sheets - read from KV storage (same pattern as GAM)
+// Google Sheets — checks BOTH storage locations so whichever page the user
+// configured (API Connections OR Settings) will work correctly.
 async function getSheetsConfig(kv: KVNamespace): Promise<{ sheetId: string; saJson: string } | null> {
+  // ① API Connections page saves to config:conn:sheets
   const raw = await kv.get('config:conn:sheets')
-  if (!raw) return null
-  const cfg = JSON.parse(raw)
-  if (!cfg.sheets_sa_json || !cfg.sheets_id) return null
-  return { sheetId: cfg.sheets_id, saJson: cfg.sheets_sa_json }
+  if (raw) {
+    try {
+      const cfg = JSON.parse(raw)
+      if (cfg.sheets_sa_json && cfg.sheets_id)
+        return { sheetId: cfg.sheets_id, saJson: cfg.sheets_sa_json }
+    } catch {}
+  }
+  // ② Settings page saves service account to secret:service_account
+  //    and sheet ID inside config:platform.sheetId
+  const sa = await kv.get('secret:service_account')
+  const platformRaw = await kv.get('config:platform')
+  if (sa && platformRaw) {
+    try {
+      const platform = JSON.parse(platformRaw)
+      if (platform.sheetId) return { sheetId: platform.sheetId, saJson: sa }
+    } catch {}
+  }
+  // ③ Fall back: SA only — no sheet ID, can't proceed
+  return null
 }
 
 // Google Ad Manager - read from KV storage

@@ -545,15 +545,19 @@ function socRenderCharts(){
     byProfile[p].impr+=parseFloat(socGetImpr(r)||'0');
   });
   const pLabels=Object.keys(byProfile);
-  const pPosts=pLabels.map(k=>byProfile[k].posts);
+  const pPostsRaw=pLabels.map(k=>byProfile[k].posts);
+  // Sort high→low, top-10
+  const pSorted=pLabels.map((l,i)=>({l,v:pPostsRaw[i]})).sort((a,b)=>b.v-a.v).slice(0,10);
+  const pSortedLabels=pSorted.map(x=>x.l);const pPosts=pSorted.map(x=>x.v);
+  const pTotal=pPosts.reduce((s,v)=>s+v,0)||1;
   const aCtx=document.getElementById('socActivityChart');
   if(aCtx){
     if(_socActivityChart){_socActivityChart.destroy();_socActivityChart=null;}
-    _socActivityChart=new Chart(aCtx,{type:'doughnut',data:{labels:pLabels,datasets:[{data:pPosts,backgroundColor:pLabels.map((_,i)=>SOC_COLORS[i%SOC_COLORS.length]),borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{color:'#8080a8',font:{size:10},boxWidth:9,padding:8}},tooltip:{callbacks:{label:c=>' '+c.label+': '+c.parsed+' posts'}}}}});
+    _socActivityChart=new Chart(aCtx,{type:'doughnut',data:{labels:pSortedLabels,datasets:[{data:pPosts,backgroundColor:pSortedLabels.map((_,i)=>SOC_COLORS[i%SOC_COLORS.length]),borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{color:'#8080a8',font:{size:10},boxWidth:9,padding:8,generateLabels:ch=>{const ds=ch.data.datasets[0];return ch.data.labels.map((l,i)=>{const pct=Math.round(ds.data[i]/pTotal*100);return{text:l+' '+pct+'%',fillStyle:ds.backgroundColor[i],strokeStyle:'transparent',lineWidth:0,index:i};});}}},tooltip:{callbacks:{label:c=>{const pct=Math.round(c.parsed/pTotal*100);return ' '+c.label+': '+c.parsed+' posts ('+pct+'%)';}}}}}});
   }
-  const total=pPosts.reduce((s,v)=>s+v,0)||1;
+  const total=pTotal;
   const abEl=document.getElementById('socActivityBars');
-  if(abEl)abEl.innerHTML=pLabels.map((l,i)=>{const pct=Math.round(pPosts[i]/total*100);return '<div><div style="display:flex;justify-content:space-between;margin-bottom:2px"><span class="fs11">'+l+'</span><span class="fs11 fw7" style="color:'+SOC_COLORS[i%SOC_COLORS.length]+'">'+pPosts[i]+' posts ('+pct+'%)</span></div><div style="height:4px;border-radius:3px;background:rgba(255,255,255,0.06);overflow:hidden"><div style="height:4px;width:'+pct+'%;background:'+SOC_COLORS[i%SOC_COLORS.length]+';border-radius:3px"></div></div></div>';}).join('');
+  if(abEl)abEl.innerHTML=pSortedLabels.map((l,i)=>{const pct=Math.round(pPosts[i]/total*100);return '<div><div style="display:flex;justify-content:space-between;margin-bottom:2px"><span class="fs11">'+l+'</span><span class="fs11 fw7" style="color:'+SOC_COLORS[i%SOC_COLORS.length]+'">'+pPosts[i]+' posts <span style="opacity:.7">('+pct+'%)</span></span></div><div style="height:4px;border-radius:3px;background:rgba(255,255,255,0.06);overflow:hidden"><div style="height:4px;width:'+pct*2.2+'%;max-width:100%;background:'+SOC_COLORS[i%SOC_COLORS.length]+';border-radius:3px"></div></div></div>';}).join('');
 }
 
 function socRenderProfileBars(){
