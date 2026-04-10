@@ -1141,14 +1141,14 @@ const chartDefaults = {
       borderColor: 'rgba(255,255,255,0.08)',
       borderWidth: 1,
       titleColor: '#f0f0ff',
-      bodyColor: '#8080a8',
+      bodyColor: '#c8c8e8',
       padding: 10,
       cornerRadius: 8,
     }
   },
   scales: {
-    x: { grid:{color:'rgba(255,255,255,0.03)'}, ticks:{color:'#48486a',font:{size:10}}, border:{display:false} },
-    y: { grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#48486a',font:{size:10}}, border:{display:false} }
+    x: { grid:{color:'rgba(255,255,255,0.03)'}, ticks:{color:'#a0a0c0',font:{size:10}}, border:{display:false} },
+    y: { grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#a0a0c0',font:{size:10}}, border:{display:false} }
   },
   responsive: true,
   maintainAspectRatio: false,
@@ -1206,7 +1206,7 @@ window.addEventListener('DOMContentLoaded', () => {
       backgroundColor:['rgba(66,133,244,0.82)','rgba(24,119,242,0.65)','rgba(255,0,80,0.75)'],
       borderColor:['#4285f4','#1877f2','#ff0050'], borderWidth:1.5, hoverOffset:6 }]},
     options:{ responsive:true, maintainAspectRatio:false, cutout:'66%',
-      plugins:{ legend:{display:true,position:'bottom',labels:{color:'#8080a8',font:{size:10},padding:12,boxWidth:10}}, tooltip:chartDefaults.plugins.tooltip }}
+      plugins:{ legend:{display:true,position:'bottom',labels:{color:'#c8c8e8',font:{size:10},padding:12,boxWidth:10}}, tooltip:chartDefaults.plugins.tooltip }}
   });
 
   // ── Revenue Performance Chart ──────────────────────────
@@ -1218,7 +1218,7 @@ window.addEventListener('DOMContentLoaded', () => {
         { label:'Target', data:[19,20,21], backgroundColor:'rgba(255,255,255,0.07)', borderRadius:5, borderSkipped:false }
       ]},
     options:{...chartDefaults,
-      plugins:{...chartDefaults.plugins, legend:{display:true,position:'top',labels:{color:'#8080a8',font:{size:10},padding:10,boxWidth:10}}},
+      plugins:{...chartDefaults.plugins, legend:{display:true,position:'top',labels:{color:'#c8c8e8',font:{size:10},padding:10,boxWidth:10}}},
       scales:{...chartDefaults.scales, y:{...chartDefaults.scales.y, ticks:{...chartDefaults.scales.y.ticks, callback:v=>'RM'+v+'M'}}}
     }
   });
@@ -1251,7 +1251,7 @@ window.addEventListener('DOMContentLoaded', () => {
           backgroundColor:ctx=>{const g=ctx.chart.ctx.createLinearGradient(0,0,0,150);g.addColorStop(0,'rgba(96,165,250,0.22)');g.addColorStop(1,'rgba(96,165,250,0.02)');return g;}, tension:0.4 },
         { label:'Users', data:[86,94,104,91,108,119,122], borderColor:'#2dd4bf', borderWidth:2, pointRadius:3, fill:false, tension:0.4 }
       ]},
-    options:{...chartDefaults, plugins:{...chartDefaults.plugins, legend:{display:true,position:'top',labels:{color:'#8080a8',font:{size:10},padding:10,boxWidth:10}}}}
+    options:{...chartDefaults, plugins:{...chartDefaults.plugins, legend:{display:true,position:'top',labels:{color:'#c8c8e8',font:{size:10},padding:10,boxWidth:10}}}}
   });
 
   // ── Social Chart ───────────────────────────────────────
@@ -1264,7 +1264,7 @@ window.addEventListener('DOMContentLoaded', () => {
           backgroundColor:ctx=>{const g=ctx.chart.ctx.createLinearGradient(0,0,0,150);g.addColorStop(0,'rgba(167,139,250,0.22)');g.addColorStop(1,'rgba(167,139,250,0.02)');return g;}, tension:0.4 },
         { label:'Engagements', data:[62000,68000,72000,82000], borderColor:'#00d68f', borderWidth:2, pointRadius:3, fill:false, tension:0.4 }
       ]},
-    options:{...chartDefaults, plugins:{...chartDefaults.plugins, legend:{display:true,position:'top',labels:{color:'#8080a8',font:{size:10},padding:10,boxWidth:10}}}}
+    options:{...chartDefaults, plugins:{...chartDefaults.plugins, legend:{display:true,position:'top',labels:{color:'#c8c8e8',font:{size:10},padding:10,boxWidth:10}}}}
   });
 
   // ── Audience Growth Chart ──────────────────────────────
@@ -1277,7 +1277,7 @@ window.addEventListener('DOMContentLoaded', () => {
         { label:'FB', data:[2060,2080,2100], backgroundColor:'rgba(24,119,242,0.65)', borderRadius:4, borderSkipped:false },
       ]},
     options:{...chartDefaults,
-      plugins:{...chartDefaults.plugins, legend:{display:true,position:'top',labels:{color:'#8080a8',font:{size:10},padding:8,boxWidth:8}}},
+      plugins:{...chartDefaults.plugins, legend:{display:true,position:'top',labels:{color:'#c8c8e8',font:{size:10},padding:8,boxWidth:8}}},
       scales:{...chartDefaults.scales, y:{...chartDefaults.scales.y, ticks:{...chartDefaults.scales.y.ticks, callback:function(v){return (v/1000)+'K';}}}}
     }
   });
@@ -1291,7 +1291,7 @@ window.addEventListener('DOMContentLoaded', () => {
         { label:'Target', data:[19,20,21], backgroundColor:'rgba(255,255,255,0.07)', borderRadius:5, borderSkipped:false }
       ]},
     options:{...chartDefaults,
-      plugins:{...chartDefaults.plugins, legend:{display:true,position:'top',labels:{color:'#8080a8',font:{size:10},padding:10,boxWidth:10}}},
+      plugins:{...chartDefaults.plugins, legend:{display:true,position:'top',labels:{color:'#c8c8e8',font:{size:10},padding:10,boxWidth:10}}},
       scales:{...chartDefaults.scales, y:{...chartDefaults.scales.y, ticks:{...chartDefaults.scales.y.ticks, callback:v=>'RM'+v+'M'}}}
     }
   });
@@ -1302,7 +1302,7 @@ window.addEventListener('DOMContentLoaded', () => {
         backgroundColor:['rgba(226,0,122,0.82)','rgba(96,165,250,0.75)','rgba(167,139,250,0.75)','rgba(45,212,191,0.75)'],
         borderColor:['#e2007a','#60a5fa','#a78bfa','#2dd4bf'], borderWidth:1.5, hoverOffset:5 }]},
     options:{ responsive:true, maintainAspectRatio:false, cutout:'66%',
-      plugins:{ legend:{display:true,position:'bottom',labels:{color:'#8080a8',font:{size:9},padding:8,boxWidth:8}}, tooltip:chartDefaults.plugins.tooltip }}
+      plugins:{ legend:{display:true,position:'bottom',labels:{color:'#c8c8e8',font:{size:9},padding:8,boxWidth:8}}, tooltip:chartDefaults.plugins.tooltip }}
   });
 
 }); // end DOMContentLoaded

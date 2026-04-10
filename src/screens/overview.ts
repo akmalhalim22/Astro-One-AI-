@@ -247,13 +247,13 @@ async function loadOverviewKPIs(){
         datasets:[{label:'Revenue',data:revVals,backgroundColor:'rgba(236,72,153,0.7)',borderRadius:4,borderWidth:0}]
       },
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
-        scales:{x:{grid:{display:false},ticks:{color:'#48486a',font:{size:9}}},
-          y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#48486a',font:{size:9},callback:v=>ovFmtShort(v)}}}}
+        scales:{x:{grid:{display:false},ticks:{color:'#a0a0c0',font:{size:9}}},
+          y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#a0a0c0',font:{size:9},callback:v=>ovFmtShort(v)}}}}
     });
   } else if(ctx) {
     const c2=ctx.getContext('2d');
     c2.fillStyle='rgba(255,255,255,0.03)';c2.fillRect(0,0,ctx.width,ctx.height);
-    c2.fillStyle='#48486a';c2.font='11px sans-serif';c2.textAlign='center';
+    c2.fillStyle='#a0a0c0';c2.font='11px sans-serif';c2.textAlign='center';
     c2.fillText(kpiRes.ok?'No monthly data':'Connect Google Sheets to see chart',ctx.width/2,ctx.height/2);
     ovSetEl('ovRevMonths','—');
   }

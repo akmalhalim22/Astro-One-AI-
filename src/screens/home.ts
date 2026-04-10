@@ -280,8 +280,8 @@ async function loadHomeKPIs(){
           }]
         },
         options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
-          scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#48486a',font:{size:9}}},
-            y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#48486a',font:{size:9},callback:v=>homeFmtShort(v)}}}}
+          scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#a0a0c0',font:{size:9}}},
+            y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#a0a0c0',font:{size:9},callback:v=>homeFmtShort(v)}}}}
       });
     }
   } else {
@@ -289,7 +289,7 @@ async function loadHomeKPIs(){
     if(ctx){
       const ctx2 = ctx.getContext('2d');
       ctx2.fillStyle='rgba(255,255,255,0.03)';ctx2.fillRect(0,0,ctx.width,ctx.height);
-      ctx2.fillStyle='#48486a';ctx2.font='11px sans-serif';ctx2.textAlign='center';
+      ctx2.fillStyle='#a0a0c0';ctx2.font='11px sans-serif';ctx2.textAlign='center';
       ctx2.fillText(kpiRes.ok?'No monthly revenue data in sheet':'Connect Google Sheets to see chart',ctx.width/2,ctx.height/2);
     }
   }

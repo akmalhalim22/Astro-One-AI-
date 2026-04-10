@@ -322,7 +322,36 @@ export function socialScreen(): string {
     </div>
   </div>
 
-  <!-- ── Row 5: Performance Table ──────────────────────────────── -->
+  <!-- ── Row 5: Top-10 Profile Summary (like Campaign Advertiser table) ── -->
+  <div class="card" style="margin-bottom:14px">
+    <div class="card-hd">
+      <div class="card-title"><i class="fas fa-trophy" style="color:#f59e0b;margin-right:6px"></i>Top 10 Profiles — Full Metrics</div>
+      <span id="soc-top10-lbl" class="fs11 text-muted"></span>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="soc-tbl" style="min-width:860px">
+        <thead>
+          <tr>
+            <th style="width:24px">#</th>
+            <th onclick="socTop10Sort('profile')">Profile</th>
+            <th class="num" onclick="socTop10Sort('audience')">Audience</th>
+            <th class="num" onclick="socTop10Sort('growth')">Net Growth</th>
+            <th class="num" onclick="socTop10Sort('reach')">Reach</th>
+            <th class="num" onclick="socTop10Sort('impressions')">Impressions</th>
+            <th class="num" onclick="socTop10Sort('posts')">Posts</th>
+            <th class="num" onclick="socTop10Sort('videoviews')">Video Views</th>
+            <th class="num" onclick="socTop10Sort('clicks')">Clicks</th>
+            <th class="num" onclick="socTop10Sort('engrate')">Eng. Rate</th>
+          </tr>
+        </thead>
+        <tbody id="socTop10Tbody">
+          <tr><td colspan="10" style="text-align:center;padding:24px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Row 6: Performance Detail Table (full paginated) ──────────────── -->
   <div class="card">
     <div class="card-hd">
       <div class="card-title"><i class="fas fa-table-list" style="color:#2ea44f;margin-right:6px"></i>Profile Performance Detail</div>
@@ -372,21 +401,25 @@ let _socSortKey='impressions', _socSortAsc=false;
 let _socTrendChart=null, _socActivityChart=null;
 const SOC_COLORS=['#2ea44f','#4285f4','#a78bfa','#f59e0b','#f43f5e','#00d68f','#60a5fa','#e879f9','#fb923c','#38bdf8'];
 
-function socFmt(n){n=parseFloat(n)||0;if(n>=1e6)return(n/1e6).toFixed(2)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return n.toFixed(0);}
-function socFmtShort(n){n=parseFloat(n)||0;if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return n.toFixed(0);}
+function socFmt(n){n=parseFloat(n)||0;if(n>=1e9)return(n/1e9).toFixed(2)+'B';if(n>=1e6)return(n/1e6).toFixed(2)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return n.toFixed(0);}
+function socFmtKpi(n){n=parseFloat(n)||0;if(n>=1e9)return(n/1e9).toFixed(2)+'B';if(n>=1e6)return(n/1e6).toFixed(2)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return n.toFixed(0);}
+function socFmtShort(n){n=parseFloat(n)||0;if(n>=1e9)return(n/1e9).toFixed(1)+'B';if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return n.toFixed(0);}
 
 // ── Field accessors ───────────────────────────────────────────────────────────
 function socG(r,keys){for(const k of keys){if(r[k]!==undefined&&String(r[k]).trim()!=='')return r[k];}return '';}
-function socGetProfile(r)    {return socG(r,['Profile name','Profile Name','Profile','profile','Account','account','Page Name','Page']);}
-function socGetMonth(r)      {return socG(r,['Month','month','Period','period','Date','date','Report Month']);}
-function socGetAudience(r)   {return socG(r,['Audience','audience','Followers','followers','Total Audience','Total Followers','Audience Size']);}
-function socGetGrowth(r)     {return socG(r,['Net audience growth','Net Audience Growth','Net Growth','net_growth','Audience Growth','Audience Change','Change Audience','Audience Change (Net)']);}
-function socGetReach(r)      {return socG(r,['Reach','reach','Total Reach','Organic Reach','Paid Reach']);}
-function socGetImpr(r)       {return socG(r,['Impressions','impressions','Total Impressions','Organic Impressions','Paid Impressions']);}
-function socGetPosts(r)      {return socG(r,['Posts','posts','Total Posts','Post Count','Published Posts','Number of Posts']);}
-function socGetViews(r)      {return socG(r,['Video views','Video Views','video_views','Views','views','Video View Count']);}
-function socGetClicks(r)     {return socG(r,['Clicks','clicks','Total Clicks','Link Clicks','Click Count']);}
-function socGetEngRate(r)    {return socG(r,['Engagement Rate','engagement_rate','Eng Rate','Eng. Rate','Average Engagement Rate','Avg Engagement Rate']);}
+// Parse numeric value — strips commas, spaces, parentheses
+function socParseNum(v){if(v===undefined||v===''||v===null)return 0;const s=String(v).replace(/,|\s/g,'').replace(/\(([\d.]+)\)/,'-$1');return parseFloat(s)||0;}
+function socGetProfile(r)    {return socG(r,['Profile name','Profile Name','Profile','profile','Account Name','Account','account','Page Name','Page','Handle','handle','Network Profile','Social Profile']);}
+function socGetMonth(r)      {return socG(r,['Month','month','Period','period','Date','date','Report Month','Reporting Period','Report Date','Month/Year']);}
+function socGetAudience(r)   {return socG(r,['Audience','audience','Followers','followers','Total Audience','Total Followers','Audience Size','Fans','Total Fans','Subscribers','Total Subscribers']);}
+function socGetGrowth(r)     {return socG(r,['Net audience growth','Net Audience Growth','Net Growth','net_growth','Audience Growth','Audience Change','Change Audience','Audience Change (Net)','Follower Growth','New Followers','Net New Followers','Followers Gained Net']);}
+function socGetReach(r)      {return socG(r,['Reach','reach','Total Reach','Organic Reach','Paid Reach','Post Reach','Lifetime Reach']);}
+function socGetImpr(r)       {return socG(r,['Impressions','impressions','Total Impressions','Organic Impressions','Paid Impressions','Post Impressions','Lifetime Impressions']);}
+function socGetPosts(r)      {return socG(r,['Posts','posts','Total Posts','Post Count','Published Posts','Number of Posts','Posts Published','Content Published']);}
+function socGetViews(r)      {return socG(r,['Video views','Video Views','video_views','Views','views','Video View Count','Total Video Views','Video Plays','3-Second Video Views']);}
+function socGetClicks(r)     {return socG(r,['Clicks','clicks','Total Clicks','Link Clicks','Click Count','Post Clicks','URL Clicks','Link Click']);}
+function socGetEngRate(r)    {return socG(r,['Engagement Rate','engagement_rate','Eng Rate','Eng. Rate','Average Engagement Rate','Avg Engagement Rate','Avg. Engagement Rate','ER','er']);}
+function socGetEngagements(r){return socG(r,['Engagements','engagements','Total Engagements','Reactions','Interactions','Total Interactions','Likes + Comments + Shares']);}
 
 async function loadSocialData(){
   const src=document.getElementById('soc-src-status');
@@ -402,21 +435,19 @@ async function loadSocialData(){
     }
     _socRows=r.rows||[];
     if(_socRows.length>0){
-      console.log('[Social] Columns detected:', Object.keys(_socRows[0]));
+      const cols=Object.keys(_socRows[0]);
+      console.log('[Social] Columns detected:', cols);
       console.log('[Social] Sample row:', _socRows[0]);
-      console.log('[Social] Field mapping test:', {
-        profile:socGetProfile(_socRows[0]), month:socGetMonth(_socRows[0]),
-        audience:socGetAudience(_socRows[0]), growth:socGetGrowth(_socRows[0]),
-        reach:socGetReach(_socRows[0]), impressions:socGetImpr(_socRows[0]),
-        posts:socGetPosts(_socRows[0]), views:socGetViews(_socRows[0]),
-        clicks:socGetClicks(_socRows[0])
-      });
+      const fm={profile:socGetProfile(_socRows[0]),month:socGetMonth(_socRows[0]),audience:socGetAudience(_socRows[0]),growth:socGetGrowth(_socRows[0]),reach:socGetReach(_socRows[0]),impressions:socGetImpr(_socRows[0]),posts:socGetPosts(_socRows[0]),views:socGetViews(_socRows[0]),clicks:socGetClicks(_socRows[0])};
+      console.log('[Social] Field mapping test:', fm);
+      const missing=Object.entries(fm).filter(([,v])=>!v).map(([k])=>k);
+      if(missing.length>0)console.warn('[Social] Missing fields:', missing, '— Cols:', cols.join(', '));
     }
     if(_socRows.length===0){
       if(src)src.innerHTML='<span style="color:#f59e0b;font-size:11px"><i class="fas fa-triangle-exclamation"></i> Tab "'+r.tab+'" is empty</span>';
       socShowEmpty('No data in "'+r.tab+'"'); return;
     }
-    if(src)src.innerHTML='<span style="color:#00d68f;font-size:11px"><i class="fas fa-circle-check"></i> '+_socRows.length+' rows from "'+r.tab+'"</span>';
+    if(src)src.innerHTML='<span style="color:#00d68f;font-size:11px"><i class="fas fa-circle-check"></i> '+_socRows.length+' rows · '+Object.keys(_socRows[0]||{}).length+' cols from "'+r.tab+'"</span>';
     socPopulateFilters();
     socApplyFilters();
   }catch(e){
@@ -431,6 +462,8 @@ function socShowEmpty(reason=''){
   const emptyHtml='<div style="text-align:center;padding:32px"><i class="fas fa-plug" style="color:#f59e0b;font-size:16px"></i><br><span style="font-size:11px;color:var(--text-muted);display:block;margin-top:8px">No data available'+msg+'</span></div>';
   const tbody=document.getElementById('socTbody');
   if(tbody)tbody.innerHTML='<tr><td colspan="9">'+emptyHtml+'</td></tr>';
+  const top10=document.getElementById('socTop10Tbody');
+  if(top10)top10.innerHTML='<tr><td colspan="10">'+emptyHtml+'</td></tr>';
   ['socProfileBars','socGrowthRanking','socActivityBars'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML='<div style="text-align:center;padding:16px;color:var(--text-muted);font-size:12px">No data</div>';});
   ['soc-kv-audience','soc-kv-growth','soc-kv-reach','soc-kv-impr','soc-kv-views','soc-kv-clicks','soc-kv-posts','soc-kv-engrate']
     .forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML='<span style="font-size:14px;color:var(--text-muted)">—</span>';});
@@ -475,6 +508,7 @@ function socApplyFilters(){
   socRenderCharts();        // also renders ActivityChart + ActivityBars internally
   socRenderProfileBars();
   socRenderGrowthRanking();
+  socRenderTop10();
   socRenderPage();
 }
 
@@ -485,16 +519,16 @@ function socReset(){
 }
 
 function socRenderKPIs(){
-  const totalAudience=_socFiltered.reduce((s,r)=>s+parseFloat(socGetAudience(r)||'0'),0);
-  const totalGrowth=_socFiltered.reduce((s,r)=>s+parseFloat(socGetGrowth(r)||'0'),0);
-  const totalReach=_socFiltered.reduce((s,r)=>s+parseFloat(socGetReach(r)||'0'),0);
-  const totalImpr=_socFiltered.reduce((s,r)=>s+parseFloat(socGetImpr(r)||'0'),0);
-  const totalViews=_socFiltered.reduce((s,r)=>s+parseFloat(socGetViews(r)||'0'),0);
-  const totalClicks=_socFiltered.reduce((s,r)=>s+parseFloat(socGetClicks(r)||'0'),0);
-  const totalPosts=_socFiltered.reduce((s,r)=>s+parseFloat(socGetPosts(r)||'0'),0);
+  const totalAudience=_socFiltered.reduce((s,r)=>s+socParseNum(socGetAudience(r)),0);
+  const totalGrowth=_socFiltered.reduce((s,r)=>s+socParseNum(socGetGrowth(r)),0);
+  const totalReach=_socFiltered.reduce((s,r)=>s+socParseNum(socGetReach(r)),0);
+  const totalImpr=_socFiltered.reduce((s,r)=>s+socParseNum(socGetImpr(r)),0);
+  const totalViews=_socFiltered.reduce((s,r)=>s+socParseNum(socGetViews(r)),0);
+  const totalClicks=_socFiltered.reduce((s,r)=>s+socParseNum(socGetClicks(r)),0);
+  const totalPosts=_socFiltered.reduce((s,r)=>s+socParseNum(socGetPosts(r)),0);
   // Avg engagement rate (weighted by impressions where available)
   const erRows=_socFiltered.filter(r=>socGetEngRate(r)!=='');
-  const avgEr=erRows.length>0?(erRows.reduce((s,r)=>s+parseFloat(socGetEngRate(r)||'0'),0)/erRows.length).toFixed(2):null;
+  const avgEr=erRows.length>0?(erRows.reduce((s,r)=>s+socParseNum(socGetEngRate(r)),0)/erRows.length).toFixed(2):null;
   const growthCls=totalGrowth>=0?'up':'dn';
   const growthSign=totalGrowth>=0?'+':'';
   const profiles=new Set(_socFiltered.map(r=>socGetProfile(r)).filter(Boolean));
@@ -502,12 +536,12 @@ function socRenderKPIs(){
     const vEl=document.getElementById(vid);const sEl=document.getElementById(sid);
     if(vEl)vEl.textContent=v;if(sEl){sEl.innerHTML=sub;if(cls)sEl.className='soc-kpi-sub '+cls;}
   };
-  setK('soc-kv-audience','soc-ks-audience',socFmt(totalAudience),'<span class="text-muted">'+profiles.size+' profiles</span>');
-  setK('soc-kv-growth','soc-ks-growth',growthSign+socFmt(totalGrowth),'<span class="text-muted">net followers gained</span>',growthCls);
-  setK('soc-kv-reach','soc-ks-reach',socFmt(totalReach),'<span class="text-muted">total reach</span>');
-  setK('soc-kv-impr','soc-ks-impr',socFmt(totalImpr),'<span class="text-muted">total impressions</span>');
-  setK('soc-kv-views','soc-ks-views',socFmt(totalViews),'<span class="text-muted">video views</span>');
-  setK('soc-kv-clicks','soc-ks-clicks',socFmt(totalClicks),'<span class="text-muted">total clicks</span>');
+  setK('soc-kv-audience','soc-ks-audience',socFmtKpi(totalAudience),'<span class="text-muted">'+profiles.size+' profiles</span>');
+  setK('soc-kv-growth','soc-ks-growth',growthSign+socFmtKpi(totalGrowth),'<span class="text-muted">net followers gained</span>',growthCls);
+  setK('soc-kv-reach','soc-ks-reach',socFmtKpi(totalReach),'<span class="text-muted">total reach</span>');
+  setK('soc-kv-impr','soc-ks-impr',socFmtKpi(totalImpr),'<span class="text-muted">total impressions</span>');
+  setK('soc-kv-views','soc-ks-views',socFmtKpi(totalViews),'<span class="text-muted">video views</span>');
+  setK('soc-kv-clicks','soc-ks-clicks',socFmtKpi(totalClicks),'<span class="text-muted">total clicks</span>');
   setK('soc-kv-posts','soc-ks-posts',totalPosts.toFixed(0),'<span class="text-muted">total posts</span>');
   setK('soc-kv-engrate','soc-ks-engrate',avgEr!==null?avgEr+'%':'—',avgEr?'<span class="text-muted">avg across profiles</span>':'<span class="text-muted">no rate data</span>');
 }
@@ -518,9 +552,9 @@ function socRenderCharts(){
   _socFiltered.forEach(r=>{
     const m=socGetMonth(r)||'?';
     if(!byMonth[m])byMonth[m]={reach:0,impr:0,growth:0};
-    byMonth[m].reach+=parseFloat(socGetReach(r)||'0');
-    byMonth[m].impr+=parseFloat(socGetImpr(r)||'0');
-    byMonth[m].growth+=parseFloat(socGetGrowth(r)||'0');
+    byMonth[m].reach+=socParseNum(socGetReach(r));
+    byMonth[m].impr+=socParseNum(socGetImpr(r));
+    byMonth[m].growth+=socParseNum(socGetGrowth(r));
   });
   const mLabels=Object.keys(byMonth);
   const mReach=mLabels.map(k=>byMonth[k].reach);
@@ -533,16 +567,16 @@ function socRenderCharts(){
     _socTrendChart=new Chart(tCtx,{type:'line',data:{labels:mLabels,datasets:[
       {label:'Reach',data:mReach,borderColor:'#2ea44f',backgroundColor:'rgba(46,164,79,0.08)',fill:true,tension:0.4,pointRadius:4,borderWidth:2.5},
       {label:'Impressions',data:mImpr,borderColor:'#a78bfa',backgroundColor:'transparent',borderDash:[5,3],tension:0.3,pointRadius:3,borderWidth:1.5}
-    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#8080a8',font:{size:10},boxWidth:10,padding:10}}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#48486a',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#48486a',font:{size:9},callback:v=>socFmtShort(v)}}}}});
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#c8c8e8',font:{size:10},boxWidth:10,padding:10}}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#a0a0c0',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#a0a0c0',font:{size:9},callback:v=>socFmtShort(v)}}}}});
   }
   // Activity chart by profile (posts)
   const byProfile={};
   _socFiltered.forEach(r=>{
     const p=socGetProfile(r)||'—';
     if(!byProfile[p])byProfile[p]={posts:0,reach:0,impr:0};
-    byProfile[p].posts+=parseFloat(socGetPosts(r)||'0');
-    byProfile[p].reach+=parseFloat(socGetReach(r)||'0');
-    byProfile[p].impr+=parseFloat(socGetImpr(r)||'0');
+    byProfile[p].posts+=socParseNum(socGetPosts(r));
+    byProfile[p].reach+=socParseNum(socGetReach(r));
+    byProfile[p].impr+=socParseNum(socGetImpr(r));
   });
   const pLabels=Object.keys(byProfile);
   const pPostsRaw=pLabels.map(k=>byProfile[k].posts);
@@ -553,7 +587,7 @@ function socRenderCharts(){
   const aCtx=document.getElementById('socActivityChart');
   if(aCtx){
     if(_socActivityChart){_socActivityChart.destroy();_socActivityChart=null;}
-    _socActivityChart=new Chart(aCtx,{type:'doughnut',data:{labels:pSortedLabels,datasets:[{data:pPosts,backgroundColor:pSortedLabels.map((_,i)=>SOC_COLORS[i%SOC_COLORS.length]),borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{color:'#8080a8',font:{size:10},boxWidth:9,padding:8,generateLabels:ch=>{const ds=ch.data.datasets[0];return ch.data.labels.map((l,i)=>{const pct=Math.round(ds.data[i]/pTotal*100);return{text:l+' '+pct+'%',fillStyle:ds.backgroundColor[i],strokeStyle:'transparent',lineWidth:0,index:i};});}}},tooltip:{callbacks:{label:c=>{const pct=Math.round(c.parsed/pTotal*100);return ' '+c.label+': '+c.parsed+' posts ('+pct+'%)';}}}}}});
+    _socActivityChart=new Chart(aCtx,{type:'doughnut',data:{labels:pSortedLabels,datasets:[{data:pPosts,backgroundColor:pSortedLabels.map((_,i)=>SOC_COLORS[i%SOC_COLORS.length]),borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{color:'#c8c8e8',font:{size:10},boxWidth:9,padding:8,generateLabels:ch=>{const ds=ch.data.datasets[0];return ch.data.labels.map((l,i)=>{const pct=Math.round(ds.data[i]/pTotal*100);return{text:l+' '+pct+'%',fillStyle:ds.backgroundColor[i],strokeStyle:'transparent',lineWidth:0,index:i};});}}},tooltip:{callbacks:{label:c=>{const pct=Math.round(c.parsed/pTotal*100);return ' '+c.label+': '+c.parsed+' posts ('+pct+'%)';}}}}}});
   }
   const total=pTotal;
   const abEl=document.getElementById('socActivityBars');
@@ -566,7 +600,7 @@ function socRenderProfileBars(){
   const byProfile={};
   _socFiltered.forEach(r=>{
     const p=socGetProfile(r)||'—';
-    byProfile[p]=(byProfile[p]||0)+parseFloat(socGetImpr(r)||'0');
+    byProfile[p]=(byProfile[p]||0)+socParseNum(socGetImpr(r));
   });
   const sorted=Object.entries(byProfile).sort((a,b)=>b[1]-a[1]);
   if(!sorted.length){el.innerHTML='<div style="text-align:center;padding:16px;color:var(--text-muted);font-size:12px">No data</div>';return;}
@@ -584,9 +618,9 @@ function socRenderGrowthRanking(){
   _socFiltered.forEach(r=>{
     const p=socGetProfile(r)||'—';
     if(!byProfile[p])byProfile[p]={growth:0,audience:0,reach:0};
-    byProfile[p].growth+=parseFloat(socGetGrowth(r)||'0');
-    byProfile[p].audience+=parseFloat(socGetAudience(r)||'0');
-    byProfile[p].reach+=parseFloat(socGetReach(r)||'0');
+    byProfile[p].growth+=socParseNum(socGetGrowth(r));
+    byProfile[p].audience+=socParseNum(socGetAudience(r));
+    byProfile[p].reach+=socParseNum(socGetReach(r));
   });
   const sorted=Object.entries(byProfile).sort((a,b)=>b[1].growth-a[1].growth);
   if(!sorted.length){el.innerHTML='<div style="text-align:center;padding:16px;color:var(--text-muted);font-size:12px">No data</div>';return;}
@@ -599,6 +633,80 @@ function socRenderGrowthRanking(){
       '<div style="font-size:10px;color:var(--text-muted)">Audience: '+socFmt(d.audience)+' · Reach: '+socFmt(d.reach)+'</div></div>'+
       '<span style="font-size:13px;font-weight:800;color:'+col+'">'+growthSign+socFmt(d.growth)+'</span>'+
     '</div>';
+  }).join('');
+}
+
+
+// ── Top-10 profile summary table ────────────────────────────────────────────
+let _socTop10SortKey='impressions', _socTop10SortAsc=false;
+
+function socTop10Sort(key){
+  if(_socTop10SortKey===key)_socTop10SortAsc=!_socTop10SortAsc;else{_socTop10SortKey=key;_socTop10SortAsc=false;}
+  socRenderTop10();
+}
+
+function socRenderTop10(){
+  const tbody=document.getElementById('socTop10Tbody');
+  const lbl=document.getElementById('soc-top10-lbl');
+  if(!tbody) return;
+
+  // Aggregate by profile across all filtered rows
+  const byProfile={};
+  _socFiltered.forEach(r=>{
+    const p=socGetProfile(r)||'—';
+    if(!byProfile[p])byProfile[p]={audience:0,growth:0,reach:0,impr:0,posts:0,views:0,clicks:0,erSum:0,erCount:0};
+    const d=byProfile[p];
+    d.audience  +=socParseNum(socGetAudience(r));
+    d.growth    +=socParseNum(socGetGrowth(r));
+    d.reach     +=socParseNum(socGetReach(r));
+    d.impr      +=socParseNum(socGetImpr(r));
+    d.posts     +=socParseNum(socGetPosts(r));
+    d.views     +=socParseNum(socGetViews(r));
+    d.clicks    +=socParseNum(socGetClicks(r));
+    const er=socParseNum(socGetEngRate(r));
+    if(er>0){d.erSum+=er;d.erCount++;}
+  });
+
+  const getVal=(d,key)=>{
+    if(key==='audience')return d.audience;
+    if(key==='growth')return d.growth;
+    if(key==='reach')return d.reach;
+    if(key==='impressions')return d.impr;
+    if(key==='posts')return d.posts;
+    if(key==='videoviews')return d.views;
+    if(key==='clicks')return d.clicks;
+    if(key==='engrate')return d.erCount>0?d.erSum/d.erCount:0;
+    return d.impr;
+  };
+
+  const sorted=Object.entries(byProfile)
+    .sort((a,b)=>_socTop10SortAsc?(getVal(a[1],_socTop10SortKey)-getVal(b[1],_socTop10SortKey)):(getVal(b[1],_socTop10SortKey)-getVal(a[1],_socTop10SortKey)))
+    .slice(0,10);
+
+  if(lbl)lbl.textContent='Top '+sorted.length+' profiles · sorted by '+_socTop10SortKey;
+  if(!sorted.length){
+    tbody.innerHTML='<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--text-muted)">No data</td></tr>';
+    return;
+  }
+
+  const RANK_COLORS=['#f59e0b','#94a3b8','#fb923c','#4285f4','#a78bfa','#2ea44f','#f43f5e','#60a5fa','#e879f9','#38bdf8'];
+  tbody.innerHTML=sorted.map(([name,d],i)=>{
+    const avgEr=d.erCount>0?(d.erSum/d.erCount).toFixed(2)+'%':'—';
+    const growthCol=d.growth>=0?'#00d68f':'#f43f5e';
+    const growthSign=d.growth>=0?'+':'';
+    const rankColor=RANK_COLORS[i]||'#8080a8';
+    return '<tr>'+
+      '<td style="font-weight:800;color:'+rankColor+';font-size:12px;text-align:center">'+(i+1)+'</td>'+
+      '<td class="fw6" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+name+'">'+name+'</td>'+
+      '<td class="num fw6">'+socFmtKpi(d.audience)+'</td>'+
+      '<td class="num fw7" style="color:'+growthCol+'">'+growthSign+socFmtKpi(d.growth)+'</td>'+
+      '<td class="num">'+socFmtKpi(d.reach)+'</td>'+
+      '<td class="num fw6" style="color:#a78bfa">'+socFmtKpi(d.impr)+'</td>'+
+      '<td class="num">'+socFmtKpi(d.posts)+'</td>'+
+      '<td class="num">'+socFmtKpi(d.views)+'</td>'+
+      '<td class="num">'+socFmtKpi(d.clicks)+'</td>'+
+      '<td class="num fw7" style="color:#f59e0b">'+avgEr+'</td>'+
+    '</tr>';
   }).join('');
 }
 
@@ -615,19 +723,19 @@ function socRenderPage(){
   document.getElementById('soc-count').textContent=total+' records';
   if(!page.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text-muted)">No records match filters</td></tr>';return;}
   tbody.innerHTML=page.map(r=>{
-    const growth=parseFloat(socGetGrowth(r)||'0');
+    const growth=socParseNum(socGetGrowth(r));
     const growthCol=growth>=0?'#00d68f':'#f43f5e';
     const growthSign=growth>=0?'+':'';
     return '<tr>'+
       '<td class="fw6">'+(socGetProfile(r)||'—')+'</td>'+
       '<td style="color:var(--text-muted);font-size:11px">'+(socGetMonth(r)||'—')+'</td>'+
-      '<td class="num fw6">'+socFmt(parseFloat(socGetAudience(r)||'0'))+'</td>'+
+      '<td class="num fw6">'+socFmt(socParseNum(socGetAudience(r)))+'</td>'+
       '<td class="num fw7" style="color:'+growthCol+'">'+growthSign+socFmt(growth)+'</td>'+
-      '<td class="num">'+socFmt(parseFloat(socGetReach(r)||'0'))+'</td>'+
-      '<td class="num">'+socFmt(parseFloat(socGetImpr(r)||'0'))+'</td>'+
-      '<td class="num">'+socFmt(parseFloat(socGetPosts(r)||'0'))+'</td>'+
-      '<td class="num">'+socFmt(parseFloat(socGetViews(r)||'0'))+'</td>'+
-      '<td class="num">'+socFmt(parseFloat(socGetClicks(r)||'0'))+'</td>'+
+      '<td class="num">'+socFmt(socParseNum(socGetReach(r)))+'</td>'+
+      '<td class="num">'+socFmt(socParseNum(socGetImpr(r)))+'</td>'+
+      '<td class="num">'+socFmt(socParseNum(socGetPosts(r)))+'</td>'+
+      '<td class="num">'+socFmt(socParseNum(socGetViews(r)))+'</td>'+
+      '<td class="num">'+socFmt(socParseNum(socGetClicks(r)))+'</td>'+
     '</tr>';
   }).join('');
 }

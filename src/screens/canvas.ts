@@ -411,8 +411,8 @@ function changeDataSource(val) {
   const chartDefaults = {
     plugins: { legend: { display: false }, tooltip: { backgroundColor:'#0f0f1f', borderColor:'rgba(255,255,255,0.08)', borderWidth:1, titleColor:'#f0f0ff', bodyColor:'#8080a8', padding:10, cornerRadius:8 } },
     scales: {
-      x: { grid:{color:'rgba(255,255,255,0.03)'}, ticks:{color:'#48486a',font:{size:10}}, border:{display:false} },
-      y: { grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#48486a',font:{size:10}}, border:{display:false} }
+      x: { grid:{color:'rgba(255,255,255,0.03)'}, ticks:{color:'#a0a0c0',font:{size:10}}, border:{display:false} },
+      y: { grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#a0a0c0',font:{size:10}}, border:{display:false} }
     },
     responsive: true, maintainAspectRatio: false
   };
@@ -447,7 +447,7 @@ function changeDataSource(val) {
       }]
     },
     options: { responsive:true, maintainAspectRatio:false, cutout:'66%',
-      plugins: { legend:{ display:true, position:'bottom', labels:{color:'#8080a8',font:{size:9},padding:10,boxWidth:9} }, tooltip: chartDefaults.plugins.tooltip }
+      plugins: { legend:{ display:true, position:'bottom', labels:{color:'#c8c8e8',font:{size:9},padding:10,boxWidth:9} }, tooltip: chartDefaults.plugins.tooltip }
     }
   });
 
@@ -464,7 +464,7 @@ function changeDataSource(val) {
       ]
     },
     options: { ...chartDefaults,
-      plugins: { ...chartDefaults.plugins, legend:{ display:true, position:'top', labels:{color:'#8080a8',font:{size:10},padding:10,boxWidth:10} } },
+      plugins: { ...chartDefaults.plugins, legend:{ display:true, position:'top', labels:{color:'#c8c8e8',font:{size:10},padding:10,boxWidth:10} } },
       scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, ticks:{...chartDefaults.scales.y.ticks, callback: v=>'RM'+v+'M'} } }
     }
   });

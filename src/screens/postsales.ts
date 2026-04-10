@@ -271,20 +271,26 @@ const REV_COLORS=['#4285f4','#a78bfa','#00d68f','#f59e0b','#f43f5e','#34d399','#
   '#a5f3fc','#d8b4fe','#fed7aa','#bfdbfe'];
 const TYPE_COLORS={'AA':'#4285f4','Direct':'#00d68f','Programmatic':'#f59e0b','Digital':'#a78bfa','Print':'#f43f5e'};
 
+// Full format for tables/tooltips: RM 1.23M / RM 456.7K / RM 89
 function revFmt(n){n=parseFloat(n)||0;if(n>=1e6)return'RM '+(n/1e6).toFixed(2)+'M';if(n>=1e3)return'RM '+(n/1e3).toFixed(1)+'K';return'RM '+n.toFixed(0);}
-function revFmtShort(n){n=parseFloat(n)||0;if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return n.toFixed(0);}
+// Compact for KPI cards: RM 1.2M / RM 456K
+function revFmtKpi(n){n=parseFloat(n)||0;if(n>=1e9)return'RM '+(n/1e9).toFixed(2)+'B';if(n>=1e6)return'RM '+(n/1e6).toFixed(2)+'M';if(n>=1e3)return'RM '+(n/1e3).toFixed(1)+'K';return'RM '+n.toFixed(0);}
+// Chart axis ticks (no prefix)
+function revFmtShort(n){n=parseFloat(n)||0;if(n>=1e9)return(n/1e9).toFixed(1)+'B';if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return n.toFixed(0);}
 
 // ── Field accessors (flexible column name mapping) ───────────────────────────
-function revG(r,keys){for(const k of keys){if(r[k]!==undefined&&r[k]!=='')return r[k];}return'';}
-function revGetRevenue(r) {return revG(r,['Revenue','revenue','Amount','amount','Total','total','Rev','rev','Revenue (RM)','Revenue(RM)','Revenue RM','Nett','Net Revenue']);}
-function revGetTarget(r)  {return revG(r,['Target','target','Budget','budget','Target Revenue','target_revenue','Budget (RM)']);}
-function revGetPortal(r)  {return revG(r,['Portal','portal','Channel','channel','Portals','portals','Publication','Platform','Brand']);}
-function revGetEntity(r)  {return revG(r,['Entity','entity','Business Unit','BusinessUnit','BU','Company','Subsidiary']);}
-function revGetFY(r)      {return revG(r,['Financial Year','FinancialYear','FY','fy','financial_year','Year','year','FY Year','Fiscal Year']);}
-function revGetMonth(r)   {return revG(r,['Month','month','Revenue Month','revenue_month','Period','Bulan','MonthYear']);}
-function revGetType(r)    {return revG(r,['Revenue Type','RevenueType','Type','type','revenue_type','Rev Type','Revenue_Type']);}
-function revGetCat(r)     {return revG(r,['Media Category','MediaCategory','Category','category','Media_Category','Ad Type','Product','media_category']);}
-function revGetDate(r)    {return revG(r,['Date','date','Invoice Date','InvoiceDate','Transaction Date']);}
+function revG(r,keys){for(const k of keys){if(r[k]!==undefined&&r[k]!=='')return r[k];}return '';}
+// Parse numeric value — strips RM, commas, spaces, parentheses (negatives)
+function revParseNum(v){if(v===undefined||v===''||v===null)return 0;const s=String(v).replace(/RM|rm|,|\s/g,'').replace(/\(([\d.]+)\)/,'−$1');return parseFloat(s)||0;}
+function revGetRevenue(r) {return revG(r,['Revenue','revenue','Amount','amount','Total','total','Rev','rev','Revenue (RM)','Revenue(RM)','Revenue RM','Nett','nett','Net Revenue','Gross Revenue','Net','Billed Revenue','Actual Revenue','Recognised Revenue','Recognized Revenue','Invoice Amount','Billing Amount']);}
+function revGetTarget(r)  {return revG(r,['Target','target','Budget','budget','Target Revenue','target_revenue','Budget (RM)','Target (RM)','Revenue Target','KPI','KPI (RM)','Forecast','Plan']);}
+function revGetPortal(r)  {return revG(r,['Portal','portal','Channel','channel','Portals','portals','Publication','Platform','Brand','Property','Media','medium','Media Property','Media Name']);}
+function revGetEntity(r)  {return revG(r,['Entity','entity','Business Unit','BusinessUnit','BU','Company','Subsidiary','Organisation','Organization','Legal Entity','Cost Centre','Cost Center']);}
+function revGetFY(r)      {return revG(r,['Financial Year','FinancialYear','FY','fy','financial_year','Year','year','FY Year','Fiscal Year','FiscalYear','FY25','FY24','FY2025','FY2024']);}
+function revGetMonth(r)   {return revG(r,['Month','month','Revenue Month','revenue_month','Period','Bulan','MonthYear','Mon','MM','Report Month','Invoice Month','Billing Month']);}
+function revGetType(r)    {return revG(r,['Revenue Type','RevenueType','Type','type','revenue_type','Rev Type','Revenue_Type','Sales Type','Revenue Category','Rev Category','Source']);}
+function revGetCat(r)     {return revG(r,['Media Category','MediaCategory','Category','category','Media_Category','Ad Type','Product','media_category','Ad Format','Format','Ad Category','Product Category']);}
+function revGetDate(r)    {return revG(r,['Date','date','Invoice Date','InvoiceDate','Transaction Date','Billing Date','Rev Date','Revenue Date']);}
 
 async function loadRevenueData(){
   const src=document.getElementById('rev-src-status');
@@ -300,20 +306,22 @@ async function loadRevenueData(){
     }
     _revRows=r.rows||[];
     if(_revRows.length>0){
-      console.log('[Revenue] Columns detected:', Object.keys(_revRows[0]));
+      const cols=Object.keys(_revRows[0]);
+      console.log('[Revenue] Columns detected:', cols);
       console.log('[Revenue] Sample row:', _revRows[0]);
-      console.log('[Revenue] Field mapping test on row 0:', {
-        revenue: revGetRevenue(_revRows[0]), target: revGetTarget(_revRows[0]),
-        portal: revGetPortal(_revRows[0]), entity: revGetEntity(_revRows[0]),
-        fy: revGetFY(_revRows[0]), month: revGetMonth(_revRows[0]),
-        type: revGetType(_revRows[0]), category: revGetCat(_revRows[0])
-      });
+      const fm={revenue:revGetRevenue(_revRows[0]),target:revGetTarget(_revRows[0]),portal:revGetPortal(_revRows[0]),entity:revGetEntity(_revRows[0]),fy:revGetFY(_revRows[0]),month:revGetMonth(_revRows[0]),type:revGetType(_revRows[0]),cat:revGetCat(_revRows[0])};
+      console.log('[Revenue] Field mapping test on row 0:', fm);
+      // Show column hint in UI if key fields are empty
+      const missingFields=Object.entries(fm).filter(([,v])=>!v).map(([k])=>k);
+      if(missingFields.length>0){
+        console.warn('[Revenue] Missing fields:', missingFields, '— Sheet columns:', cols.join(', '));
+      }
     }
     if(_revRows.length===0){
       if(src)src.innerHTML='<span style="color:#f59e0b;font-size:11px"><i class="fas fa-triangle-exclamation"></i> Tab "'+r.tab+'" is empty</span>';
       revShowEmpty('No data rows in sheet tab "'+r.tab+'"'); return;
     }
-    if(src)src.innerHTML='<span style="color:#00d68f;font-size:11px"><i class="fas fa-circle-check"></i> '+_revRows.length+' rows from "'+r.tab+'"</span>';
+    if(src)src.innerHTML='<span style="color:#00d68f;font-size:11px"><i class="fas fa-circle-check"></i> '+_revRows.length+' rows · '+Object.keys(_revRows[0]||{}).length+' cols from "'+r.tab+'"</span>';
     revPopulateFilters();
     revApplyFilters();
   }catch(e){
@@ -382,21 +390,21 @@ function revApplyFilters(){
 function revReset(){['rev-fy','rev-portal','rev-cat','rev-type','rev-month'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});const s=document.getElementById('rev-search');if(s)s.value='';revApplyFilters();}
 
 function revRenderKPIs(){
-  const totalRev=_revFiltered.reduce((s,r)=>s+parseFloat(revGetRevenue(r)||'0'),0);
-  const totalTgt=_revFiltered.reduce((s,r)=>s+parseFloat(revGetTarget(r)||'0'),0);
+  const totalRev=_revFiltered.reduce((s,r)=>s+revParseNum(revGetRevenue(r)),0);
+  const totalTgt=_revFiltered.reduce((s,r)=>s+revParseNum(revGetTarget(r)),0);
   const ach=totalTgt>0?(totalRev/totalTgt*100).toFixed(1):'—';
   // By Portal
-  const byPortal={};_revFiltered.forEach(r=>{const p=revGetPortal(r)||'—';byPortal[p]=(byPortal[p]||0)+parseFloat(revGetRevenue(r)||'0');});
+  const byPortal={};_revFiltered.forEach(r=>{const p=revGetPortal(r)||'—';byPortal[p]=(byPortal[p]||0)+revParseNum(revGetRevenue(r));});
   const topPortal=Object.entries(byPortal).sort((a,b)=>b[1]-a[1])[0]||['—',0];
   // By category
-  const byCat={};_revFiltered.forEach(r=>{const c=revGetCat(r)||'—';byCat[c]=(byCat[c]||0)+parseFloat(revGetRevenue(r)||'0');});
+  const byCat={};_revFiltered.forEach(r=>{const c=revGetCat(r)||'—';byCat[c]=(byCat[c]||0)+revParseNum(revGetRevenue(r));});
   const topCat=Object.entries(byCat).sort((a,b)=>b[1]-a[1])[0]||['—',0];
   // Types count
   const types=new Set(_revFiltered.map(r=>revGetType(r)).filter(Boolean));
   // Months
   const months=new Set(_revFiltered.map(r=>revGetMonth(r)).filter(Boolean));
   // MoM: compare last two months
-  const byMonth={};_revFiltered.forEach(r=>{const m=revGetMonth(r);if(m){byMonth[m]=(byMonth[m]||0)+parseFloat(revGetRevenue(r)||'0');}});
+  const byMonth={};_revFiltered.forEach(r=>{const m=revGetMonth(r);if(m){byMonth[m]=(byMonth[m]||0)+revParseNum(revGetRevenue(r));}});
   const sortedMonths=Object.keys(byMonth).sort();
   let momTxt='—',momCls='';
   if(sortedMonths.length>=2){
@@ -410,13 +418,13 @@ function revRenderKPIs(){
     const v=document.getElementById(vid);const s=document.getElementById(sid);
     if(v)v.textContent=val;if(s){s.innerHTML=subHtml;if(subCls)s.className='ps-kpi-sub '+subCls;}
   };
-  setKpi('rev-kv-total','rev-ks-total',revFmt(totalRev),'<span class="text-muted">'+_revFiltered.length+' records</span>');
-  setKpi('rev-kv-target','rev-ks-target',revFmt(totalTgt),totalTgt?'<span class="text-muted">Total target</span>':'<span class="text-muted">No target data</span>');
+  setKpi('rev-kv-total','rev-ks-total',revFmtKpi(totalRev),'<span class="text-muted">'+_revFiltered.length+' records</span>');
+  setKpi('rev-kv-target','rev-ks-target',revFmtKpi(totalTgt),totalTgt?'<span class="text-muted">Total target</span>':'<span class="text-muted">No target data</span>');
   const achN=parseFloat(ach)||0;
   setKpi('rev-kv-ach','rev-ks-ach',ach!=='—'?ach+'%':ach,'<span>'+(achN>=100?'On target ✓':achN>=80?'Near target':'Below target')+'</span>',achN>=100?'up':achN>=80?'flat':'dn');
   setKpi('rev-kv-mom','rev-ks-mom',momTxt==='+0.0%'?'Flat':momTxt,'<span class="text-muted">vs prior month</span>',momCls||'flat');
-  setKpi('rev-kv-portal','rev-ks-portal',String(topPortal[0]),'<span class="text-muted">'+revFmt(Number(topPortal[1]))+' highest</span>');
-  setKpi('rev-kv-cat','rev-ks-cat',String(topCat[0]),'<span class="text-muted">'+revFmt(Number(topCat[1]))+'</span>');
+  setKpi('rev-kv-portal','rev-ks-portal',String(topPortal[0]),'<span class="text-muted">'+revFmtKpi(Number(topPortal[1]))+' highest</span>');
+  setKpi('rev-kv-cat','rev-ks-cat',String(topCat[0]),'<span class="text-muted">'+revFmtKpi(Number(topCat[1]))+'</span>');
   setKpi('rev-kv-types','rev-ks-types',String(types.size),'<span class="text-muted">revenue types</span>');
   setKpi('rev-kv-mths','rev-ks-mths',String(months.size),'<span class="text-muted">months with data</span>');
 }
@@ -424,7 +432,7 @@ function revRenderKPIs(){
 function revRenderCharts(){
   // Trend: group by Month
   const byMonth={};
-  _revFiltered.forEach(r=>{const m=revGetMonth(r)||'?';byMonth[m]=(byMonth[m]||{rev:0,tgt:0});byMonth[m].rev+=parseFloat(revGetRevenue(r)||'0');byMonth[m].tgt+=parseFloat(revGetTarget(r)||'0');});
+  _revFiltered.forEach(r=>{const m=revGetMonth(r)||'?';byMonth[m]=(byMonth[m]||{rev:0,tgt:0});byMonth[m].rev+=revParseNum(revGetRevenue(r));byMonth[m].tgt+=revParseNum(revGetTarget(r));});
   const mLabels=Object.keys(byMonth);
   const mRevs=mLabels.map(k=>byMonth[k].rev);
   const mTgts=mLabels.map(k=>byMonth[k].tgt);
@@ -436,10 +444,10 @@ function revRenderCharts(){
     _revTrendChart=new Chart(tCtx,{type:'line',data:{labels:mLabels,datasets:[
       {label:'Revenue',data:mRevs,borderColor:'#4285f4',backgroundColor:'rgba(66,133,244,0.08)',fill:true,tension:0.4,pointRadius:4,pointBackgroundColor:'#4285f4',borderWidth:2.5},
       {label:'Target',data:mTgts,borderColor:'#f59e0b',backgroundColor:'transparent',borderDash:[6,3],tension:0.3,pointRadius:3,borderWidth:1.5}
-    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#8080a8',font:{size:10},boxWidth:10,padding:10}}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#48486a',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#48486a',font:{size:9},callback:v=>revFmtShort(v)}}}}});
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#c8c8e8',font:{size:10},boxWidth:10,padding:10}}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#a0a0c0',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#a0a0c0',font:{size:9},callback:v=>revFmtShort(v)}}}}});
   }
   // Type donut — sorted highest to lowest, top-10, with % labels
-  const byType={};_revFiltered.forEach(r=>{const t=revGetType(r)||'Other';byType[t]=(byType[t]||0)+parseFloat(revGetRevenue(r)||'0');});
+  const byType={};_revFiltered.forEach(r=>{const t=revGetType(r)||'Other';byType[t]=(byType[t]||0)+revParseNum(revGetRevenue(r));});
   const tSorted=Object.entries(byType).sort((a,b)=>b[1]-a[1]).slice(0,10);
   const tLabels=tSorted.map(([k])=>k);const tVals=tSorted.map(([,v])=>v);
   const tColors=tLabels.map(k=>TYPE_COLORS[k]||REV_COLORS[tLabels.indexOf(k)%REV_COLORS.length]);
@@ -447,7 +455,7 @@ function revRenderCharts(){
   const ttCtx=document.getElementById('revTypeChart');
   if(ttCtx){
     if(_revTypeChart){_revTypeChart.destroy();_revTypeChart=null;}
-    _revTypeChart=new Chart(ttCtx,{type:'doughnut',data:{labels:tLabels,datasets:[{data:tVals,backgroundColor:tColors,borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'right',labels:{color:'#8080a8',font:{size:10},boxWidth:9,padding:8,generateLabels:ch=>{const ds=ch.data.datasets[0];return ch.data.labels.map((l,i)=>{const pct=Math.round(ds.data[i]/tTotal*100);return{text:l+' '+pct+'%',fillStyle:ds.backgroundColor[i],strokeStyle:'transparent',lineWidth:0,index:i};});}}},tooltip:{callbacks:{label:c=>{const pct=Math.round(c.parsed/tTotal*100);return ' '+c.label+': '+revFmt(c.parsed)+' ('+pct+'%)';}}}}}});
+    _revTypeChart=new Chart(ttCtx,{type:'doughnut',data:{labels:tLabels,datasets:[{data:tVals,backgroundColor:tColors,borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'right',labels:{color:'#c8c8e8',font:{size:10},boxWidth:9,padding:8,generateLabels:ch=>{const ds=ch.data.datasets[0];return ch.data.labels.map((l,i)=>{const pct=Math.round(ds.data[i]/tTotal*100);return{text:l+' '+pct+'%',fillStyle:ds.backgroundColor[i],strokeStyle:'transparent',lineWidth:0,index:i};});}}},tooltip:{callbacks:{label:c=>{const pct=Math.round(c.parsed/tTotal*100);return ' '+c.label+': '+revFmt(c.parsed)+' ('+pct+'%)';}}}}}});
   }
   const tbEl=document.getElementById('revTypeBars');
   if(tbEl)tbEl.innerHTML=tLabels.map((l,i)=>{const pct=Math.round(tVals[i]/tTotal*100);return '<div><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="fs11">'+l+'</span><span class="fs11 fw7" style="color:'+tColors[i]+'">'+revFmt(tVals[i])+' <span style="opacity:.7">('+pct+'%)</span></span></div><div class="ps-prog-wrap"><div class="ps-prog-fill" style="width:'+pct*2.2+'%;max-width:100%;background:'+tColors[i]+'"></div></div></div>';}).join('');
@@ -458,7 +466,7 @@ function revRenderCharts(){
     _revTvAChart=new Chart(tvaCtx,{type:'bar',data:{labels:mLabels,datasets:[
       {label:'Actual',data:mRevs,backgroundColor:'rgba(66,133,244,0.75)',borderRadius:4,borderWidth:0},
       {label:'Target',data:mTgts,backgroundColor:'rgba(245,158,11,0.35)',borderRadius:4,borderWidth:0}
-    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#8080a8',font:{size:10},boxWidth:9,padding:8}}},scales:{x:{grid:{display:false},ticks:{color:'#48486a',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#48486a',font:{size:9},callback:v=>revFmtShort(v)}}}}});
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#c8c8e8',font:{size:10},boxWidth:9,padding:8}}},scales:{x:{grid:{display:false},ticks:{color:'#a0a0c0',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#a0a0c0',font:{size:9},callback:v=>revFmtShort(v)}}}}});
   }
 }
 
@@ -467,7 +475,7 @@ function revSetChartMode(mode){revRenderCharts();}
 function revRenderPortalBars(){
   const el=document.getElementById('revPortalBars');
   const cntEl=document.getElementById('rev-portal-count');
-  const byPortal={};_revFiltered.forEach(r=>{const p=revGetPortal(r)||'—';byPortal[p]=(byPortal[p]||0)+parseFloat(revGetRevenue(r)||'0');});
+  const byPortal={};_revFiltered.forEach(r=>{const p=revGetPortal(r)||'—';byPortal[p]=(byPortal[p]||0)+revParseNum(revGetRevenue(r));});
   const sorted=Object.entries(byPortal).sort((a,b)=>b[1]-a[1]).slice(0,10);  // top-10 highest→lowest
   if(!sorted.length){el.innerHTML='<div class="text-muted fs12" style="text-align:center;padding:16px">No data</div>';return;}
   const grandTotal=sorted.reduce((s,[,v])=>s+v,0)||1;
@@ -482,7 +490,7 @@ function revRenderPortalBars(){
 function revRenderEntityBars(){
   const el=document.getElementById('revEntityBars');
   const cntEl=document.getElementById('rev-entity-count');
-  const byEnt={};_revFiltered.forEach(r=>{const e=revGetEntity(r)||'—';byEnt[e]=(byEnt[e]||0)+parseFloat(revGetRevenue(r)||'0');});
+  const byEnt={};_revFiltered.forEach(r=>{const e=revGetEntity(r)||'—';byEnt[e]=(byEnt[e]||0)+revParseNum(revGetRevenue(r));});
   const sorted=Object.entries(byEnt).sort((a,b)=>b[1]-a[1]).slice(0,10);  // top-10 highest→lowest
   if(!sorted.length){el.innerHTML='<div class="text-muted fs12" style="text-align:center;padding:16px">No data</div>';return;}
   if(cntEl)cntEl.textContent='Top '+sorted.length+' entities';
@@ -497,7 +505,7 @@ function revRenderEntityBars(){
 function revRenderAchGrid(){
   const el=document.getElementById('revAchGrid');
   const byPortal={};
-  _revFiltered.forEach(r=>{const p=revGetPortal(r)||'—';if(!byPortal[p])byPortal[p]={rev:0,tgt:0};byPortal[p].rev+=parseFloat(revGetRevenue(r)||'0');byPortal[p].tgt+=parseFloat(revGetTarget(r)||'0');});
+  _revFiltered.forEach(r=>{const p=revGetPortal(r)||'—';if(!byPortal[p])byPortal[p]={rev:0,tgt:0};byPortal[p].rev+=revParseNum(revGetRevenue(r));byPortal[p].tgt+=revParseNum(revGetTarget(r));});
   const sorted=Object.entries(byPortal).filter(([,v])=>v.tgt>0).sort((a,b)=>b[1].rev-a[1].rev).slice(0,10);
   if(!sorted.length){el.innerHTML='<div class="text-muted fs12" style="text-align:center;padding:16px">No target data available</div>';return;}
   el.innerHTML=sorted.map(([name,d])=>{
@@ -525,8 +533,8 @@ function revRenderPage(){
   document.getElementById('rev-count').textContent=total+' records';
   if(!page.length){tbody.innerHTML='<tr><td colspan="9" class="text-muted" style="text-align:center;padding:24px">No records match current filters</td></tr>';return;}
   tbody.innerHTML=page.map(r=>{
-    const rev=parseFloat(revGetRevenue(r)||'0');
-    const tgt=parseFloat(revGetTarget(r)||'0');
+    const rev=revParseNum(revGetRevenue(r));
+    const tgt=revParseNum(revGetTarget(r));
     const ach=tgt>0?(rev/tgt*100).toFixed(1)+'%':'—';
     const achN=parseFloat(ach)||0;
     const achCol=achN>=100?'#00d68f':achN>=80?'#f59e0b':'#f43f5e';
@@ -721,8 +729,11 @@ let _campTrendChart=null, _campTypeChart=null, _campDealChart=null, _campPlatCha
 const CAMP_COLORS=['#4285f4','#a78bfa','#00d68f','#f59e0b','#f43f5e','#34d399','#60a5fa','#e879f9','#fb923c','#38bdf8','#4ade80','#f472b6'];
 
 function campFmt(n){n=parseFloat(n)||0;if(n>=1e6)return'RM '+(n/1e6).toFixed(2)+'M';if(n>=1e3)return'RM '+(n/1e3).toFixed(1)+'K';return'RM '+n.toFixed(0);}
-function campFmtShort(n){n=parseFloat(n)||0;if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return n.toFixed(0);}
-function campG(r,keys){for(const k of keys){if(r[k]!==undefined&&r[k]!=='')return r[k];}return'';}
+function campFmtKpi(n){n=parseFloat(n)||0;if(n>=1e9)return'RM '+(n/1e9).toFixed(2)+'B';if(n>=1e6)return'RM '+(n/1e6).toFixed(2)+'M';if(n>=1e3)return'RM '+(n/1e3).toFixed(1)+'K';return'RM '+n.toFixed(0);}
+function campFmtShort(n){n=parseFloat(n)||0;if(n>=1e9)return(n/1e9).toFixed(1)+'B';if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return n.toFixed(0);}
+function campG(r,keys){for(const k of keys){if(r[k]!==undefined&&r[k]!=='')return r[k];}return '';}
+// Parse numeric value — strips RM, commas, spaces, parentheses
+function campParseNum(v){if(v===undefined||v===''||v===null)return 0;const s=String(v).replace(/RM|rm|,|\s/g,'').replace(/\(([\d.]+)\)/,'-$1');return parseFloat(s)||0;}
 
 function campGetRevenue(r){return campG(r,['Total','total','Revenue','revenue','Amount','amount','Total Revenue','Total (RM)','Revenue (RM)','Nett','nett','Net Revenue','Gross Revenue']);}
 function campGetAdv(r)    {return campG(r,['AdvertiserCompany','Advertiser','advertiser','Client','client','Company','company','Pengiklan','Advertiser Company']);}
@@ -749,20 +760,19 @@ async function loadCampData(){
     }
     _campRows=r.rows||[];
     if(_campRows.length>0){
-      console.log('[Campaign] Columns:', Object.keys(_campRows[0]));
+      const cols=Object.keys(_campRows[0]);
+      console.log('[Campaign] Columns:', cols);
       console.log('[Campaign] Sample row:', _campRows[0]);
-      console.log('[Campaign] Field map test:', {
-        revenue:campGetRevenue(_campRows[0]), advertiser:campGetAdv(_campRows[0]),
-        type:campGetType(_campRows[0]), platform:campGetPlat(_campRows[0]),
-        deal:campGetDeal(_campRows[0]), industry:campGetIndustry(_campRows[0]),
-        campaign:campGetCampaign(_campRows[0])
-      });
+      const fm={revenue:campGetRevenue(_campRows[0]),advertiser:campGetAdv(_campRows[0]),type:campGetType(_campRows[0]),platform:campGetPlat(_campRows[0]),deal:campGetDeal(_campRows[0]),industry:campGetIndustry(_campRows[0]),campaign:campGetCampaign(_campRows[0])};
+      console.log('[Campaign] Field map test:', fm);
+      const missing=Object.entries(fm).filter(([,v])=>!v).map(([k])=>k);
+      if(missing.length>0)console.warn('[Campaign] Missing fields:', missing, '— Cols:', cols.join(', '));
     }
     if(_campRows.length===0){
       if(src)src.innerHTML='<span style="color:#f59e0b;font-size:11px"><i class="fas fa-triangle-exclamation"></i> Tab "'+r.tab+'" is empty</span>';
       campShowEmpty('No data in "'+r.tab+'"'); return;
     }
-    if(src)src.innerHTML='<span style="color:#00d68f;font-size:11px"><i class="fas fa-circle-check"></i> '+_campRows.length+' rows from "'+r.tab+'"</span>';
+    if(src)src.innerHTML='<span style="color:#00d68f;font-size:11px"><i class="fas fa-circle-check"></i> '+_campRows.length+' rows · '+Object.keys(_campRows[0]||{}).length+' cols from "'+r.tab+'"</span>';
     campPopulateFilters();
     campApplyFilters();
   }catch(e){
@@ -808,7 +818,7 @@ function campApplyFilters(){
   });
   _campFiltered.sort((a,b)=>{
     let va,vb;
-    if(_campSortKey==='revenue'){va=parseFloat(campGetRevenue(a))||0;vb=parseFloat(campGetRevenue(b))||0;}
+    if(_campSortKey==='revenue'){va=campParseNum(campGetRevenue(a));vb=campParseNum(campGetRevenue(b));}
     else if(_campSortKey==='advertiser'){va=campGetAdv(a);vb=campGetAdv(b);}
     else if(_campSortKey==='campaign'){va=campGetCampaign(a);vb=campGetCampaign(b);}
     else if(_campSortKey==='industry'){va=campGetIndustry(a);vb=campGetIndustry(b);}
@@ -833,15 +843,15 @@ function campApplyFilters(){
 function campReset(){['camp-fy','camp-adv','camp-type','camp-platform','camp-deal'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});const s=document.getElementById('camp-search');if(s)s.value='';campApplyFilters();}
 
 function campRenderKPIs(){
-  const totalRev=_campFiltered.reduce((s,r)=>s+parseFloat(campGetRevenue(r)||'0'),0);
+  const totalRev=_campFiltered.reduce((s,r)=>s+campParseNum(campGetRevenue(r)),0);
   const count=_campFiltered.length;
   const avg=count>0?totalRev/count:0;
   const advSet=new Set(_campFiltered.map(r=>campGetAdv(r)).filter(Boolean));
-  const byAdv={};_campFiltered.forEach(r=>{const a=campGetAdv(r)||'—';byAdv[a]=(byAdv[a]||0)+parseFloat(campGetRevenue(r)||'0');});
+  const byAdv={};_campFiltered.forEach(r=>{const a=campGetAdv(r)||'—';byAdv[a]=(byAdv[a]||0)+campParseNum(campGetRevenue(r));});
   const topAdv=Object.entries(byAdv).sort((a,b)=>b[1]-a[1])[0]||['—',0];
-  const byInd={};_campFiltered.forEach(r=>{const i=campGetIndustry(r)||'—';byInd[i]=(byInd[i]||0)+parseFloat(campGetRevenue(r)||'0');});
+  const byInd={};_campFiltered.forEach(r=>{const i=campGetIndustry(r)||'—';byInd[i]=(byInd[i]||0)+campParseNum(campGetRevenue(r));});
   const topInd=Object.entries(byInd).filter(([k])=>k!=='—').sort((a,b)=>b[1]-a[1])[0]||['—',0];
-  const byDeal={};_campFiltered.forEach(r=>{const d=campGetDeal(r)||'—';byDeal[d]=(byDeal[d]||0)+parseFloat(campGetRevenue(r)||'0');});
+  const byDeal={};_campFiltered.forEach(r=>{const d=campGetDeal(r)||'—';byDeal[d]=(byDeal[d]||0)+campParseNum(campGetRevenue(r));});
   const topDeal=Object.entries(byDeal).filter(([k])=>k!=='—').sort((a,b)=>b[1]-a[1])[0]||['—',0];
   // Lost clients: advertisers present in prior months but not recent
   const byAdvMonth={};_campFiltered.forEach(r=>{const a=campGetAdv(r);const m=campGetMonth(r);if(a&&m){if(!byAdvMonth[a])byAdvMonth[a]=new Set();byAdvMonth[a].add(m);}});
@@ -850,29 +860,29 @@ function campRenderKPIs(){
   const lostClients=Object.entries(byAdvMonth).filter(([,ms])=>!ms.has(recentMonth)&&ms.size>0);
 
   const setKpi=(vid,sid,val,sub,cls='')=>{const v=document.getElementById(vid);const s=document.getElementById(sid);if(v)v.textContent=val;if(s){s.innerHTML=sub;if(cls)s.className='ps-kpi-sub '+cls;}};
-  setKpi('camp-kv-rev','camp-ks-rev',campFmt(totalRev),'<span class="text-muted">'+count+' records</span>');
+  setKpi('camp-kv-rev','camp-ks-rev',campFmtKpi(totalRev),'<span class="text-muted">'+count+' records</span>');
   setKpi('camp-kv-count','camp-ks-count',count.toLocaleString(),'<span class="text-muted">campaign records</span>');
   setKpi('camp-kv-advs','camp-ks-advs',advSet.size.toString(),'<span class="text-muted">unique advertisers</span>');
-  setKpi('camp-kv-avg','camp-ks-avg',campFmt(avg),'<span class="text-muted">per campaign</span>');
-  setKpi('camp-kv-adv','camp-ks-adv',String(topAdv[0]),'<span class="text-muted">'+campFmt(Number(topAdv[1]))+'</span>');
-  setKpi('camp-kv-ind','camp-ks-ind',String(topInd[0]),'<span class="text-muted">'+campFmt(Number(topInd[1]))+'</span>');
-  setKpi('camp-kv-deal','camp-ks-deal',String(topDeal[0]),'<span class="text-muted">'+campFmt(Number(topDeal[1]))+'</span>');
+  setKpi('camp-kv-avg','camp-ks-avg',campFmtKpi(avg),'<span class="text-muted">per campaign</span>');
+  setKpi('camp-kv-adv','camp-ks-adv',String(topAdv[0]),'<span class="text-muted">'+campFmtKpi(Number(topAdv[1]))+'</span>');
+  setKpi('camp-kv-ind','camp-ks-ind',String(topInd[0]),'<span class="text-muted">'+campFmtKpi(Number(topInd[1]))+'</span>');
+  setKpi('camp-kv-deal','camp-ks-deal',String(topDeal[0]),'<span class="text-muted">'+campFmtKpi(Number(topDeal[1]))+'</span>');
   setKpi('camp-kv-lost','camp-ks-lost',String(lostClients.length),'<span class="text-muted">not in recent month</span>',lostClients.length>0?'dn':'');
 }
 
 function campRenderCharts(){
   const byMonth={};
-  _campFiltered.forEach(r=>{const m=campGetMonth(r)||'?';byMonth[m]=(byMonth[m]||0)+parseFloat(campGetRevenue(r)||'0');});
+  _campFiltered.forEach(r=>{const m=campGetMonth(r)||'?';byMonth[m]=(byMonth[m]||0)+campParseNum(campGetRevenue(r));});
   const mL=Object.keys(byMonth);const mV=mL.map(k=>byMonth[k]);
   const tCtx=document.getElementById('campTrendChart');
   const tlbl=document.getElementById('camp-trend-lbl');
   if(tlbl)tlbl.textContent=mL.length+' months';
   if(tCtx){
     if(_campTrendChart){_campTrendChart.destroy();_campTrendChart=null;}
-    _campTrendChart=new Chart(tCtx,{type:'bar',data:{labels:mL,datasets:[{label:'Revenue',data:mV,backgroundColor:'rgba(66,133,244,0.7)',borderRadius:5,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#48486a',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#48486a',font:{size:9},callback:v=>campFmtShort(v)}}}}});
+    _campTrendChart=new Chart(tCtx,{type:'bar',data:{labels:mL,datasets:[{label:'Revenue',data:mV,backgroundColor:'rgba(66,133,244,0.7)',borderRadius:5,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#a0a0c0',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#a0a0c0',font:{size:9},callback:v=>campFmtShort(v)}}}}});
   }
   const byType={};
-  _campFiltered.forEach(r=>{const t=campGetType(r)||'Other';byType[t]=(byType[t]||0)+parseFloat(campGetRevenue(r)||'0');});
+  _campFiltered.forEach(r=>{const t=campGetType(r)||'Other';byType[t]=(byType[t]||0)+campParseNum(campGetRevenue(r));});
   const tSorted=Object.entries(byType).sort((a,b)=>b[1]-a[1]).slice(0,10);  // top-10 high→low
   const tLabels=tSorted.map(([k])=>k);const tVals=tSorted.map(([,v])=>v);
   const tColors=tLabels.map((_,i)=>CAMP_COLORS[i%CAMP_COLORS.length]);
@@ -880,7 +890,7 @@ function campRenderCharts(){
   const ttCtx=document.getElementById('campTypeChart');
   if(ttCtx){
     if(_campTypeChart){_campTypeChart.destroy();_campTypeChart=null;}
-    _campTypeChart=new Chart(ttCtx,{type:'doughnut',data:{labels:tLabels,datasets:[{data:tVals,backgroundColor:tColors,borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'right',labels:{color:'#8080a8',font:{size:10},boxWidth:9,padding:8,generateLabels:ch=>{const ds=ch.data.datasets[0];return ch.data.labels.map((l,i)=>{const pct=Math.round(ds.data[i]/tTotal*100);return{text:l+' '+pct+'%',fillStyle:ds.backgroundColor[i],strokeStyle:'transparent',lineWidth:0,index:i};});}}},tooltip:{callbacks:{label:c=>{const pct=Math.round(c.parsed/tTotal*100);return ' '+c.label+': '+campFmt(c.parsed)+' ('+pct+'%)';}}}}}}); 
+    _campTypeChart=new Chart(ttCtx,{type:'doughnut',data:{labels:tLabels,datasets:[{data:tVals,backgroundColor:tColors,borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'right',labels:{color:'#c8c8e8',font:{size:10},boxWidth:9,padding:8,generateLabels:ch=>{const ds=ch.data.datasets[0];return ch.data.labels.map((l,i)=>{const pct=Math.round(ds.data[i]/tTotal*100);return{text:l+' '+pct+'%',fillStyle:ds.backgroundColor[i],strokeStyle:'transparent',lineWidth:0,index:i};});}}},tooltip:{callbacks:{label:c=>{const pct=Math.round(c.parsed/tTotal*100);return ' '+c.label+': '+campFmt(c.parsed)+' ('+pct+'%)';}}}}}}); 
   }
   const tot=tVals.reduce((s,v)=>s+v,0)||1;
   const tbEl=document.getElementById('campTypeBars');
@@ -889,7 +899,7 @@ function campRenderCharts(){
 
 function campRenderAdvBars(){
   const el=document.getElementById('campAdvBars');const cntEl=document.getElementById('camp-adv-count');
-  const byAdv={};_campFiltered.forEach(r=>{const a=campGetAdv(r)||'—';byAdv[a]=(byAdv[a]||0)+parseFloat(campGetRevenue(r)||'0');});
+  const byAdv={};_campFiltered.forEach(r=>{const a=campGetAdv(r)||'—';byAdv[a]=(byAdv[a]||0)+campParseNum(campGetRevenue(r));});
   const sorted=Object.entries(byAdv).sort((a,b)=>b[1]-a[1]).slice(0,10);  // top-10 high→low
   if(cntEl)cntEl.textContent='Top 10 of '+Object.keys(byAdv).length+' advertisers';
   if(!sorted.length){el.innerHTML='<div class="text-muted fs12" style="text-align:center;padding:16px">No data</div>';return;}
@@ -900,27 +910,27 @@ function campRenderAdvBars(){
 
 function campRenderDealBars(){
   const el=document.getElementById('campDealBars');
-  const byDeal={};_campFiltered.forEach(r=>{const d=campGetDeal(r)||'—';byDeal[d]=(byDeal[d]||0)+parseFloat(campGetRevenue(r)||'0');});
+  const byDeal={};_campFiltered.forEach(r=>{const d=campGetDeal(r)||'—';byDeal[d]=(byDeal[d]||0)+campParseNum(campGetRevenue(r));});
   const sorted=Object.entries(byDeal).sort((a,b)=>b[1]-a[1]).slice(0,10);  // top-10 high→low
   const tot=sorted.reduce((s,[,v])=>s+v,0)||1;
   el.innerHTML=sorted.map(([name,val],i)=>{const pct=Math.round(val/tot*100);const col=CAMP_COLORS[i%CAMP_COLORS.length];return '<div><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="fs11">'+name+'</span><span class="fs11 fw7" style="color:'+col+'">'+campFmt(val)+' <span class="text-muted">('+pct+'%)</span></span></div><div class="ps-prog-wrap"><div class="ps-prog-fill" style="width:'+pct*2.2+'%;max-width:100%;background:'+col+'"></div></div></div>';}).join('');
   const dCtx=document.getElementById('campDealChart');
   if(dCtx){
     if(_campDealChart){_campDealChart.destroy();_campDealChart=null;}
-    _campDealChart=new Chart(dCtx,{type:'doughnut',data:{labels:sorted.map(([l])=>l),datasets:[{data:sorted.map(([,v])=>v),backgroundColor:sorted.map((_,i)=>CAMP_COLORS[i%CAMP_COLORS.length]),borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'right',labels:{color:'#8080a8',font:{size:10},boxWidth:9,padding:6,generateLabels:ch=>{const ds=ch.data.datasets[0];return ch.data.labels.map((l,i)=>{const pct=Math.round(ds.data[i]/tot*100);return{text:l+' '+pct+'%',fillStyle:ds.backgroundColor[i],strokeStyle:'transparent',lineWidth:0,index:i};});}}},tooltip:{callbacks:{label:c=>{const pct=Math.round(c.parsed/tot*100);return ' '+c.label+': '+campFmt(c.parsed)+' ('+pct+'%)';}}}}}}); 
+    _campDealChart=new Chart(dCtx,{type:'doughnut',data:{labels:sorted.map(([l])=>l),datasets:[{data:sorted.map(([,v])=>v),backgroundColor:sorted.map((_,i)=>CAMP_COLORS[i%CAMP_COLORS.length]),borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'right',labels:{color:'#c8c8e8',font:{size:10},boxWidth:9,padding:6,generateLabels:ch=>{const ds=ch.data.datasets[0];return ch.data.labels.map((l,i)=>{const pct=Math.round(ds.data[i]/tot*100);return{text:l+' '+pct+'%',fillStyle:ds.backgroundColor[i],strokeStyle:'transparent',lineWidth:0,index:i};});}}},tooltip:{callbacks:{label:c=>{const pct=Math.round(c.parsed/tot*100);return ' '+c.label+': '+campFmt(c.parsed)+' ('+pct+'%)';}}}}}}); 
   }
 }
 
 function campRenderPlatBars(){
   const el=document.getElementById('campPlatBars');
-  const byPlat={};_campFiltered.forEach(r=>{const p=campGetPlat(r)||'—';byPlat[p]=(byPlat[p]||0)+parseFloat(campGetRevenue(r)||'0');});
+  const byPlat={};_campFiltered.forEach(r=>{const p=campGetPlat(r)||'—';byPlat[p]=(byPlat[p]||0)+campParseNum(campGetRevenue(r));});
   const sorted=Object.entries(byPlat).sort((a,b)=>b[1]-a[1]).slice(0,10);  // top-10 high→low
   const tot=sorted.reduce((s,[,v])=>s+v,0)||1;
   el.innerHTML=sorted.map(([name,val],i)=>{const pct=Math.round(val/tot*100);const col=CAMP_COLORS[(i+3)%CAMP_COLORS.length];return '<div><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="fs11">'+name+'</span><span class="fs11 fw7" style="color:'+col+'">'+campFmt(val)+' <span class="text-muted">('+pct+'%)</span></span></div><div class="ps-prog-wrap"><div class="ps-prog-fill" style="width:'+pct*2.2+'%;max-width:100%;background:'+col+'"></div></div></div>';}).join('');
   const pCtx=document.getElementById('campPlatChart');
   if(pCtx){
     if(_campPlatChart){_campPlatChart.destroy();_campPlatChart=null;}
-    _campPlatChart=new Chart(pCtx,{type:'doughnut',data:{labels:sorted.map(([l])=>l),datasets:[{data:sorted.map(([,v])=>v),backgroundColor:sorted.map((_,i)=>CAMP_COLORS[(i+3)%CAMP_COLORS.length]),borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'right',labels:{color:'#8080a8',font:{size:10},boxWidth:9,padding:6,generateLabels:ch=>{const ds=ch.data.datasets[0];return ch.data.labels.map((l,i)=>{const pct=Math.round(ds.data[i]/tot*100);return{text:l+' '+pct+'%',fillStyle:ds.backgroundColor[i],strokeStyle:'transparent',lineWidth:0,index:i};});}}},tooltip:{callbacks:{label:c=>{const pct=Math.round(c.parsed/tot*100);return ' '+c.label+': '+campFmt(c.parsed)+' ('+pct+'%)';}}}}}});
+    _campPlatChart=new Chart(pCtx,{type:'doughnut',data:{labels:sorted.map(([l])=>l),datasets:[{data:sorted.map(([,v])=>v),backgroundColor:sorted.map((_,i)=>CAMP_COLORS[(i+3)%CAMP_COLORS.length]),borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'right',labels:{color:'#c8c8e8',font:{size:10},boxWidth:9,padding:6,generateLabels:ch=>{const ds=ch.data.datasets[0];return ch.data.labels.map((l,i)=>{const pct=Math.round(ds.data[i]/tot*100);return{text:l+' '+pct+'%',fillStyle:ds.backgroundColor[i],strokeStyle:'transparent',lineWidth:0,index:i};});}}},tooltip:{callbacks:{label:c=>{const pct=Math.round(c.parsed/tot*100);return ' '+c.label+': '+campFmt(c.parsed)+' ('+pct+'%)';}}}}}});
   }
 }
 
@@ -930,7 +940,7 @@ function campRenderLostClients(){
   const byAdvMonth={};
   const byAdvRev={};
   _campFiltered.forEach(r=>{
-    const a=campGetAdv(r);const m=campGetMonth(r);const v=parseFloat(campGetRevenue(r)||'0');
+    const a=campGetAdv(r);const m=campGetMonth(r);const v=campParseNum(campGetRevenue(r));
     if(a){if(!byAdvMonth[a])byAdvMonth[a]=new Set();if(m)byAdvMonth[a].add(m);byAdvRev[a]=(byAdvRev[a]||0)+v;}
   });
   const allMonths=[...new Set(_campFiltered.map(r=>campGetMonth(r)).filter(Boolean))].sort();
@@ -968,7 +978,7 @@ function campRenderPage(){
   document.getElementById('camp-count').textContent=total+' campaigns';
   if(!page.length){tbody.innerHTML='<tr><td colspan="9" class="text-muted" style="text-align:center;padding:24px">No records match current filters</td></tr>';return;}
   tbody.innerHTML=page.map(r=>{
-    const rev=parseFloat(campGetRevenue(r)||'0');
+    const rev=campParseNum(campGetRevenue(r));
     const campaign=campGetCampaign(r)||'—';
     return '<tr>'+
       '<td class="fw6" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+campaign+'">'+campaign+'</td>'+
@@ -1509,7 +1519,7 @@ function renderCharts(s){
   const statusTotal=entries.reduce((s,[,v])=>s+v,0)||1;
   // Sort high→low, top-10
   const statusSorted=entries.sort((a,b)=>b[1]-a[1]).slice(0,10);
-  _orderStatusChart=new Chart(ctx,{type:'doughnut',data:{labels:statusSorted.map(([l])=>l.replace(/_/g,' ')),datasets:[{data:statusSorted.map(([,v])=>v),backgroundColor:statusSorted.map(([l])=>STATUS_COLOR[l]||'#8080a8'),borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{color:'#8080a8',font:{size:10},boxWidth:9,padding:8,generateLabels:ch=>{const ds=ch.data.datasets[0];return ch.data.labels.map((l,i)=>{const pct=Math.round(ds.data[i]/statusTotal*100);return{text:l+' '+pct+'%',fillStyle:ds.backgroundColor[i],strokeStyle:'transparent',lineWidth:0,index:i};});}}},tooltip:{callbacks:{label:c=>{const pct=Math.round(c.parsed/statusTotal*100);return ' '+c.label+': '+c.parsed+' ('+pct+'%)';}}}}}}});
+  _orderStatusChart=new Chart(ctx,{type:'doughnut',data:{labels:statusSorted.map(([l])=>l.replace(/_/g,' ')),datasets:[{data:statusSorted.map(([,v])=>v),backgroundColor:statusSorted.map(([l])=>STATUS_COLOR[l]||'#8080a8'),borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{color:'#c8c8e8',font:{size:10},boxWidth:9,padding:8,generateLabels:ch=>{const ds=ch.data.datasets[0];return ch.data.labels.map((l,i)=>{const pct=Math.round(ds.data[i]/statusTotal*100);return{text:l+' '+pct+'%',fillStyle:ds.backgroundColor[i],strokeStyle:'transparent',lineWidth:0,index:i};});}}},tooltip:{callbacks:{label:c=>{const pct=Math.round(c.parsed/statusTotal*100);return ' '+c.label+': '+c.parsed+' ('+pct+'%)';}}}}}}});
 }
 
 // ── Running Campaigns Tab ─────────────────────────────────────────────────
