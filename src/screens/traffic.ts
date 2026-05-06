@@ -469,8 +469,38 @@ function socShowEmpty(reason=''){
     .forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML='<span style="font-size:14px;color:var(--text-muted)">—</span>';});
 }
 
+// ── Month parsing helper — converts "Jan 2025", "January 2025", "2025-01", "01/2025", etc.
+// into a comparable numeric key YYYYMM for proper chronological ordering.
+function socParseMonthKey(m){
+  if(!m)return 0;
+  const s=String(m).trim();
+  // ISO: 2025-01 or 2025-01-15
+  let mt=s.match(/^(\d{4})-(\d{2})/);
+  if(mt)return parseInt(mt[1])*100+parseInt(mt[2]);
+  // MM/YYYY or MM/YY
+  mt=s.match(/^(\d{1,2})\/(\d{2,4})$/);
+  if(mt){const yr=mt[2].length===2?2000+parseInt(mt[2]):parseInt(mt[2]);return yr*100+parseInt(mt[1]);}
+  // Month name + year: "Jan 2025", "January 2025", "Jan-2025"
+  const MONTHS=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+  mt=s.match(/([a-zA-Z]+)[\s\-\/]+(\d{2,4})/);
+  if(!mt)mt=s.match(/(\d{2,4})[\s\-\/]+([a-zA-Z]+)/);
+  if(mt){
+    const parts=[mt[1].toLowerCase(),mt[2].toLowerCase()];
+    const nameIdx=MONTHS.findIndex(n=>parts[0].startsWith(n));
+    const yr=nameIdx>=0?parseInt(parts[1]):parseInt(parts[0]);
+    const mo=nameIdx>=0?(nameIdx+1):MONTHS.findIndex(n=>parts[1].startsWith(n))+1;
+    if(yr>0&&mo>0)return yr*100+mo;
+  }
+  // Plain year: "2025"
+  mt=s.match(/^(\d{4})$/);
+  if(mt)return parseInt(mt[1])*100;
+  return 0;
+}
+
 function socPopulateFilters(){
-  const months=[...new Set(_socRows.map(r=>socGetMonth(r)).filter(Boolean))].sort();
+  // Sort months chronologically, not lexicographically
+  const months=[...new Set(_socRows.map(r=>socGetMonth(r)).filter(Boolean))]
+    .sort((a,b)=>socParseMonthKey(a)-socParseMonthKey(b));
   const profiles=[...new Set(_socRows.map(r=>socGetProfile(r)).filter(Boolean))].sort();
   const fillSel=(id,arr,ph)=>{
     const el=document.getElementById(id);if(!el)return;
@@ -491,15 +521,18 @@ function socApplyFilters(){
     if(q&&!Object.values(r).some(v=>String(v).toLowerCase().includes(q))) return false;
     return true;
   });
+  // Sort filtered rows — use socParseNum for numeric keys, chronological key for month
   _socFiltered.sort((a,b)=>{
     let va,vb;
     const numKeys=['audience','growth','reach','impressions','posts','videoviews','clicks'];
     if(numKeys.includes(_socSortKey)){
       const getters={audience:socGetAudience,growth:socGetGrowth,reach:socGetReach,impressions:socGetImpr,posts:socGetPosts,videoviews:socGetViews,clicks:socGetClicks};
-      va=parseFloat((getters[_socSortKey]||socGetImpr)(a))||0;
-      vb=parseFloat((getters[_socSortKey]||socGetImpr)(b))||0;
+      // FIX B4: use socParseNum, not parseFloat, to correctly handle comma-separated numbers
+      va=socParseNum((getters[_socSortKey]||socGetImpr)(a));
+      vb=socParseNum((getters[_socSortKey]||socGetImpr)(b));
     } else if(_socSortKey==='profile'){va=socGetProfile(a);vb=socGetProfile(b);}
-    else if(_socSortKey==='month'){va=socGetMonth(a);vb=socGetMonth(b);}
+    // FIX B4/B1: sort month column chronologically
+    else if(_socSortKey==='month'){va=socParseMonthKey(socGetMonth(a));vb=socParseMonthKey(socGetMonth(b));}
     else{va='';vb='';}
     if(va<vb)return _socSortAsc?-1:1;if(va>vb)return _socSortAsc?1:-1;return 0;
   });
@@ -556,7 +589,8 @@ function socRenderCharts(){
     byMonth[m].impr+=socParseNum(socGetImpr(r));
     byMonth[m].growth+=socParseNum(socGetGrowth(r));
   });
-  const mLabels=Object.keys(byMonth);
+  // FIX B1/B6: sort months chronologically (not by insertion/string order)
+  const mLabels=Object.keys(byMonth).sort((a,b)=>socParseMonthKey(a)-socParseMonthKey(b));
   const mReach=mLabels.map(k=>byMonth[k].reach);
   const mImpr=mLabels.map(k=>byMonth[k].impr);
   const trendLbl=document.getElementById('soc-trend-lbl');
@@ -602,9 +636,10 @@ function socRenderProfileBars(){
     const p=socGetProfile(r)||'—';
     byProfile[p]=(byProfile[p]||0)+socParseNum(socGetImpr(r));
   });
-  const sorted=Object.entries(byProfile).sort((a,b)=>b[1]-a[1]);
+  // FIX B3: cap to top 10, already sorted desc by impressions
+  const sorted=Object.entries(byProfile).sort((a,b)=>b[1]-a[1]).slice(0,10);
   if(!sorted.length){el.innerHTML='<div style="text-align:center;padding:16px;color:var(--text-muted);font-size:12px">No data</div>';return;}
-  if(cntEl)cntEl.textContent=sorted.length+' profiles';
+  if(cntEl)cntEl.textContent='Top '+sorted.length+' profiles';
   const mx=sorted[0][1]||1;
   el.innerHTML=sorted.map(([name,val],i)=>{
     const pct=Math.round(val/mx*100);const col=SOC_COLORS[i%SOC_COLORS.length];
@@ -622,7 +657,8 @@ function socRenderGrowthRanking(){
     byProfile[p].audience+=socParseNum(socGetAudience(r));
     byProfile[p].reach+=socParseNum(socGetReach(r));
   });
-  const sorted=Object.entries(byProfile).sort((a,b)=>b[1].growth-a[1].growth);
+  // FIX B2: cap to top 10 by growth, sorted desc
+  const sorted=Object.entries(byProfile).sort((a,b)=>b[1].growth-a[1].growth).slice(0,10);
   if(!sorted.length){el.innerHTML='<div style="text-align:center;padding:16px;color:var(--text-muted);font-size:12px">No data</div>';return;}
   el.innerHTML=sorted.map(([name,d],i)=>{
     const growthSign=d.growth>=0?'+':'';
