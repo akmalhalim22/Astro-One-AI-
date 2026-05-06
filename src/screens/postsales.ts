@@ -272,6 +272,33 @@ const REV_COLORS=['#4285f4','#a78bfa','#00d68f','#f59e0b','#f43f5e','#34d399','#
 const TYPE_COLORS={'AA':'#4285f4','Direct':'#00d68f','Programmatic':'#f59e0b','Digital':'#a78bfa','Print':'#f43f5e'};
 
 // Full format for tables/tooltips: RM 1.23M / RM 456.7K / RM 89
+// ── Shared month-key helper (Revenue + Campaign) ─────────────────────────────
+// Converts any date string into YYYYMM integer for true chronological sort.
+function psParseMonthKey(m){
+  if(!m)return 0;
+  const s=String(m).trim();
+  // ISO: 2025-01 or 2025-01-15
+  let mt=s.match(/^(\d{4})-(\d{2})/);
+  if(mt)return parseInt(mt[1])*100+parseInt(mt[2]);
+  // MM/YYYY or MM/YY
+  mt=s.match(/^(\d{1,2})\/(\d{2,4})$/);
+  if(mt){const yr=mt[2].length===2?2000+parseInt(mt[2]):parseInt(mt[2]);return yr*100+parseInt(mt[1]);}
+  // Name+Year: "Jan 2025", "January 2025", "Jan-2025"
+  const MON=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+  mt=s.match(/([a-zA-Z]+)[\s\-\/]+(\d{2,4})/);
+  if(!mt)mt=s.match(/(\d{2,4})[\s\-\/]+([a-zA-Z]+)/);
+  if(mt){
+    const p=[mt[1].toLowerCase(),mt[2].toLowerCase()];
+    const ni=MON.findIndex(n=>p[0].startsWith(n));
+    const yr=ni>=0?parseInt(p[1]):parseInt(p[0]);
+    const mo=ni>=0?(ni+1):MON.findIndex(n=>p[1].startsWith(n))+1;
+    if(yr>0&&mo>0)return yr*100+mo;
+  }
+  mt=s.match(/^(\d{4})$/);
+  if(mt)return parseInt(mt[1])*100;
+  return 0;
+}
+
 function revFmt(n){n=parseFloat(n)||0;if(n>=1e6)return'RM '+(n/1e6).toFixed(2)+'M';if(n>=1e3)return'RM '+(n/1e3).toFixed(1)+'K';return'RM '+n.toFixed(0);}
 // Compact for KPI cards: RM 1.2M / RM 456K
 function revFmtKpi(n){n=parseFloat(n)||0;if(n>=1e9)return'RM '+(n/1e9).toFixed(2)+'B';if(n>=1e6)return'RM '+(n/1e6).toFixed(2)+'M';if(n>=1e3)return'RM '+(n/1e3).toFixed(1)+'K';return'RM '+n.toFixed(0);}
@@ -367,12 +394,12 @@ function revApplyFilters(){
   });
   _revFiltered.sort((a,b)=>{
     let va,vb;
-    if(_revSortKey==='revenue'){va=parseFloat(revGetRevenue(a))||0;vb=parseFloat(revGetRevenue(b))||0;}
-    else if(_revSortKey==='target'){va=parseFloat(revGetTarget(a))||0;vb=parseFloat(revGetTarget(b))||0;}
+    if(_revSortKey==='revenue'){va=revParseNum(revGetRevenue(a));vb=revParseNum(revGetRevenue(b));}
+    else if(_revSortKey==='target'){va=revParseNum(revGetTarget(a));vb=revParseNum(revGetTarget(b));}
     else if(_revSortKey==='portal'){va=revGetPortal(a);vb=revGetPortal(b);}
     else if(_revSortKey==='entity'){va=revGetEntity(a);vb=revGetEntity(b);}
     else if(_revSortKey==='fy'){va=revGetFY(a);vb=revGetFY(b);}
-    else if(_revSortKey==='month'){va=revGetMonth(a);vb=revGetMonth(b);}
+    else if(_revSortKey==='month'){va=psParseMonthKey(revGetMonth(a));vb=psParseMonthKey(revGetMonth(b));}
     else if(_revSortKey==='category'){va=revGetCat(a);vb=revGetCat(b);}
     else if(_revSortKey==='type'){va=revGetType(a);vb=revGetType(b);}
     else{va='';vb='';}
@@ -405,7 +432,7 @@ function revRenderKPIs(){
   const months=new Set(_revFiltered.map(r=>revGetMonth(r)).filter(Boolean));
   // MoM: compare last two months
   const byMonth={};_revFiltered.forEach(r=>{const m=revGetMonth(r);if(m){byMonth[m]=(byMonth[m]||0)+revParseNum(revGetRevenue(r));}});
-  const sortedMonths=Object.keys(byMonth).sort();
+  const sortedMonths=Object.keys(byMonth).sort((a,b)=>psParseMonthKey(a)-psParseMonthKey(b));
   let momTxt='—',momCls='';
   if(sortedMonths.length>=2){
     const last=byMonth[sortedMonths[sortedMonths.length-1]];
@@ -433,7 +460,8 @@ function revRenderCharts(){
   // Trend: group by Month
   const byMonth={};
   _revFiltered.forEach(r=>{const m=revGetMonth(r)||'?';byMonth[m]=(byMonth[m]||{rev:0,tgt:0});byMonth[m].rev+=revParseNum(revGetRevenue(r));byMonth[m].tgt+=revParseNum(revGetTarget(r));});
-  const mLabels=Object.keys(byMonth);
+  // Sort months chronologically before building chart
+  const mLabels=Object.keys(byMonth).sort((a,b)=>psParseMonthKey(a)-psParseMonthKey(b));
   const mRevs=mLabels.map(k=>byMonth[k].rev);
   const mTgts=mLabels.map(k=>byMonth[k].tgt);
   const trendLbl=document.getElementById('rev-trend-lbl');
@@ -826,7 +854,7 @@ function campApplyFilters(){
     else if(_campSortKey==='platform'){va=campGetPlat(a);vb=campGetPlat(b);}
     else if(_campSortKey==='deal'){va=campGetDeal(a);vb=campGetDeal(b);}
     else if(_campSortKey==='fy'){va=campGetFY(a);vb=campGetFY(b);}
-    else if(_campSortKey==='month'){va=campGetMonth(a);vb=campGetMonth(b);}
+    else if(_campSortKey==='month'){va=psParseMonthKey(campGetMonth(a));vb=psParseMonthKey(campGetMonth(b));}
     else{va='';vb='';}
     if(va<vb)return _campSortAsc?-1:1;if(va>vb)return _campSortAsc?1:-1;return 0;
   });
@@ -855,7 +883,7 @@ function campRenderKPIs(){
   const topDeal=Object.entries(byDeal).filter(([k])=>k!=='—').sort((a,b)=>b[1]-a[1])[0]||['—',0];
   // Lost clients: advertisers present in prior months but not recent
   const byAdvMonth={};_campFiltered.forEach(r=>{const a=campGetAdv(r);const m=campGetMonth(r);if(a&&m){if(!byAdvMonth[a])byAdvMonth[a]=new Set();byAdvMonth[a].add(m);}});
-  const allMonths=[...new Set(_campFiltered.map(r=>campGetMonth(r)).filter(Boolean))].sort();
+  const allMonths=[...new Set(_campFiltered.map(r=>campGetMonth(r)).filter(Boolean))].sort((a,b)=>psParseMonthKey(a)-psParseMonthKey(b));
   const recentMonth=allMonths[allMonths.length-1]||'';
   const lostClients=Object.entries(byAdvMonth).filter(([,ms])=>!ms.has(recentMonth)&&ms.size>0);
 
@@ -873,7 +901,8 @@ function campRenderKPIs(){
 function campRenderCharts(){
   const byMonth={};
   _campFiltered.forEach(r=>{const m=campGetMonth(r)||'?';byMonth[m]=(byMonth[m]||0)+campParseNum(campGetRevenue(r));});
-  const mL=Object.keys(byMonth);const mV=mL.map(k=>byMonth[k]);
+  // Sort months chronologically for trend chart
+  const mL=Object.keys(byMonth).sort((a,b)=>psParseMonthKey(a)-psParseMonthKey(b));const mV=mL.map(k=>byMonth[k]);
   const tCtx=document.getElementById('campTrendChart');
   const tlbl=document.getElementById('camp-trend-lbl');
   if(tlbl)tlbl.textContent=mL.length+' months';
@@ -943,7 +972,7 @@ function campRenderLostClients(){
     const a=campGetAdv(r);const m=campGetMonth(r);const v=campParseNum(campGetRevenue(r));
     if(a){if(!byAdvMonth[a])byAdvMonth[a]=new Set();if(m)byAdvMonth[a].add(m);byAdvRev[a]=(byAdvRev[a]||0)+v;}
   });
-  const allMonths=[...new Set(_campFiltered.map(r=>campGetMonth(r)).filter(Boolean))].sort();
+  const allMonths=[...new Set(_campFiltered.map(r=>campGetMonth(r)).filter(Boolean))].sort((a,b)=>psParseMonthKey(a)-psParseMonthKey(b));
   const recentMonth=allMonths[allMonths.length-1]||'';
   const prevMonth=allMonths[allMonths.length-2]||'';
   const lostClients=Object.entries(byAdvMonth)

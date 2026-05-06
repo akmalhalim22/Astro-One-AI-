@@ -152,6 +152,20 @@ export function overviewScreen(): string {
 // ── Overview screen — live data loader ────────────────────────────────────
 let _ovRevChart = null;
 
+// Month-key helper: converts any date string to YYYYMM integer for chronological sort
+function ovParseMonthKey(m){
+  if(!m)return 0;const s=String(m).trim();
+  let mt=s.match(/^(\d{4})-(\d{2})/);
+  if(mt)return parseInt(mt[1])*100+parseInt(mt[2]);
+  mt=s.match(/^(\d{1,2})\/(\d{2,4})$/);
+  if(mt){const yr=mt[2].length===2?2000+parseInt(mt[2]):parseInt(mt[2]);return yr*100+parseInt(mt[1]);}
+  const MON=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+  mt=s.match(/([a-zA-Z]+)[\s\-\/]+(\d{2,4})/);
+  if(!mt)mt=s.match(/(\d{2,4})[\s\-\/]+([a-zA-Z]+)/);
+  if(mt){const p=[mt[1].toLowerCase(),mt[2].toLowerCase()];const ni=MON.findIndex(n=>p[0].startsWith(n));const yr=ni>=0?parseInt(p[1]):parseInt(p[0]);const mo=ni>=0?(ni+1):MON.findIndex(n=>p[1].startsWith(n))+1;if(yr>0&&mo>0)return yr*100+mo;}
+  mt=s.match(/^(\d{4})$/);if(mt)return parseInt(mt[1])*100;
+  return 0;
+}
 function ovFmt(n){
   n=parseFloat(n)||0;
   if(n>=1e9) return 'RM '+(n/1e9).toFixed(2)+'B';
@@ -236,7 +250,7 @@ async function loadOverviewKPIs(){
   // ── Revenue chart ──────────────────────────────────────────────
   const ctx = document.getElementById('ovRevChart');
   if(ctx && kpiRes.ok && kpiRes.revenueByMonth && Object.keys(kpiRes.revenueByMonth).length>0){
-    const months = Object.keys(kpiRes.revenueByMonth).sort();
+    const months = Object.keys(kpiRes.revenueByMonth).sort((a,b)=>ovParseMonthKey(a)-ovParseMonthKey(b));
     const revVals = months.map(m=>kpiRes.revenueByMonth[m]||0);
     ovSetEl('ovRevMonths', months.length+' months');
     if(_ovRevChart){_ovRevChart.destroy();_ovRevChart=null;}
