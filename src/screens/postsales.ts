@@ -274,28 +274,36 @@ const TYPE_COLORS={'AA':'#4285f4','Direct':'#00d68f','Programmatic':'#f59e0b','D
 // Full format for tables/tooltips: RM 1.23M / RM 456.7K / RM 89
 // ── Shared month-key helper (Revenue + Campaign) ─────────────────────────────
 // Converts any date string into YYYYMM integer for true chronological sort.
+// NOTE: No forward-slash inside regex literals — uses split('/') for MM/YYYY format
+// to avoid breaking when this function is rendered inside an HTML <script> tag.
 function psParseMonthKey(m){
   if(!m)return 0;
   const s=String(m).trim();
   // ISO: 2025-01 or 2025-01-15
   let mt=s.match(/^(\d{4})-(\d{2})/);
   if(mt)return parseInt(mt[1])*100+parseInt(mt[2]);
-  // MM/YYYY or MM/YY
-  mt=s.match(/^(\d{1,2})\/(\d{2,4})$/);
-  if(mt){const yr=mt[2].length===2?2000+parseInt(mt[2]):parseInt(mt[2]);return yr*100+parseInt(mt[1]);}
-  // Name+Year: "Jan 2025", "January 2025", "Jan-2025"
-  const MON=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
-  mt=s.match(/([a-zA-Z]+)[\s\-\/]+(\d{2,4})/);
-  if(!mt)mt=s.match(/(\d{2,4})[\s\-\/]+([a-zA-Z]+)/);
-  if(mt){
-    const p=[mt[1].toLowerCase(),mt[2].toLowerCase()];
-    const ni=MON.findIndex(n=>p[0].startsWith(n));
-    const yr=ni>=0?parseInt(p[1]):parseInt(p[0]);
-    const mo=ni>=0?(ni+1):MON.findIndex(n=>p[1].startsWith(n))+1;
-    if(yr>0&&mo>0)return yr*100+mo;
+  // MM/YYYY or MM/YY — use split instead of regex to avoid bare / in regex
+  if(s.indexOf('/')!==-1 && !s.match(/[a-zA-Z]/)){
+    const p=s.split('/');
+    if(p.length===2){
+      const a=parseInt(p[0]),b=parseInt(p[1]);
+      if(!isNaN(a)&&!isNaN(b)){
+        const yr=b<100?2000+b:b;
+        return a<=12?yr*100+a:a*100+(b<=12?b:0);
+      }
+    }
   }
-  mt=s.match(/^(\d{4})$/);
-  if(mt)return parseInt(mt[1])*100;
+  // Name+Year: "Jan 2025", "January 2025", "Jan-2025", "Jan/2025"
+  const MON=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+  const sl=s.toLowerCase().replace(/[-\/]/g,' ');
+  const parts=sl.split(/\s+/).filter(Boolean);
+  if(parts.length>=2){
+    const ni0=MON.findIndex(n=>parts[0].startsWith(n));
+    const ni1=MON.findIndex(n=>parts[1].startsWith(n));
+    if(ni0>=0){const yr=parseInt(parts[1]);if(yr>0)return yr*100+(ni0+1);}
+    if(ni1>=0){const yr=parseInt(parts[0]);if(yr>0)return yr*100+(ni1+1);}
+  }
+  if(s.match(/^\d{4}$/))return parseInt(s)*100;
   return 0;
 }
 
@@ -590,7 +598,7 @@ function revPage(dir){const pages=Math.max(1,Math.ceil(_revFiltered.length/_revP
 function revExportCSV(){
   if(!_revFiltered.length)return;
   const keys=Object.keys(_revFiltered[0]||{});
-  const csv=[keys.join(','),..._revFiltered.map(r=>keys.map(k=>'"'+(String(r[k]||'').replace(/"/g,'""'))+'"').join(','))].join('\\n');
+  const csv=[keys.join(','),..._revFiltered.map(r=>keys.map(k=>'\\x22'+(String(r[k]||'').replace(/\\x22/g,'\\x22\\x22'))+'\\x22').join(','))].join('\\n');
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='revenue.csv';a.click();
 }
 
@@ -1028,7 +1036,7 @@ function campPage(dir){const pages=Math.max(1,Math.ceil(_campFiltered.length/_ca
 function campExportCSV(){
   if(!_campFiltered.length)return;
   const keys=Object.keys(_campFiltered[0]||{});
-  const csv=[keys.join(','),..._campFiltered.map(r=>keys.map(k=>'"'+(String(r[k]||'').replace(/"/g,'""'))+'"').join(','))].join('\\n');
+  const csv=[keys.join(','),..._campFiltered.map(r=>keys.map(k=>'\\x22'+(String(r[k]||'').replace(/\\x22/g,'\\x22\\x22'))+'\\x22').join(','))].join('\\n');
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='campaigns.csv';a.click();
 }
 
@@ -1379,7 +1387,7 @@ async function loadGAMAnalytics(force=false){
       icon.className='fas fa-triangle-exclamation';icon.style.color='#f59e0b';
       txt.textContent='GAM not connected — '+em;txt.style.color='#f59e0b';
       banner.style.background='rgba(245,158,11,0.07)';banner.style.borderColor='rgba(245,158,11,0.2)';
-      const noConf='<div class="text-muted fs12" style="padding:14px 0;text-align:center"><i class="fas fa-plug" style="color:#f59e0b;margin-right:6px"></i>GAM not configured — <a href="#" onclick="navigate(\'apiconn\')" style="color:#60a5fa">Set up in API Connections</a></div>';
+      const noConf='<div class="text-muted fs12" style="padding:14px 0;text-align:center"><i class="fas fa-plug" style="color:#f59e0b;margin-right:6px"></i>GAM not configured — <a href="#" onclick="navigate(\x27apiconn\x27)" style="color:#60a5fa">Set up in API Connections</a></div>';
       ['gamRunTbody','gamCompTbody','gamTopLI','orderStatusBars','liStatusBars','networkInfoBody','gamTopOrdersBars'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=noConf;});
       if(ri)ri.className='fas fa-rotate';
       window._gamLoading=false; return;

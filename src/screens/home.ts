@@ -178,13 +178,12 @@ function homeParseMonthKey(m){
   if(!m)return 0;const s=String(m).trim();
   let mt=s.match(/^(\d{4})-(\d{2})/);
   if(mt)return parseInt(mt[1])*100+parseInt(mt[2]);
-  mt=s.match(/^(\d{1,2})\/(\d{2,4})$/);
-  if(mt){const yr=mt[2].length===2?2000+parseInt(mt[2]):parseInt(mt[2]);return yr*100+parseInt(mt[1]);}
+  // MM/YYYY — split instead of regex with / to avoid HTML script breakage
+  if(s.indexOf('/')!==-1&&!s.match(/[a-zA-Z]/)){const p=s.split('/');if(p.length===2){const a=parseInt(p[0]),b=parseInt(p[1]);if(!isNaN(a)&&!isNaN(b)){const yr=b<100?2000+b:b;return a<=12?yr*100+a:a*100+(b<=12?b:0);}}}
   const MON=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
-  mt=s.match(/([a-zA-Z]+)[\s\-\/]+(\d{2,4})/);
-  if(!mt)mt=s.match(/(\d{2,4})[\s\-\/]+([a-zA-Z]+)/);
-  if(mt){const p=[mt[1].toLowerCase(),mt[2].toLowerCase()];const ni=MON.findIndex(n=>p[0].startsWith(n));const yr=ni>=0?parseInt(p[1]):parseInt(p[0]);const mo=ni>=0?(ni+1):MON.findIndex(n=>p[1].startsWith(n))+1;if(yr>0&&mo>0)return yr*100+mo;}
-  mt=s.match(/^(\d{4})$/);if(mt)return parseInt(mt[1])*100;
+  const sl=s.toLowerCase().replace(/[-\/]/g,' ');const parts=sl.split(/\s+/).filter(Boolean);
+  if(parts.length>=2){const ni0=MON.findIndex(n=>parts[0].startsWith(n));const ni1=MON.findIndex(n=>parts[1].startsWith(n));if(ni0>=0){const yr=parseInt(parts[1]);if(yr>0)return yr*100+(ni0+1);}if(ni1>=0){const yr=parseInt(parts[0]);if(yr>0)return yr*100+(ni1+1);}}
+  if(s.match(/^\d{4}$/))return parseInt(s)*100;
   return 0;
 }
 function homeFmt(n){
@@ -344,7 +343,7 @@ async function loadHomeKPIs(){
       ['Impressions', homeFmtShort(impr), 'b-amber'],
     ].map(([l,v,b])=>'<div class="stat-row"><span class="stat-lbl">'+l+'</span><span class="b '+b+'">'+v+'</span></div>').join(''));
   } else {
-    homeSetEl('homeGAMSnapshot', '<div class="text-muted fs12" style="text-align:center;padding:12px"><i class="fas fa-plug" style="color:#f59e0b;margin-right:5px"></i>Connect GAM API to see data<br><a href="#" onclick="navigate(\'apiconn\')" style="color:#60a5fa;font-size:10px">Set up in API Connections</a></div>');
+    homeSetEl('homeGAMSnapshot', '<div class="text-muted fs12" style="text-align:center;padding:12px"><i class="fas fa-plug" style="color:#f59e0b;margin-right:5px"></i>Connect GAM API to see data<br><a href="#" onclick="navigate(\x27apiconn\x27)" style="color:#60a5fa;font-size:10px">Set up in API Connections</a></div>');
   }
 
   // ── Data source status panel ───────────────────────────────────

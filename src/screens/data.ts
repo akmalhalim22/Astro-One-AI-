@@ -1755,10 +1755,10 @@ export function apiDataScreen(): string {
       <div class="card">
         <div class="card-hd"><div class="card-title"><i class="fas fa-bolt" style="color:#f59e0b;margin-right:7px"></i>Quick Actions</div></div>
         ${[
-          ['fa-plug','#4285f4','Configure API Connections','Set up service accounts & credentials','navigate(\'apiconn\')'],
-          ['fa-book-open','#a78bfa','Setup Guide','Step-by-step integration instructions','navigate(\'setup\')'],
-          ['fa-code-merge','#00d68f','Data Blend','Combine and transform data sources','navigate(\'blend\')'],
-          ['fa-file-chart-pie','#e2007a','Report AI','Generate AI-powered reports','navigate(\'reportai\')'],
+          ['fa-plug','#4285f4','Configure API Connections','Set up service accounts & credentials','navigate(\x27apiconn\x27)'],
+          ['fa-book-open','#a78bfa','Setup Guide','Step-by-step integration instructions','navigate(\x27setup\x27)'],
+          ['fa-code-merge','#00d68f','Data Blend','Combine and transform data sources','navigate(\x27blend\x27)'],
+          ['fa-file-chart-pie','#e2007a','Report AI','Generate AI-powered reports','navigate(\x27reportai\x27)'],
         ].map(([icon, col, title, sub, action]) => `
         <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="${action}">
           <div style="width:30px;height:30px;border-radius:8px;background:${col}1a;display:flex;align-items:center;justify-content:center;flex-shrink:0">

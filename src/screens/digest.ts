@@ -285,7 +285,7 @@ async function loadDigestKPIs(){
       ['Impressions', digFmtShort(impr), 'b-amber'],
     ].map(([l,v,b])=>'<div class="stat-row"><span class="stat-lbl">'+l+'</span><span class="b '+b+'">'+v+'</span></div>').join(''));
   } else {
-    digSetEl('digGAMBreakdown','<div class="text-muted fs12" style="text-align:center;padding:12px"><i class="fas fa-plug" style="color:#f59e0b;margin-right:5px"></i>GAM not connected<br><a href="#" onclick="navigate(\'apiconn\')" style="color:#60a5fa;font-size:10px">Set up in API Connections</a></div>');
+    digSetEl('digGAMBreakdown','<div class="text-muted fs12" style="text-align:center;padding:12px"><i class="fas fa-plug" style="color:#f59e0b;margin-right:5px"></i>GAM not connected<br><a href="#" onclick="navigate(\x27apiconn\x27)" style="color:#60a5fa;font-size:10px">Set up in API Connections</a></div>');
   }
 
   // ── Connection status ──────────────────────────────────────────
@@ -348,7 +348,7 @@ async function loadDigestKPIs(){
         '<div class="fs12 text-muted" style="margin-bottom:8px;line-height:1.55">'+ins.body+'</div>'+
         '<div style="display:flex;gap:7px;align-items:center">'+
           '<span class="b '+ins.badge+'" style="font-size:9px">'+ins.badgeLbl+'</span>'+
-          '<button class="ai-act" onclick="navigate(\''+ins.navId+'\')"><i class="fas fa-arrow-right"></i>View Detail</button>'+
+          '<button class="ai-act" onclick="navigate(\x27'+ins.navId+'\x27)"><i class="fas fa-arrow-right"></i>View Detail</button>'+
         '</div>'+
       '</div>'+
     '</div>'

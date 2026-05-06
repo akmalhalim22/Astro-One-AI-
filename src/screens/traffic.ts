@@ -471,29 +471,37 @@ function socShowEmpty(reason=''){
 
 // ── Month parsing helper — converts "Jan 2025", "January 2025", "2025-01", "01/2025", etc.
 // into a comparable numeric key YYYYMM for proper chronological ordering.
+// NOTE: No forward-slash inside regex literals — uses split('/') for MM/YYYY format
+// to avoid breaking when this function is rendered inside an HTML <script> tag.
 function socParseMonthKey(m){
   if(!m)return 0;
   const s=String(m).trim();
   // ISO: 2025-01 or 2025-01-15
   let mt=s.match(/^(\d{4})-(\d{2})/);
   if(mt)return parseInt(mt[1])*100+parseInt(mt[2]);
-  // MM/YYYY or MM/YY
-  mt=s.match(/^(\d{1,2})\/(\d{2,4})$/);
-  if(mt){const yr=mt[2].length===2?2000+parseInt(mt[2]):parseInt(mt[2]);return yr*100+parseInt(mt[1]);}
-  // Month name + year: "Jan 2025", "January 2025", "Jan-2025"
+  // MM/YYYY or MM/YY — use split instead of regex to avoid bare / in regex
+  if(s.indexOf('/')!==-1 && !s.match(/[a-zA-Z]/)){
+    const p=s.split('/');
+    if(p.length===2){
+      const a=parseInt(p[0]),b=parseInt(p[1]);
+      if(!isNaN(a)&&!isNaN(b)){
+        const yr=b<100?2000+b:b;
+        return a<=12?yr*100+a:a*100+(b<=12?b:0);
+      }
+    }
+  }
+  // Month name + year: "Jan 2025", "January 2025", "Jan-2025", "Jan/2025"
   const MONTHS=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
-  mt=s.match(/([a-zA-Z]+)[\s\-\/]+(\d{2,4})/);
-  if(!mt)mt=s.match(/(\d{2,4})[\s\-\/]+([a-zA-Z]+)/);
-  if(mt){
-    const parts=[mt[1].toLowerCase(),mt[2].toLowerCase()];
-    const nameIdx=MONTHS.findIndex(n=>parts[0].startsWith(n));
-    const yr=nameIdx>=0?parseInt(parts[1]):parseInt(parts[0]);
-    const mo=nameIdx>=0?(nameIdx+1):MONTHS.findIndex(n=>parts[1].startsWith(n))+1;
-    if(yr>0&&mo>0)return yr*100+mo;
+  const sl=s.toLowerCase().replace(/[-\/]/g,' ');
+  const parts=sl.split(/\s+/).filter(Boolean);
+  if(parts.length>=2){
+    const ni0=MONTHS.findIndex(n=>parts[0].startsWith(n));
+    const ni1=MONTHS.findIndex(n=>parts[1].startsWith(n));
+    if(ni0>=0){const yr=parseInt(parts[1]);if(yr>0)return yr*100+(ni0+1);}
+    if(ni1>=0){const yr=parseInt(parts[0]);if(yr>0)return yr*100+(ni1+1);}
   }
   // Plain year: "2025"
-  mt=s.match(/^(\d{4})$/);
-  if(mt)return parseInt(mt[1])*100;
+  if(s.match(/^\d{4}$/))return parseInt(s)*100;
   return 0;
 }
 
@@ -784,7 +792,7 @@ function socPage(dir){const pages=Math.max(1,Math.ceil(_socFiltered.length/_socP
 function socExportCSV(){
   if(!_socFiltered.length)return;
   const keys=Object.keys(_socFiltered[0]||{});
-  const csv=[keys.join(','),..._socFiltered.map(r=>keys.map(k=>'"'+(String(r[k]||'').replace(/"/g,'""'))+'"').join(','))].join('\\n');
+  const csv=[keys.join(','),..._socFiltered.map(r=>keys.map(k=>'\\x22'+(String(r[k]||'').replace(/\\x22/g,'\\x22\\x22'))+'\\x22').join(','))].join('\\n');
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='sprout_social.csv';a.click();
 }
 
