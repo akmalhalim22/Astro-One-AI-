@@ -1,33 +1,54 @@
-# prod
+# ── Build output ─────────────────────────────────────────────────────────────
 dist/
+.wrangler/
 
-# dev
+# ── Dependencies ──────────────────────────────────────────────────────────────
+node_modules/
 .yarn/
 !.yarn/releases
-.vscode/*
-!.vscode/launch.json
-!.vscode/*.code-snippets
-.idea/workspace.xml
-.idea/usage.statistics.xml
-.idea/shelf
 
-# deps
-node_modules/
-.wrangler
-
-# env
+# ── Environment & Secrets ─────────────────────────────────────────────────────
+# NEVER commit real credentials — use wrangler secret put for production
 .env
+.env.*
 .env.production
-.dev.vars
+.env.local
+.dev.vars            # local wrangler dev secrets (contains real API keys)
+*.pem
+*.key
+service-account*.json
+*-service-account.json
 
-# logs
+# ── Editor / OS ───────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
 logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
 
-# misc
-.DS_Store
+# ── Runtime / Process ────────────────────────────────────────────────────────
+pids/
+*.pid
+*.seed
+*.pid.lock
+.pm2/
+
+# ── Misc ─────────────────────────────────────────────────────────────────────
+*.backup
+*.bak
+*.tmp
+*.swp

@@ -1,141 +1,263 @@
-# Astro One — Management AI Assistant
+# Astro One AI — Digital Performance Dashboard
 
-## Overview
-A production-ready, password-protected digital performance dashboard for Astro Malaysia Holdings Berhad. Built on Cloudflare Pages + Hono edge runtime.
+A production-ready, password-protected management intelligence dashboard for **Astro Malaysia Holdings Berhad**, built on the Cloudflare Workers edge runtime using the [Hono](https://hono.dev/) framework.
 
-## 🌐 Live URLs
-- **Production**: https://astro-one-ai.pages.dev
-- **Login**: https://astro-one-ai.pages.dev/login
-- **Settings**: https://astro-one-ai.pages.dev/settings (admin only)
+---
 
-## 🔐 Login Credentials
-| Field | Value |
-|-------|-------|
-| Email | `analytics@kult.my` |
-| Password | `Astro@2025!` |
-| Session | 8 hours, HttpOnly + Secure cookie |
+## 🌐 Live Demo
 
-## ✅ Features Implemented
+| URL | Description |
+|-----|-------------|
+| https://astro-one-ai.pages.dev | Production dashboard |
+| https://astro-one-ai.pages.dev/login | Login page |
+| https://astro-one-ai.pages.dev/ai | Ask AI assistant |
 
-### Authentication
-- Password-protected login with PBKDF2 hashed passwords
-- Session tokens stored in Cloudflare KV (8h TTL)
-- Secure HttpOnly cookies (Secure flag on HTTPS, Lax SameSite)
-- Multi-user support: admin, editor, viewer roles
-- Settings page for user management (admin only)
+---
 
-### Dashboard Screens (all routes return 200)
-| Path | Screen |
-|------|--------|
-| `/home` | Home Dashboard |
-| `/overview` | All-metrics Overview |
-| `/ai` | Ask AI (chat interface) |
-| `/digest` | Executive Daily Digest |
-| `/pipeline` | Pipeline Health |
-| `/clients` | Client Intelligence |
-| `/salesperf` | Sales Performance |
-| `/revenue` | Revenue Performance |
-| `/campaign` | Campaign Performance |
-| `/ads` | Ads Performance |
-| `/portals` | Portals Traffic |
-| `/social` | Sprout Social |
-| `/upload` | Manual Data Upload |
-| `/apiconn` | API Connections |
-| `/setup` | Setup Guide |
-| `/blend` | Data Blend Builder |
-| `/reportai` | Report AI (chat → PPTX/PDF) |
-| `/canvas` | Drag-and-drop Canvas |
-| `/settings` | Platform Settings (admin) |
+## ✨ Features
 
-### Google Sheets Integration
-- Service Account JSON auth (no npm googleapis — pure Web Crypto + Fetch)
-- `GET /api/data/:section` — reads live data from configured sheet tabs
-- `GET /api/kpis` — aggregates pipeline + revenue totals
-- `POST /api/upload` — appends CSV rows to a sheet tab
-- `GET /api/settings/config` — returns saved config (sheet ID, tab mapping, creds status)
-- Settings screen auto-loads saved config on page open
+### Authentication & Access Control
+- PBKDF2-hashed passwords with per-user salts
+- Session tokens in Cloudflare KV (8-hour TTL)
+- Secure HttpOnly cookies (Lax SameSite, Secure on HTTPS)
+- Multi-user support: **admin**, **editor**, **viewer** roles
+- Admin Settings page for user management
 
-### Report AI Tab (`/reportai`)
-- Chat-style prompt interface
-- Suggested prompt pills
-- 6-page report preview with charts + KPIs
-- Live Revenue vs Target bar + Product Mix donut (Chart.js)
-- Export buttons (PPTX / PDF)
-- Save / rename / rerun controls
-- Data source panel (Google Sheets, GA4, Ads, TikTok, Sprout)
+### Dashboard Screens
 
-### Canvas Tab (`/canvas`)
-- Drag-and-drop widget toolbox
-- Pre-populated with 5 widgets (pivot, bar, line, donut, KPI card)
-- Column browser for all 7 data sources
-- Per-widget type switcher + config panel
-- Save / clear / rename / auto-layout / export
+| Route | Screen | Data Source |
+|-------|--------|-------------|
+| `/home` | Home Dashboard | Google Sheets (KPI aggregates) |
+| `/overview` | All-Metrics Overview | Google Sheets |
+| `/ai` | Ask AI (Chat Interface) | OpenAI GPT-4o |
+| `/digest` | Executive Daily Digest | OpenAI + Sheets |
+| `/pipeline` | Pipeline Health | Google Sheets — Pipeline tab |
+| `/clients` | Client Intelligence | Google Sheets — Clients tab |
+| `/salesperf` | Sales Performance | Google Sheets |
+| `/revenue` | Revenue Performance | Google Sheets — revenue tab |
+| `/campaign` | Campaign Performance | Google Sheets — direct campaign tab |
+| `/ads` | GAM Ads Analytics | Google Ad Manager API |
+| `/portals` | Portals Traffic | Google Analytics 4 |
+| `/social` | Sprout Social Performance | Google Sheets — Sprout Social tab |
+| `/settings` | User & Config Management | Cloudflare KV |
+| `/apiconn` | API Connections | Cloudflare KV |
 
-### Data Blend Sub-feature (`/blend`)
-- Blend Builder: Source A + B + optional Source C
-- Join type selector (left / inner / full outer)
-- Dynamic column display
-- Computed columns (revenue_per_session, engagement_x_revenue)
-- Schema preview + saved blends list
-- Preview table (5 rows) + CSV export
+### Data Integrations
+- **Google Sheets** — live read via Service Account (all business KPIs)
+- **Google Ad Manager API** — orders, line items, impressions, CTR
+- **OpenAI GPT-4o** — AI chat assistant + executive digest generation
+- *(Google Analytics 4 — sample data; connector ready)*
 
-## 🔧 How to Connect Your Google Sheets
+---
 
-1. Visit **https://astro-one-ai.pages.dev/settings** (login with admin credentials)
-2. **Google Sheets tab → Service Account Credentials**:
-   - Paste your Google Service Account JSON key
-   - Click **Save to Cloudflare Secrets**
-3. **Spreadsheet Configuration**:
-   - Enter your Spreadsheet ID (from the URL)
-   - Map tab names to dashboard sections
-   - Click **Auto-Detect Tabs** to fill automatically
-   - Click **Save Sheet Configuration**
-4. Click **Test Connection** to verify
-5. All dashboard screens will now show live data from your sheets
+## 🏗 Tech Stack
 
-### Sheet Tab Names Expected
-| Dashboard Section | Default Tab Name |
-|-------------------|-----------------|
-| Pre-Sales Pipeline | `Pipeline` |
-| Revenue | `Revenue` |
-| Campaign | `Campaign` |
-| Ads | `Ads` |
-| Traffic (GA4) | `Traffic` |
-| Sprout Social | `Social` |
-| Clients | `Clients` |
+| Layer | Technology |
+|-------|------------|
+| Runtime | [Cloudflare Workers](https://workers.cloudflare.com/) (edge, global) |
+| Framework | [Hono](https://hono.dev/) v4 |
+| Build Tool | [Vite](https://vitejs.dev/) + `@hono/vite-cloudflare-pages` |
+| Language | TypeScript |
+| Storage | Cloudflare KV (sessions, config) |
+| Frontend | Vanilla JS + Tailwind CSS (CDN) + Chart.js (CDN) |
+| Deployment | Cloudflare Pages |
 
-## 🏗️ Tech Stack
-- **Runtime**: Cloudflare Pages + Workers (edge)
-- **Framework**: Hono v4
-- **Auth**: PBKDF2 via Web Crypto API, sessions in Cloudflare KV
-- **Data**: Cloudflare KV (sessions + config), Google Sheets API (data)
-- **Charts**: Chart.js v4 (CDN)
-- **Icons**: FontAwesome 6.5 (CDN)
-- **Fonts**: Inter (Google Fonts CDN)
-- **CSS**: Custom dark theme (all inline, no build step)
+---
 
-## 📦 Cloudflare Resources
-- **KV Namespace**: `SESSIONS` (ID: `2c2f01d24ee8483390ca4ae09353437d`)
-- **Secrets**: `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH`, `ADMIN_SALT`
+## 🚀 Getting Started
 
-## 🚀 Deployment
+### Prerequisites
+- [Node.js](https://nodejs.org/) ≥ 18
+- [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/) ≥ 3.78 (`npm i -g wrangler`)
+- A Cloudflare account
+
+### 1 — Clone & Install
+
 ```bash
-# Install deps
+git clone https://github.com/akmalhalim22/Astro-One-AI-.git
+cd Astro-One-AI-
 npm install
-
-# Local dev
-npm run build
-pm2 start ecosystem.config.cjs
-
-# Deploy to production
-export CLOUDFLARE_API_TOKEN=your_token
-npx wrangler pages deploy dist --project-name astro-one-ai
 ```
 
-## 📊 Status
-- ✅ All 23 routes live and returning 200
-- ✅ Authentication working (login, session, logout)
-- ✅ Settings screen with live config load
-- ✅ Google Sheets API integration (Service Account JWT auth)
-- ✅ Zero console errors in production
-- **Last deployed**: 2026-04-02
+### 2 — Create Cloudflare KV Namespace
+
+```bash
+# Production KV namespace (stores sessions + config)
+npx wrangler kv:namespace create SESSIONS
+
+# Copy the returned ID into wrangler.jsonc → kv_namespaces[].id
+```
+
+### 3 — Configure wrangler.jsonc
+
+Open `wrangler.jsonc` and fill in your real KV namespace ID:
+
+```jsonc
+{
+  "name": "astro-one-ai",
+  "kv_namespaces": [
+    {
+      "binding": "SESSIONS",
+      "id": "<YOUR_KV_NAMESPACE_ID>"   // ← paste here
+    }
+  ]
+}
+```
+
+### 4 — Set Secrets
+
+```bash
+# Required — admin login credentials
+npx wrangler secret put ADMIN_EMAIL          # e.g. admin@yourcompany.com
+npx wrangler secret put ADMIN_PASSWORD_HASH  # run scripts/hash-password.js first
+npx wrangler secret put ADMIN_SALT
+
+# Optional — Google Sheets integration
+npx wrangler secret put SERVICE_ACCOUNT_JSON  # full JSON string of service account
+
+# Optional — Google Ad Manager
+npx wrangler secret put GAM_NETWORK_CODE
+npx wrangler secret put GAM_SERVICE_ACCOUNT_JSON
+
+# Optional — OpenAI AI features
+npx wrangler secret put OPENAI_API_KEY
+```
+
+> **Local development** — create `.dev.vars` (never commit this file):
+> ```
+> ADMIN_EMAIL=admin@yourcompany.com
+> ADMIN_PASSWORD_HASH=<hash>
+> ADMIN_SALT=<salt>
+> SERVICE_ACCOUNT_JSON={"type":"service_account",...}
+> GAM_NETWORK_CODE=12345678
+> OPENAI_API_KEY=sk-...
+> ```
+
+### 5 — Run Locally
+
+```bash
+npm run build          # compile TypeScript → dist/
+npm run dev:sandbox    # start wrangler pages dev on http://localhost:3000
+```
+
+### 6 — Deploy to Cloudflare Pages
+
+```bash
+npm run deploy         # builds + deploys to Cloudflare Pages
+```
+
+---
+
+## 📁 Project Structure
+
+```
+.
+├── src/
+│   ├── index.tsx              # Main Hono app — all routes & API endpoints
+│   ├── auth.ts                # Login / register / session HTML pages
+│   ├── layout.ts              # Shared HTML shell (nav, sidebar, theme)
+│   ├── styles.ts              # Global CSS variables & utility classes
+│   ├── sheets.ts              # Google Sheets API client (OAuth2 via SA)
+│   └── screens/
+│       ├── home.ts            # Home dashboard screen
+│       ├── overview.ts        # All-metrics overview
+│       ├── ai.ts              # AI chat interface
+│       ├── digest.ts          # Executive daily digest
+│       ├── presales.ts        # Pipeline & client screens
+│       ├── postsales.ts       # Revenue, Campaign, GAM screens
+│       ├── traffic.ts         # Portals traffic + Sprout Social screens
+│       ├── settings.ts        # User management & config UI
+│       ├── data.ts            # API Connections setup UI
+│       ├── reportai.ts        # AI report builder
+│       └── canvas.ts          # Custom canvas builder
+├── public/
+│   └── static/
+│       └── style.css          # Additional static styles
+├── wrangler.jsonc             # Cloudflare Pages / Workers config
+├── vite.config.ts             # Vite build config
+├── tsconfig.json              # TypeScript config
+├── ecosystem.config.cjs       # PM2 config for sandbox dev server
+└── package.json
+```
+
+---
+
+## 🔐 Environment Variables Reference
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `ADMIN_EMAIL` | ✅ | Admin login email |
+| `ADMIN_PASSWORD_HASH` | ✅ | PBKDF2 hash of admin password |
+| `ADMIN_SALT` | ✅ | Salt used to generate the hash |
+| `SERVICE_ACCOUNT_JSON` | Optional | Google Service Account JSON for Sheets + GAM |
+| `GAM_NETWORK_CODE` | Optional | Google Ad Manager network code |
+| `GAM_SERVICE_ACCOUNT_JSON` | Optional | Separate SA JSON for GAM (if different) |
+| `OPENAI_API_KEY` | Optional | OpenAI key for AI features (`/ai`, `/digest`) |
+
+> All secrets are stored in Cloudflare Workers secrets (encrypted at rest) and **never** in source code.
+
+---
+
+## 📊 Google Sheets Tab Names
+
+The dashboard reads from these **exact** tab names in your connected spreadsheet:
+
+| Section | Tab Name |
+|---------|----------|
+| Revenue Performance | `revenue` |
+| Campaign Performance | `direct campaign` |
+| Sprout Social | `Sprout Social` |
+| Pipeline | `Pipeline` |
+| Ads | `Ads` |
+| Traffic | `Traffic` |
+| Clients | `Clients` |
+
+---
+
+## 🔄 Deployment Pipeline
+
+### Manual Deploy
+```bash
+npm run deploy
+# equivalent to: npm run build && wrangler pages deploy dist --project-name astro-one-ai
+```
+
+### Automatic Deploy via GitHub Actions (Recommended)
+After connecting your GitHub repository to Cloudflare Pages:
+
+1. Go to **Cloudflare Dashboard** → Pages → `astro-one-ai` → Settings → Builds & Deployments
+2. Connect your GitHub repository (`akmalhalim22/Astro-One-AI-`)
+3. Set build settings:
+   - **Build command**: `npm run build`
+   - **Build output directory**: `dist`
+   - **Node.js version**: `18`
+4. Add all environment variables / secrets in the Cloudflare Pages dashboard
+5. Every push to `main` will automatically trigger a new deployment
+
+---
+
+## 🛡 Security Checklist
+
+- [x] Passwords hashed with PBKDF2 (100k iterations, SHA-256)
+- [x] Session tokens are random hex strings, stored only in KV
+- [x] HttpOnly + Secure cookies prevent XSS session theft
+- [x] No secrets in source code — all via Cloudflare Secrets
+- [x] `.gitignore` excludes `.dev.vars`, `.env.*`, `service-account*.json`
+- [x] API routes protected by `requireAuth` middleware
+- [x] Admin-only routes check `role === 'admin'`
+
+---
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/my-feature`
+3. Commit changes: `git commit -m "feat: add my feature"`
+4. Push to branch: `git push origin feature/my-feature`
+5. Open a Pull Request
+
+---
+
+## 📄 License
+
+Internal project — Astro Malaysia Holdings Berhad. All rights reserved.
